@@ -5,7 +5,11 @@ using Microsoft.Extensions.Logging;
 namespace ITMartinIndbakke.Application;
 
 /// <summary>What the mailbox gives back: the inbox headers and who the user has written to (from Sendt post).</summary>
-public sealed record MailboxScan(IReadOnlyList<MailHeader> Inbox, ISet<string> WroteTo, ISet<string> Mine);
+public sealed record MailboxScan(IReadOnlyList<MailHeader> Inbox, ISet<string> WroteTo, ISet<string> Mine)
+{
+    /// <summary>The newest mail I sent per Gmail conversation (Sendt post, headers only) - "Venter på svar". Empty for Outlook.</summary>
+    public IReadOnlyList<SentMail> Sent { get; init; } = [];
+}
 
 /// <summary>The port to the mailbox. v1 is read-only: it never moves, flags or deletes anything.</summary>
 public interface IMailbox
@@ -26,6 +30,12 @@ public sealed class MailScanner(IMailbox mailbox, ILogger<MailScanner> log, Time
     private int _months = 12;
 
     public MailOverview? Last { get; private set; }
+
+    /// <summary>The raw scan behind <see cref="Last"/> (headers + Sendt post) - the secretary works on it after each scan.</summary>
+    public MailboxScan? LastScan { get { lock (_gate) return _scan; } }
+
+    /// <summary>Runs after every good scan (Martin's own mailbox: dates + answers -> Husk). A failure here never breaks the scan.</summary>
+    public Func<MailboxScan, CancellationToken, Task>? AfterScan { get; set; }
     public bool Running => _running is { IsCompleted: false };
     public int Done { get; private set; }
     public int Total { get; private set; }
@@ -65,6 +75,11 @@ public sealed class MailScanner(IMailbox mailbox, ILogger<MailScanner> log, Time
             var scan = await mailbox.ScanAsync(months, progress, cts.Token);
             lock (_gate) { _scan = scan; _months = months; Last = MailRules.Build(scan.Inbox, scan.WroteTo, months, clock.GetUtcNow(), scan.Mine); }
             log.LogInformation("Indbakke scan: {Count} mails, {Senders} senders", Last.Total, Last.Senders.Count);
+            if (AfterScan is { } after)
+            {
+                try { await after(scan, cts.Token); }
+                catch (Exception e) { log.LogWarning(e, "Indbakke secretary after scan failed"); }
+            }
         }
         catch (Exception e)
         {
@@ -76,8 +91,9 @@ public sealed class MailScanner(IMailbox mailbox, ILogger<MailScanner> log, Time
     }
 }
 
-/// <summary>Martin's own Indbakke - the workspace behind his PIN.</summary>
-public sealed record OwnerMail(MailWorkspace Workspace);
+/// <summary>Martin's own Indbakke - the workspace behind his PIN - and his secretary (dates + "Venter på svar" -> Husk).
+/// Min Indbakke guests never get a secretary: their mail text is never read.</summary>
+public sealed record OwnerMail(MailWorkspace Workspace, Secretary Secretary);
 
 public static class IndbakkeApplication
 {
@@ -89,10 +105,13 @@ public static class IndbakkeApplication
         {
             var clock = sp.GetRequiredService<TimeProvider>();
             var scanner = new MailScanner(sp.GetRequiredService<IMailbox>(), sp.GetRequiredService<ILogger<MailScanner>>(), clock);
+            var secretary = new Secretary(scanner, sp.GetRequiredService<IMailText>(), sp.GetRequiredService<ISecretaryStore>(),
+                sp.GetRequiredService<IHusk>(), clock, sp.GetRequiredService<ILogger<Secretary>>());
+            scanner.AfterScan = secretary.AfterScanAsync;
             return new OwnerMail(new MailWorkspace(scanner,
                 new FollowUps(sp.GetRequiredService<IFollowUpStore>(), scanner, clock),
                 new Cleanup(scanner, sp.GetRequiredService<IMailboxCleaner>(), sp.GetRequiredService<IUnsubscriber>(), sp.GetRequiredService<ICleanupLog>(), clock),
-                "Martin"));
+                "Martin"), secretary);
         });
         services.AddSingleton<MailSessions>();   // Min Indbakke: one workspace per login, key in memory only
         return services;

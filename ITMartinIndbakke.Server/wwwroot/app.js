@@ -230,13 +230,78 @@
         }).join('');
     }
 
+    // The secretary (2026-11-18): dates found in mails (OK -> Husk) and "Du venter på svar" (Husk det -> Husk). Martin only.
+    var awaitAll = false, sec = null;
+    function dateText(d) { return new Date(d + 'T12:00:00').toLocaleDateString('da-DK', { weekday: 'short', day: 'numeric', month: 'short' }); }
+    function renderDates(list) {
+        $('ib-dates-card').hidden = !list.length;
+        $('ib-dates').innerHTML = list.map(function (d) {
+            return '<li data-dato="' + esc(d.id) + '"><div class="ib-top"><span class="ib-from">' + esc(d.ord) + ' ' + dateText(d.dato) + (d.tid ? ' kl. ' + esc(d.tid) : '') +
+                '</span><span class="ib-date">' + esc(d.fra) + '</span></div><div class="ib-subject">' + esc(d.emne) + '</div>' +
+                '<div class="ib-actions"><button type="button" class="k-btn k-btn-sm k-btn-primary" data-act="ok">OK – i Husk</button>' +
+                '<button type="button" class="k-btn k-btn-sm" data-act="ret">Forkert dato</button>' +
+                '<button type="button" class="k-btn k-btn-sm k-btn-ghost" data-act="ikke">Ikke vigtig</button></div>' +
+                '<form class="ib-read" hidden><label class="k-label">Rigtig dato <input class="k-input" type="date" name="dato" value="' + esc(d.dato) + '"></label>' +
+                '<label class="k-label">Kl. <input class="k-input" type="time" name="tid" value="' + esc(d.tid || '') + '"></label>' +
+                '<button class="k-btn k-btn-sm k-btn-primary" type="submit">Gem og læg i Husk</button></form></li>';
+        }).join('');
+    }
+    function renderAwait(list) {
+        $('ib-await-card').hidden = !list.length;
+        var shown = awaitAll ? list : list.slice(0, 8);
+        $('ib-await').innerHTML = shown.map(function (a) {
+            return '<li data-traad="' + esc(a.traad) + '"><div class="ib-top"><span class="ib-from">' + esc(a.hvem) + '</span><span class="ib-date">' + a.dage + ' dage</span></div>' +
+                '<div class="ib-subject">' + esc(a.emne || '(intet emne)') + '</div><div class="ib-actions">' +
+                (a.iHusk ? '<span class="ib-sub">Står i Husk</span>'
+                         : '<button type="button" class="k-btn k-btn-sm k-btn-primary" data-act="husk">Husk det</button>' +
+                           '<button type="button" class="k-btn k-btn-sm k-btn-ghost" data-act="skjul">Ikke vigtig</button>') + '</div></li>';
+        }).join('');
+        $('ib-await-more').hidden = list.length <= 8;
+        $('ib-await-more').textContent = awaitAll ? 'Vis færre' : 'Vis alle ' + list.length;
+    }
+    function loadSecretary() {
+        return fetch('/api/sekretaer', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+            if (!d) return;
+            sec = d; renderDates(d.datoer); renderAwait(d.venter);
+        }).catch(function () {});
+    }
+    $('ib-await-more').addEventListener('click', function () { awaitAll = !awaitAll; if (sec) renderAwait(sec.venter); });
+    $('ib-dates').addEventListener('click', function (e) {
+        var li = e.target.closest('li[data-dato]'), act = e.target.closest('[data-act]');
+        if (!li || !act) return;
+        var id = li.getAttribute('data-dato'), a = act.getAttribute('data-act');
+        if (a === 'ret') { li.querySelector('form').hidden = false; return; }
+        act.disabled = true;
+        api('POST', a === 'ok' ? '/api/dato/ok' : '/api/dato/ikke', { id: id }).then(function (r) {
+            if (r && r.fejl) { act.disabled = false; status(r.fejl); return; }
+            loadSecretary();
+        });
+    });
+    $('ib-dates').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var li = e.target.closest('li[data-dato]'), f = e.target;
+        api('POST', '/api/dato/ok', { id: li.getAttribute('data-dato'), dato: f.dato.value || null, tid: f.tid.value || null }).then(function (r) {
+            if (r && r.fejl) { status(r.fejl); return; }
+            loadSecretary();
+        });
+    });
+    $('ib-await').addEventListener('click', function (e) {
+        var li = e.target.closest('li[data-traad]'), act = e.target.closest('[data-act]');
+        if (!li || !act) return;
+        act.disabled = true;
+        api('POST', act.getAttribute('data-act') === 'husk' ? '/api/venter/husk' : '/api/venter/skjul', { traad: li.getAttribute('data-traad') }).then(function (r) {
+            if (r && r.fejl) { act.disabled = false; status(r.fejl); return; }
+            loadSecretary();
+        });
+    });
+
     function load() {
         return api('GET', '/api/oversigt').then(function (d) {
             if (d.tom) { status('Tryk på Scan min mail for at begynde.'); return; }
             data = d;
             status(num(d.ialt) + ' mails de sidste ' + d.maaneder + ' måneder · ' + num(d.ulaeste) + ' ulæste · scannet ' +
                 new Date(d.scannet).toLocaleString('da-DK', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }));
-            renderCats(); loadHistory(); renderBaseline(d.grundlinje); renderNow(d.hasterNu); renderReply(d.skalSvares, d.afsluttede); renderSenders();
+            renderCats(); loadHistory(); renderBaseline(d.grundlinje); renderNow(d.hasterNu); renderReply(d.skalSvares, d.afsluttede); renderSenders(); loadSecretary();
         });
     }
 

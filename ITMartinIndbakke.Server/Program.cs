@@ -24,6 +24,7 @@ builder.Services.AddKolibri(k =>
         "Indbakke giver dig overblik over din mail, ligesom FileSorter rydder op i billeder: hvad der haster, hvem der venter på svar, og hvem der bare fylder.",
         "Digital Post og breve fra a-kasse, Jobnet og kommune bliver i Det haster nu, til du selv trykker Klaret. Har brevet en frist, skriver du datoen, så kan du ikke glemme den.",
         "Indbakke læser kun afsender, emne og dato – aldrig selve teksten i dine mails. Den sletter kun, når du selv trykker – og kun reklame, nyhedsbreve og notifikationer, aldrig mails fra mennesker, Digital Post eller kvitteringer.",
+        "Martins egen Indbakke er også en automatisk sekretær: den scanner selv hver halve time, finder møder og frister i nye mails fra mennesker og myndigheder, og ser hvem du venter på svar fra. Med ét tryk kommer det i Husk. Teksten læses kun i hukommelsen – kun dato, emne og afsender gemmes.",
     ];
     k.HowTo =
     [
@@ -36,8 +37,10 @@ builder.Services.AddKolibri(k =>
         "Under Ryd op kan du se, hvem der sender mest. Tryk Ryd op: du ser først, hvor mange mails det er, og hvilke der bliver gemt. Så kan du afmelde og slette med ét tryk.",
         "Under Ryd alt det gamle vælger du en dato og trykker Se hvad der sker. Du ser tallene først – så trykker du Ryd op nu. Alle mails får en Gmail-etiket, så Fortryd kan hente dem alle tilbage.",
         "Slettede mails ligger i Gmails papirkurv i 30 dage. Under Seneste oprydning kan du trykke Fortryd og få dem tilbage.",
+        "Datoer fundet i dine mails (Martins egen): tryk OK, så kommer mødet eller fristen i Husk med datoen. Er datoen forkert, tryk Forkert dato og ret den. Ikke vigtig skjuler den.",
+        "Du venter på svar (Martins egen): samtaler, hvor du skrev sidst. Tryk Husk det – når svaret kommer, flytter Husk selv bolden tilbage til dig med Læs svaret.",
     ];
-    k.Version = "2026.11.5";
+    k.Version = "2026.11.18";
     k.ThemeColor = "#0b1220";
     k.StaticPages = true;
 });
@@ -49,6 +52,8 @@ builder.Services.AddIndbakkeInfrastructure(
     builder.Configuration["Indbakke:AppPassword"] ?? "",
     dataDir);
 
+builder.Services.AddIndbakkeSecretary(builder.Configuration["Indbakke:HuskUrl"], builder.Configuration["Husk:ApiKey"], dataDir);
+builder.Services.AddHostedService<AutoScan>();   // the secretary: scan by itself every 30 minutes (user 2026-11-18 "automatic update on mails")
 builder.Services.AddMinIndbakke(builder.Configuration, dataDir);   // Min Indbakke: Indbakke__Kunder = the numbers Martin gave access
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<OwnerGate>();
@@ -112,8 +117,8 @@ app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) =>
         <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
         <title>{(owner ? "Indbakke" : "Ryd op i din mail · Indbakke")}</title><meta name="description" content="{info.Tagline}"><meta name="theme-color" content="{info.ThemeColor}">
         {(owner ? "<meta name=\"robots\" content=\"noindex\">" : "")}
-        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=4"><link rel="stylesheet" href="/app.css?v=13">
-        <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=11" defer></script>
+        <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=4"><link rel="stylesheet" href="/app.css?v=14">
+        <script src="/_content/ITMartin.Shared.UI/kolibri.js" defer></script><script src="/app.js?v=12" defer></script>
         <link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/{info.IconPath.TrimStart('/')}"></head>
         <body>{KolibriStaticPages.Header(info, actions: ThemeButton + (guest is not null || IsOwner(ctx) ? LogoutButton : ""))}<main class="k-main"><div class="k-content">{(owner ? (guest is null ? body : GuestBody(guest.Name)) : Guide(ctx.Request.Query["fejl"]))}</div></main>{KolibriStaticPages.Footer(info)}</body></html>
         """, "text/html; charset=utf-8");
@@ -250,6 +255,34 @@ api.MapGet("/oprydning", (Cleanup cleanup, TimeProvider clock) => Results.Ok(cle
 })));
 api.MapPost("/oprydning/fortryd", (FortrydForm f, Cleanup cleanup) => Answer(cleanup.StartUndo(f.Id)));
 
+// The secretary (2026-11-18) - Martin only (his PIN cookie); guests never see it.
+api.MapGet("/sekretaer", (HttpContext ctx, OwnerMail own, TimeProvider clock) =>
+{
+    if (!IsOwner(ctx)) return Results.NotFound();
+    var now = clock.GetUtcNow();
+    return Results.Ok(new
+    {
+        husk = own.Secretary.HuskReady,
+        datoer = own.Secretary.Dates().Select(d => new
+        {
+            id = d.Id, dato = d.Date.ToString("yyyy-MM-dd"), tid = d.Time?.ToString("HH:mm"), ord = d.Word, fra = d.From, emne = d.Subject,
+        }),
+        venter = own.Secretary.Awaiting().Select(a => new
+        {
+            traad = a.Conversation.ThreadId.ToString(), hvem = a.Conversation.Who, emne = a.Conversation.Subject,
+            dato = a.Conversation.Date, dage = a.Conversation.Days(now), iHusk = a.InHusk,
+        }),
+    });
+});
+api.MapPost("/dato/ok", async (HttpContext ctx, DatoForm f, OwnerMail own, CancellationToken ct) =>
+    !IsOwner(ctx) ? Results.NotFound() : Answer(await own.Secretary.OkAsync(f.Id ?? "", f.Dato, f.Tid, ct)));
+api.MapPost("/dato/ikke", (HttpContext ctx, DatoForm f, OwnerMail own) =>
+    !IsOwner(ctx) ? Results.NotFound() : Answer(own.Secretary.NotImportant(f.Id ?? "")));
+api.MapPost("/venter/husk", async (HttpContext ctx, TraadForm f, OwnerMail own, CancellationToken ct) =>
+    !IsOwner(ctx) ? Results.NotFound() : ulong.TryParse(f.Traad, out var t) ? Answer(await own.Secretary.WatchAsync(t, ct)) : Answer("Ukendt samtale."));
+api.MapPost("/venter/skjul", (HttpContext ctx, TraadForm f, OwnerMail own) =>
+    !IsOwner(ctx) ? Results.NotFound() : ulong.TryParse(f.Traad, out var t) ? Answer(own.Secretary.Hide(t)) : Answer("Ukendt samtale."));
+
 static IResult Answer(string? error) => error is null ? Results.Ok(new { ok = true }) : Results.BadRequest(new { fejl = error });
 
 // After a restart the overview (in memory only) is gone - scan again by itself, so the page is never empty.
@@ -273,6 +306,24 @@ string GuestBody(string name) =>
     + body.Replace("<p class=\"k-help k-center ib-guide-link\">", "<p hidden class=\"ib-guide-link\">");
 
 record FollowUpForm(string Id, DateOnly? Frist, string? Note);
+record DatoForm(string? Id, DateOnly? Dato, TimeOnly? Tid);
+record TraadForm(string? Traad);
+
+/// <summary>The secretary's clock: Martin's own mailbox is scanned again every 30 minutes (the first scan runs at start already).</summary>
+sealed class AutoScan(OwnerMail own, ILogger<AutoScan> log) : BackgroundService
+{
+    public static readonly TimeSpan Every = TimeSpan.FromMinutes(30);
+
+    protected override async Task ExecuteAsync(CancellationToken stop)
+    {
+        using var timer = new PeriodicTimer(Every);
+        while (await timer.WaitForNextTickAsync(stop))
+        {
+            if (!own.Workspace.Scanner.IsConfigured) continue;
+            if (own.Workspace.Scanner.Start(12)) log.LogInformation("Indbakke auto-scan started");
+        }
+    }
+}
 record RydForm(string? Adresse, bool Afmeld, bool Slet);
 record FortrydForm(Guid Id);
 record GammeltForm(DateOnly Foer, OldMode Maade);

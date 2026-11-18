@@ -26,7 +26,8 @@ public sealed record MailHeader(
     bool IsAutomatic,
     GmailTab Tab,
     bool Flagged = false,   // Gmail star = IMAP \Flagged; starred mail is never deleted
-    bool RepliedLater = false)   // I wrote later in the same Gmail conversation (from Sendt post) - also replies from the phone
+    bool RepliedLater = false,   // I wrote later in the same Gmail conversation (from Sendt post) - also replies from the phone
+    ulong ThreadId = 0)          // Gmail conversation (X-GM-THRID) - "Venter på svar" + answers to watched conversations
 {
     public string Domain => FromAddress.Contains('@') ? FromAddress[(FromAddress.LastIndexOf('@') + 1)..].ToLowerInvariant() : "";
 

@@ -14,7 +14,7 @@ namespace ITMartinIndbakke.Infrastructure;
 /// Only headers are fetched (Envelope + flags + the list headers) - never the text of a mail.
 /// Gmail's tabs come from Gmail searches (X-GM-RAW "category:promotions"), which also read nothing.
 /// </summary>
-public sealed class GmailImap(string user, string appPassword, int maxMails) : IMailbox, IMailboxCleaner
+public sealed class GmailImap(string user, string appPassword, int maxMails) : IMailbox, IMailboxCleaner, IMailText
 {
     internal static readonly string[] ListHeaders = ["List-Unsubscribe", "List-Unsubscribe-Post", "List-Id", "Precedence", "Auto-Submitted"];
 
@@ -33,6 +33,8 @@ public sealed class GmailImap(string user, string appPassword, int maxMails) : I
         var mine = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { me };   // + every From in Sendt post = my aliases
         // "Venter på dit svar" (2026-11-05): the newest time I wrote in each Gmail conversation - so a reply from the phone counts too.
         var iWrote = new Dictionary<ulong, DateTimeOffset>();
+        // "Venter på svar" (2026-11-18): the newest mail I sent in each conversation - to whom, subject, how many got it.
+        var lastSent = new Dictionary<ulong, SentMail>();
         if ((client.Capabilities & ImapCapabilities.SpecialUse) != 0 && client.GetFolder(SpecialFolder.Sent) is { } sent)
         {
             await sent.OpenAsync(FolderAccess.ReadOnly, ct);
@@ -40,7 +42,13 @@ public sealed class GmailImap(string user, string appPassword, int maxMails) : I
             foreach (var chunk in sentUids.Reverse().Take(5000).Chunk(500))
                 foreach (var s in await sent.FetchAsync(chunk, MessageSummaryItems.Envelope | MessageSummaryItems.GMailThreadId | MessageSummaryItems.InternalDate, ct))
                 {
-                    if (s.GMailThreadId is { } thr && (s.Envelope.Date ?? s.InternalDate) is { } at && (!iWrote.TryGetValue(thr, out var was) || at > was)) iWrote[thr] = at;
+                    if (s.GMailThreadId is { } thr && (s.Envelope.Date ?? s.InternalDate) is { } at && (!iWrote.TryGetValue(thr, out var was) || at > was))
+                    {
+                        iWrote[thr] = at;
+                        var to = s.Envelope.To.Mailboxes.Concat(s.Envelope.Cc.Mailboxes).ToList();
+                        var first = to.FirstOrDefault();
+                        lastSent[thr] = new SentMail(thr, first?.Address ?? "", first?.Name ?? "", s.Envelope.Subject ?? "", at, to.Count);
+                    }
                     foreach (var f in s.Envelope.From.Mailboxes) mine.Add(f.Address.ToLowerInvariant());
                     foreach (var a in s.Envelope.To.Mailboxes.Concat(s.Envelope.Cc.Mailboxes))
                         if (!string.Equals(a.Address, me, StringComparison.OrdinalIgnoreCase)) wroteTo.Add(a.Address.ToLowerInvariant());
@@ -73,7 +81,7 @@ public sealed class GmailImap(string user, string appPassword, int maxMails) : I
         await inbox.CloseAsync(false, ct);
         await client.DisconnectAsync(true, ct);
         wroteTo.ExceptWith(mine);
-        return new MailboxScan(mails, wroteTo, mine);
+        return new MailboxScan(mails, wroteTo, mine) { Sent = lastSent.Values.ToList() };
     }
 
     private async Task<ImapClient> ConnectAsync(CancellationToken ct)
@@ -186,6 +194,38 @@ public sealed class GmailImap(string user, string appPassword, int maxMails) : I
         return back;
     }
 
+    /// <summary>
+    /// The secretary (2026-11-18): the plain text of a few mails, so dates can be found. The inbox is opened ReadOnly (EXAMINE),
+    /// so nothing is marked read. Only the text part is fetched (no attachments), it lives in memory only, cut to 20,000 characters.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<uint, string>> ReadTextsAsync(IReadOnlyList<uint> uids, CancellationToken ct)
+    {
+        var result = new Dictionary<uint, string>();
+        if (uids.Count == 0 || !IsConfigured) return result;
+        using var client = await ConnectAsync(ct);
+        var inbox = client.Inbox;
+        await inbox.OpenAsync(FolderAccess.ReadOnly, ct);
+        var summaries = await inbox.FetchAsync(uids.Select(u => new UniqueId(u)).ToList(), MessageSummaryItems.UniqueId | MessageSummaryItems.BodyStructure, ct);
+        foreach (var s in summaries)
+        {
+            try
+            {
+                if ((s.TextBody ?? (BodyPart?)s.HtmlBody) is not BodyPartText part) continue;
+                if (await inbox.GetBodyPartAsync(s.UniqueId, part, ct) is not MimeKit.TextPart text) continue;
+                var t = part == s.TextBody ? text.Text : StripHtml(text.Text);
+                result[s.UniqueId.Id] = t.Length > 20_000 ? t[..20_000] : t;
+            }
+            catch (Exception) when (!ct.IsCancellationRequested) { /* one odd mail must not stop the rest */ }
+        }
+        await client.DisconnectAsync(true, ct);
+        return result;
+    }
+
+    internal static string StripHtml(string html) =>
+        System.Net.WebUtility.HtmlDecode(System.Text.RegularExpressions.Regex.Replace(
+            System.Text.RegularExpressions.Regex.Replace(html, @"<(script|style)[^>]*>.*?</\1>", " ", System.Text.RegularExpressions.RegexOptions.Singleline | System.Text.RegularExpressions.RegexOptions.IgnoreCase),
+            "<[^>]+>", " "));
+
     internal static MailHeader ToHeader(IMessageSummary s, string me, Dictionary<uint, GmailTab> tabs, IReadOnlyDictionary<ulong, DateTimeOffset>? iWrote = null)
     {
         var env = s.Envelope;
@@ -212,7 +252,8 @@ public sealed class GmailImap(string user, string appPassword, int maxMails) : I
             tabs.TryGetValue(s.UniqueId.Id, out var t) ? t : GmailTab.None,
             flags.HasFlag(MessageFlags.Flagged),
             RepliedLater: s.GMailThreadId is { } thr && iWrote is not null && iWrote.TryGetValue(thr, out var wrote)
-                && wrote > (env.Date ?? s.InternalDate ?? DateTimeOffset.MinValue));
+                && wrote > (env.Date ?? s.InternalDate ?? DateTimeOffset.MinValue),
+            ThreadId: s.GMailThreadId ?? 0);
     }
 }
 
