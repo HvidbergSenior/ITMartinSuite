@@ -1,0 +1,31 @@
+/* MitBudget on top of kolibri.css: only layout for this app - all colours, spacing and type come from the --k-* tokens. */
+.mb-box > summary { list-style: none; }
+.mb-box > summary::-webkit-details-marker, .mb-cat > summary::-webkit-details-marker { display: none; }
+.mb-sum { display: flex; align-items: center; gap: var(--k-space-3); cursor: pointer; flex-wrap: wrap; }
+.mb-sum::after { content: "▾"; color: var(--k-muted); margin-left: auto; padding-left: var(--k-space-2); transition: transform .15s; }
+details:not([open]) > .mb-sum::after { transform: rotate(-90deg); }
+.mb-box > summary + * { margin-top: var(--k-space-3); }
+.mb-box p { margin: 0 0 var(--k-space-2); }
+.mb-name { font-weight: 700; flex: 1; min-width: 10ch; }
+.mb-meta { color: var(--k-muted); font-size: var(--k-fs-small); }
+.mb-amount { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.mb-amount.neg { color: var(--k-danger); }
+.mb-amount.pos { color: var(--k-success); }
+.mb-h2 { margin: var(--k-space-5) 0 var(--k-space-3); }
+.mb-filter { display: flex; gap: var(--k-space-2); flex-wrap: wrap; margin: var(--k-space-4) 0; }
+.mb-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--k-space-3); }
+.mb-tile { margin: 0; display: flex; flex-direction: column; gap: var(--k-space-1); }
+.mb-tile span { color: var(--k-muted); font-size: var(--k-fs-small); }
+.mb-tile b { font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.mb-scroll { overflow-x: auto; margin-bottom: var(--k-space-3); }
+.mb-months { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: var(--k-fs-small); }
+.mb-months th, .mb-months td { padding: var(--k-space-1) var(--k-space-2); border-bottom: 1px solid var(--k-border-2); text-align: right; white-space: nowrap; }
+.mb-months th:first-child, .mb-months td:first-child { text-align: left; }
+.mb-months th { color: var(--k-muted); font-weight: 600; }
+.mb-cat { border-top: 1px solid var(--k-border-2); padding: var(--k-space-3) 0 0; margin-top: var(--k-space-3); }
+.mb-txs { list-style: none; margin: var(--k-space-3) 0 0; padding: 0; display: flex; flex-direction: column; }
+.mb-txs li { padding: var(--k-space-2) 0; border-top: 1px solid var(--k-border-2); }
+.mb-tx { display: flex; align-items: center; gap: var(--k-space-3); flex-wrap: wrap; }
+.mb-date { color: var(--k-muted); white-space: nowrap; min-width: 6ch; font-variant-numeric: tabular-nums; }
+.mb-text { flex: 1; min-width: 12ch; overflow-wrap: anywhere; }
+.mb-ai { margin: var(--k-space-2) 0 0; padding: var(--k-space-2) var(--k-space-3); background: var(--k-accent-soft); border-radius: var(--k-radius-sm); font-size: var(--k-fs-small); }

@@ -1,12 +1,12 @@
-﻿<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="da" data-family="rede">
 <head>
     <script>
         // Applied before first paint to avoid a flash of the wrong theme -
         // must run this early (top of <head>), not deferred like the rest of
         // the app's inline scripts.
         (function () {
-            var theme = localStorage.getItem('budget_theme') || 'dark';
+            var theme = localStorage.getItem('budget_theme') || 'light';
             document.documentElement.setAttribute('data-theme', theme);
         })();
     </script>
@@ -19,11 +19,18 @@
 
     <base href="/" />
 
-    <link rel="stylesheet"
-          href="_content/ITMartin.Shared.UI/css/Shared.css" />
-
-    <link rel="stylesheet"
-          href="css/Budget.css" />
+    @if (IsKolibriPage)
+    {
+        @* New MitBudget pages: only the shared Kolibri look (same template as MinElpris). *@
+        <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css" />
+        <link rel="stylesheet" href="css/mitbudget.css" />
+    }
+    else
+    {
+        @* The older shop-* pages keep their own css until they are moved over. *@
+        <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/Shared.css" />
+        <link rel="stylesheet" href="css/Budget.css" />
+    }
 
     <link href="ITMartinBudget.Server.styles.css"
           rel="stylesheet" />
@@ -38,28 +45,36 @@
 <script src="_framework/blazor.web.js"></script>
 
     <div id="components-reconnect-modal">
-        <span class="reconnect-msg">🔄 Forbinder igen...</span>
-        <span class="reconnect-failed-msg">😴 Forbindelsen er tabt — <button onclick="location.reload()">Genindlæs</button></span>
+        <span class="reconnect-msg">Forbinder igen...</span>
+        <span class="reconnect-failed-msg">Forbindelsen er tabt — <button onclick="location.reload()">Genindlæs</button></span>
     </div>
 
+@if (!IsKolibriPage)
+{
 <button id="themeToggleBtn" title="Skift lys/mørk visning"
         style="position:fixed;bottom:20px;right:20px;z-index:9999;width:52px;height:52px;border-radius:50%;border:2px solid #fff;background:linear-gradient(135deg,#60a5fa,#3b82f6);color:#fff;font-size:22px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center">
     🌓
 </button>
+}
 <script>
 (function () {
-    var btn = document.getElementById('themeToggleBtn');
+    // Works for the old floating button and for the one in the Kolibri header
+    // (Blazor renders the header again, so the click is caught on the document).
     function sync() {
-        var current = document.documentElement.getAttribute('data-theme') || 'dark';
-        btn.textContent = current === 'light' ? '🌙' : '☀️';
+        var b = document.getElementById('themeToggleBtn'); if (!b) return;
+        var current = document.documentElement.getAttribute('data-theme') || 'light';
+        var label = b.dataset.kolibri ? (current === 'light' ? 'Mørk' : 'Lys') : (current === 'light' ? '🌙' : '☀️');
+        if (b.textContent !== label) b.textContent = label;
     }
-    btn.addEventListener('click', function () {
-        var current = document.documentElement.getAttribute('data-theme') || 'dark';
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest || !e.target.closest('#themeToggleBtn')) return;
+        var current = document.documentElement.getAttribute('data-theme') || 'light';
         var next = current === 'light' ? 'dark' : 'light';
         document.documentElement.setAttribute('data-theme', next);
         localStorage.setItem('budget_theme', next);
         sync();
     });
+    new MutationObserver(sync).observe(document.body, { childList: true, subtree: true });
     sync();
 })();
 </script>
@@ -88,3 +103,18 @@
 </script>
 </body>
 </html>
+
+@code {
+    [CascadingParameter] private HttpContext? HttpContext { get; set; }
+
+    // "/" and /kategorier are the new Kolibri pages; /kolibri/om + /kolibri/hjaelp are the shared ones.
+    private bool IsKolibriPage
+    {
+        get
+        {
+            var path = HttpContext?.Request.Path.Value ?? "/";
+            return path == "/" || path.StartsWith("/kategorier", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/kolibri", StringComparison.OrdinalIgnoreCase);
+        }
+    }
+}

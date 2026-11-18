@@ -162,4 +162,31 @@ public sealed class CategoryRuleService : ICategoryRuleService
 
         await _db.SaveChangesAsync(cancellationToken);
     }
+
+    public Task<List<Application.Services.CategoryTransaction>> GetLedgerTransactionsAsync(string ledgerId, CancellationToken cancellationToken = default) =>
+        _db.Transactions.AsNoTracking()
+            .Where(x => x.LedgerId == ledgerId)
+            .Select(x => new Application.Services.CategoryTransaction(
+                x.Date, x.Description, x.Amount, x.RawDetails, x.NormalizedDescription, x.UserCategoryName, x.Scope))
+            .ToListAsync(cancellationToken);
+
+    public Task<Dictionary<string, Application.Models.InvestigationResult>> GetInvestigationsAsync(string ledgerId, CancellationToken cancellationToken = default) =>
+        _db.TransactionInvestigations.AsNoTracking()
+            .Where(x => x.LedgerId == ledgerId)
+            .ToDictionaryAsync(x => x.Pattern,
+                x => new Application.Models.InvestigationResult(x.Reasoning, x.SuggestedScope, x.Confidence), cancellationToken);
+
+    public async Task SaveInvestigationAsync(string ledgerId, string pattern, Application.Models.InvestigationResult result, CancellationToken cancellationToken = default)
+    {
+        var existing = await _db.TransactionInvestigations.FindAsync([ledgerId, pattern], cancellationToken);
+        if (existing is null)
+        {
+            existing = new TransactionInvestigation { LedgerId = ledgerId, Pattern = pattern };
+            _db.TransactionInvestigations.Add(existing);
+        }
+        existing.Reasoning = result.Reasoning;
+        existing.SuggestedScope = result.SuggestedScope;
+        existing.Confidence = result.Confidence;
+        await _db.SaveChangesAsync(cancellationToken);
+    }
 }

@@ -1,3 +1,4 @@
+using ITMartin.Shared.UI.Kolibri;
 using ITMartinBudget.Application;
 using ITMartinBudget.Application.Interfaces;
 using ITMartinBudget.Application.Services;
@@ -16,6 +17,30 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddSingleton<ToastService>();
+
+// Kolibri frame (shared header/footer, /om, /hjaelp, /health) - same template as MinElpris.
+builder.Services.AddKolibri(k =>
+{
+    k.Name = "MitBudget";
+    k.KolibriName = "Kolibri Rede";
+    k.Family = "rede";
+    k.Tagline = "Dine egne kategorier - også for MobilePay, overførsler og kontanter.";
+    k.About =
+    [
+        "Banken ved kun, hvem der fik pengene - ikke hvad de var til. I MitBudget giver du hver betaling din egen kategori, og så sorterer den sig selv næste gang.",
+        "Du ser dit forbrug pr. kategori og pr. måned, og du kan åbne en kategori og se hver eneste betaling bag tallet.",
+        "Privat og forretning holdes adskilt, så forretningens udgifter kan vises for sig.",
+    ];
+    k.HowTo =
+    [
+        "Hent et kontoudtog fra din netbank som CSV-fil og læg det ind.",
+        "Åbn Kategorier. Tryk på en kategori for at se betalingerne i den.",
+        "Er du i tvivl om en betaling, så tryk Spørg AI ved betalingen. Svaret bliver gemt.",
+    ];
+    k.Version = "2.0";
+});
+builder.Services.AddScoped(sp => new ITMartinBudget.Application.Services.CategoryOverviewService(
+    sp.GetRequiredService<ICategoryRuleService>(), () => sp.GetRequiredService<IInvestigationService>()));
 
 // Enum values as strings ("Business" not "1") for the REST endpoints backing
 // /shop-categorize's vanilla-JS UI, which compares against the enum's name.
@@ -154,6 +179,12 @@ app.Use(async (ctx, next) =>
     var bypass = path.StartsWith("/_blazor", StringComparison.OrdinalIgnoreCase)
               || path.StartsWith("/_framework", StringComparison.OrdinalIgnoreCase)
               || path.StartsWith("/login", StringComparison.OrdinalIgnoreCase)
+              || path.StartsWith("/kolibri", StringComparison.OrdinalIgnoreCase)
+              || path.StartsWith("/om", StringComparison.OrdinalIgnoreCase)
+              || path.StartsWith("/hjaelp", StringComparison.OrdinalIgnoreCase)
+              || path.StartsWith("/api/hjaelp", StringComparison.OrdinalIgnoreCase)
+              || path.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
+              || path.StartsWith("/manifest", StringComparison.OrdinalIgnoreCase)
               || path.StartsWith("/api/auth", StringComparison.OrdinalIgnoreCase)
               || path.StartsWith("/quick", StringComparison.OrdinalIgnoreCase)
               || path.StartsWith("/api/quick", StringComparison.OrdinalIgnoreCase);
@@ -299,7 +330,7 @@ app.MapGet("/api/shop/{ledgerId}/transactions-by-category", async (string ledger
     var transactions = await db.Transactions
         .Where(x => x.LedgerId == ledgerId && x.UserCategoryName == category)
         .OrderByDescending(x => x.Date)
-        .Select(x => new { date = x.Date, description = x.Description, amount = x.Amount, rawDetails = x.RawDetails })
+        .Select(x => new { date = x.Date, description = x.Description, amount = x.Amount, rawDetails = x.RawDetails, pattern = x.NormalizedDescription })
         .ToListAsync();
     return Results.Ok(transactions);
 });
@@ -755,12 +786,14 @@ app.MapGet("/api/quick/subscriptions", async (string? token, ISubscriptionDetect
 });
 
 app.UseAntiforgery();
+app.MapKolibri();
 
 // =========================
 // BLAZOR
 // =========================
 app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+    .AddInteractiveServerRenderMode()
+    .AddAdditionalAssemblies(typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly);
 
 // =========================
 // RUN

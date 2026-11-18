@@ -1,0 +1,164 @@
+@page "/"
+@page "/kategorier"
+@page "/kategorier/{LedgerId}"
+@layout ITMartinBudget.Server.Layout.KolibriLayout
+@rendermode InteractiveServer
+@using ITMartinBudget.Application.Services
+@using ITMartinBudget.Application.Models
+@inject CategoryOverviewService Overview
+@inject IConfiguration Config
+
+<PageTitle>Kategorier – MitBudget</PageTitle>
+
+<details class="k-card mb-box">
+    <summary class="mb-sum"><span class="k-card-title">Formål</span></summary>
+    <p>Banken ved kun, hvem der fik pengene – ikke hvad de var til. Her har hver betaling din egen kategori, også MobilePay, overførsler og kontanter.</p>
+</details>
+
+<details class="k-card mb-box">
+    <summary class="mb-sum"><span class="k-card-title">Om siden</span></summary>
+    <p>Siden viser dit forbrug og dine indtægter i @_data?.Year, delt i dine egne kategorier og pr. måned.</p>
+    <p><b>Sådan gør du:</b> tryk på en gruppe for at se kategorierne i den. Tryk på en kategori for at se hver betaling. Er du i tvivl om en betaling, så tryk <b>Spørg AI</b>. Svaret bliver gemt.</p>
+</details>
+
+<div class="mb-filter" role="group" aria-label="Vis">
+    @foreach (var (f, label) in Filters)
+    {
+        <button type="button" class="k-btn k-btn-sm @(_filter == f ? "k-btn-primary" : "k-btn-ghost")" @onclick="() => SetFilter(f)">@label</button>
+    }
+</div>
+
+@if (_data is null)
+{
+    <p class="k-muted">Henter dine tal...</p>
+}
+else if (_data.Spending.Count == 0 && _data.Income.Count == 0)
+{
+    <div class="k-card"><p>Der er ingen betalinger endnu. Tryk <a href="/shop-upload">Læg ind</a> og vælg dit kontoudtog (CSV).</p></div>
+}
+else
+{
+    <div class="mb-tiles">
+        <div class="k-card mb-tile"><span>Forbrug i alt</span><b>@Kr(-_data.Spending.Sum(g => g.Sum)) kr</b></div>
+        <div class="k-card mb-tile"><span>Indtægter i alt</span><b>@Kr(_data.Income.Sum(g => g.Sum)) kr</b></div>
+        <div class="k-card mb-tile"><span>Kategorier</span><b>@(_data.Spending.Sum(g => g.Lines.Count) + _data.Income.Sum(g => g.Lines.Count))</b></div>
+    </div>
+
+    <h2 class="mb-h2">Forbrug</h2>
+    @foreach (var g in _data.Spending) { @GroupBox(g, -1) }
+
+    @if (_data.Income.Count > 0)
+    {
+        <h2 class="mb-h2">Indtægter</h2>
+        @foreach (var g in _data.Income) { @GroupBox(g, 1) }
+    }
+}
+
+@code {
+    [Parameter] public string? LedgerId { get; set; }
+
+    private static readonly (ScopeFilter, string)[] Filters =
+        [(ScopeFilter.All, "Alt"), (ScopeFilter.Private, "Privat"), (ScopeFilter.Business, "Forretning")];
+    private static readonly string[] MonthNames = ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
+
+    private CategoryOverview? _data;
+    private ScopeFilter _filter = ScopeFilter.All;
+    private string _ledger = "";
+    private readonly Dictionary<string, IReadOnlyList<CategoryTransaction>> _txs = new();
+    private Dictionary<string, InvestigationResult> _answers = new();
+    private readonly HashSet<string> _asking = new();
+    private readonly HashSet<string> _failed = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _ledger = LedgerId ?? Config["Budget:DefaultLedger"] ?? "familie-2026";
+        _data = await Overview.GetOverviewAsync(_ledger, _filter);
+        _answers = await Overview.GetSavedAnswersAsync(_ledger);
+    }
+
+    private async Task SetFilter(ScopeFilter f)
+    {
+        _filter = f;
+        _data = await Overview.GetOverviewAsync(_ledger, _filter);
+    }
+
+    private async Task OpenCategory(string name)
+    {
+        if (!_txs.ContainsKey(name)) _txs[name] = await Overview.GetTransactionsAsync(_ledger, name);
+    }
+
+    private async Task Ask(CategoryTransaction tx)
+    {
+        _asking.Add(tx.Pattern); _failed.Remove(tx.Pattern);
+        try { _answers[tx.Pattern] = await Overview.AskAiAsync(_ledger, tx); }
+        catch { _failed.Add(tx.Pattern); }
+        finally { _asking.Remove(tx.Pattern); }
+    }
+
+    private static string Kr(decimal v) => Math.Round(v).ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("da-DK"));
+    private static string Kr2(decimal v) => v.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("da-DK"));
+    private static string ScopeDa(string s) => s switch { "Business" => "Forretning", "Private" => "Privat", _ => "Ved ikke" };
+    private static string ConfDa(string s) => s switch { "High" => "høj", "Medium" => "middel", "Low" => "lav", _ => s };
+
+    private RenderFragment GroupBox(CategoryGroup g, int sign) => __builder =>
+    {
+        <details class="k-card mb-box mb-group">
+            <summary class="mb-sum">
+                <span class="mb-name">@g.Name</span>
+                <span class="mb-meta">@g.Count betalinger</span>
+                <span class="mb-amount">@Kr(sign * g.Sum) kr</span>
+            </summary>
+            <div class="mb-scroll">
+                <table class="mb-months">
+                    <thead><tr><th></th>@foreach (var m in _data!.Months) { <th>@MonthNames[m - 1]</th> }<th>I alt</th></tr></thead>
+                    <tbody>
+                        @foreach (var l in g.Lines)
+                        {
+                            <tr><td>@l.Sub</td>@foreach (var m in _data.Months) { <td>@(l.ByMonth.TryGetValue(m, out var v) && v != 0 ? Kr(sign * v) : "")</td> }<td><b>@Kr(sign * l.Sum)</b></td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @foreach (var l in g.Lines)
+            {
+                <details class="mb-cat" @ontoggle="() => OpenCategory(l.Name)">
+                    <summary class="mb-sum">
+                        <span class="mb-name">@l.Sub</span>
+                        <span class="mb-meta">@l.Count betalinger</span>
+                        <span class="mb-amount">@Kr(sign * l.Sum) kr</span>
+                    </summary>
+                    @if (_txs.TryGetValue(l.Name, out var txs))
+                    {
+                        <ul class="mb-txs">
+                            @foreach (var tx in txs)
+                            {
+                                <li>
+                                    <div class="mb-tx">
+                                        <span class="mb-date">@tx.Date.ToString("d. MMM", System.Globalization.CultureInfo.GetCultureInfo("da-DK"))</span>
+                                        <span class="mb-text">@tx.Description</span>
+                                        <span class="mb-amount @(tx.Amount < 0 ? "neg" : "pos")">@Kr2(tx.Amount) kr</span>
+                                        <button type="button" class="k-btn k-btn-ghost k-btn-sm" disabled="@_asking.Contains(tx.Pattern)" @onclick="() => Ask(tx)">
+                                            @(_asking.Contains(tx.Pattern) ? "AI tænker..." : "Spørg AI")
+                                        </button>
+                                    </div>
+                                    @if (_answers.TryGetValue(tx.Pattern, out var a))
+                                    {
+                                        <p class="mb-ai">@a.Reasoning <span class="k-muted">(Gæt: @ScopeDa(a.SuggestedScope) · sikkerhed @ConfDa(a.Confidence))</span></p>
+                                    }
+                                    else if (_failed.Contains(tx.Pattern))
+                                    {
+                                        <p class="mb-ai">AI kunne ikke svare lige nu. Tjek at AI-nøglen er sat, og prøv igen.</p>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <p class="k-muted">Henter betalinger...</p>
+                    }
+                </details>
+            }
+        </details>
+    };
+}

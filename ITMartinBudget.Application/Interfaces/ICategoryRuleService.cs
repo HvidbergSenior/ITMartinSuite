@@ -62,4 +62,11 @@ public interface ICategoryRuleService
     // one click (e.g. a private-looking category that turns out to be real
     // business spending) instead of re-doing it pattern by pattern.
     Task SetCategoryScopeAsync(string ledgerId, string categoryName, TransactionScope newScope, CancellationToken cancellationToken = default);
+
+    // For the Kategorier page (CategoryOverviewService): every posting in one read.
+    Task<List<Services.CategoryTransaction>> GetLedgerTransactionsAsync(string ledgerId, CancellationToken cancellationToken = default);
+
+    Task<Dictionary<string, Models.InvestigationResult>> GetInvestigationsAsync(string ledgerId, CancellationToken cancellationToken = default);
+
+    Task SaveInvestigationAsync(string ledgerId, string pattern, Models.InvestigationResult result, CancellationToken cancellationToken = default);
 }

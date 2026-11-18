@@ -1,6 +1,6 @@
-﻿@using ITMartinBudget.Server.Layout
+@using ITMartinBudget.Server.Layout
 
-<Router AppAssembly="typeof(Program).Assembly">
+<Router AppAssembly="typeof(Program).Assembly" AdditionalAssemblies="new[] { typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly }">
     <Found Context="routeData">
         <RouteView RouteData="routeData"
                    DefaultLayout="typeof(BudgetLayout)" />

@@ -122,15 +122,41 @@ setTimeout(function () {
                 const txList = details.querySelector('[data-role="txList"]');
                 const res = await fetch(`/api/shop/${encodeURIComponent(ledgerId)}/transactions-by-category?category=${encodeURIComponent(category)}`);
                 const txs = await res.json();
-                txList.innerHTML = txs.map(tx => `
-                    <div style="display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:4px 0;border-top:1px solid var(--border)">
-                        <span style="color:var(--muted);white-space:nowrap">${fmtDate(tx.date)}</span>
-                        <span style="flex:1">${esc(tx.description)}</span>
-                        <span class="${tx.amount < 0 ? 'amount-negative' : 'amount-positive'}" style="white-space:nowrap">
-                            ${tx.amount < 0 ? '−' : '+'}${Math.round(Math.abs(tx.amount)).toLocaleString('da-DK')} kr.
-                        </span>
+                txList.innerHTML = txs.map((tx, i) => `
+                    <div style="font-size:13px;padding:4px 0;border-top:1px solid var(--border)">
+                        <div style="display:flex;justify-content:space-between;gap:12px;align-items:center">
+                            <span style="color:var(--muted);white-space:nowrap">${fmtDate(tx.date)}</span>
+                            <span style="flex:1">${esc(tx.description)}</span>
+                            <span class="${tx.amount < 0 ? 'amount-negative' : 'amount-positive'}" style="white-space:nowrap">
+                                ${tx.amount < 0 ? '−' : '+'}${Math.abs(tx.amount).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.
+                            </span>
+                            <button class="btn" data-role="askAi" data-i="${i}" style="font-size:12px;padding:2px 8px;white-space:nowrap">Spørg AI</button>
+                        </div>
+                        <div data-role="aiAnswer" class="meta" style="margin-top:4px"></div>
                     </div>
                 `).join('');
+                // One AI call per press, only when the user asks (no loops) -
+                // the answer is saved per pattern by /investigate.
+                txList.querySelectorAll('[data-role="askAi"]').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        const tx = txs[Number(btn.dataset.i)];
+                        const out = btn.closest('div').parentElement.querySelector('[data-role="aiAnswer"]');
+                        btn.disabled = true;
+                        out.textContent = 'AI tænker...';
+                        try {
+                            const r = await fetch(`/api/shop/${encodeURIComponent(ledgerId)}/investigate`, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ pattern: tx.pattern, label: tx.description, sampleRawDetails: `${tx.rawDetails} · ${tx.amount} kr · ${tx.date.substring(0, 10)} · kategori nu: ${category}`, count: 1, totalAmount: tx.amount })
+                            });
+                            if (!r.ok) throw new Error();
+                            const a = await r.json();
+                            out.innerHTML = `${esc(a.reasoning)} <span style="color:var(--muted)">(Gæt: ${scopeLabelDa[a.suggestedScope] || esc(a.suggestedScope)} · sikkerhed ${esc(a.confidence)})</span>`;
+                        } catch {
+                            out.textContent = 'AI kunne ikke svare lige nu. Tjek at AI-nøglen er sat, og prøv igen.';
+                            btn.disabled = false;
+                        }
+                    });
+                });
             });
         });
     }
