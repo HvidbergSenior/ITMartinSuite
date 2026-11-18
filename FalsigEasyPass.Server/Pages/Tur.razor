@@ -1,0 +1,22 @@
+@page "/tur"
+
+<PageTitle>Min tur – Easy-Pass</PageTitle>
+
+@* "Min tur" = a list of place ids in this browser (localStorage "ep-tur"). ?steder=a,b,c opens a shared tour. *@
+<div data-page="tur">
+    <section class="k-card">
+        <h2 class="k-card-title">Min tur</h2>
+        <p id="tur-tom" class="k-muted">Din tur er tom. Find et sted, og tryk Læg på min tur.</p>
+        <p id="delt" class="ep-ok" hidden>Det her er en tur, som nogen har delt med dig. <button id="gem-delt" class="k-btn k-btn-secondary" type="button">Gem den som min tur</button></p>
+        <div id="tur-liste" class="ep-list"></div>
+    </section>
+
+    <section class="k-card" id="del-kort" hidden>
+        <h2 class="k-card-title">Del turen</h2>
+        <p class="k-muted">Send linket til dem, du skal af sted med – fx din ledsager.</p>
+        <div class="ep-row">
+            <input id="tur-link" class="ep-input ep-grow" readonly aria-label="Link til turen" />
+            <button id="kopier-tur" class="k-btn k-btn-secondary" type="button">Kopiér</button>
+        </div>
+    </section>
+</div>

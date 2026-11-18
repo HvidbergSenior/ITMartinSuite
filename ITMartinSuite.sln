@@ -536,6 +536,16 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinHjemmeside.Server",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinHjemmeside.Tests", "ITMartinHjemmeside.Tests\ITMartinHjemmeside.Tests.csproj", "{3290DF65-08AE-4EE1-B185-CB4443D346E7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FalsigEasyPass.Domain", "FalsigEasyPass.Domain\FalsigEasyPass.Domain.csproj", "{2AE76ED3-B018-42EF-826D-77EEA252118C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FalsigEasyPass.Application", "FalsigEasyPass.Application\FalsigEasyPass.Application.csproj", "{69E12217-EFC5-402E-BC48-A339B1F2672A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FalsigEasyPass.Infrastructure", "FalsigEasyPass.Infrastructure\FalsigEasyPass.Infrastructure.csproj", "{21676AEE-D005-4082-938F-689A663E9D59}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FalsigEasyPass.Server", "FalsigEasyPass.Server\FalsigEasyPass.Server.csproj", "{ECB6B57B-B2E3-47E8-9121-D09B90E84F56}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FalsigEasyPass.Tests", "FalsigEasyPass.Tests\FalsigEasyPass.Tests.csproj", "{E84B1FBC-1026-4B74-ACF2-2C0C79DD704E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -1593,5 +1603,25 @@ Global
 		{3290DF65-08AE-4EE1-B185-CB4443D346E7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3290DF65-08AE-4EE1-B185-CB4443D346E7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3290DF65-08AE-4EE1-B185-CB4443D346E7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2AE76ED3-B018-42EF-826D-77EEA252118C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2AE76ED3-B018-42EF-826D-77EEA252118C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2AE76ED3-B018-42EF-826D-77EEA252118C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2AE76ED3-B018-42EF-826D-77EEA252118C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{69E12217-EFC5-402E-BC48-A339B1F2672A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{69E12217-EFC5-402E-BC48-A339B1F2672A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{69E12217-EFC5-402E-BC48-A339B1F2672A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{69E12217-EFC5-402E-BC48-A339B1F2672A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{21676AEE-D005-4082-938F-689A663E9D59}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{21676AEE-D005-4082-938F-689A663E9D59}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{21676AEE-D005-4082-938F-689A663E9D59}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{21676AEE-D005-4082-938F-689A663E9D59}.Release|Any CPU.Build.0 = Release|Any CPU
+		{ECB6B57B-B2E3-47E8-9121-D09B90E84F56}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ECB6B57B-B2E3-47E8-9121-D09B90E84F56}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ECB6B57B-B2E3-47E8-9121-D09B90E84F56}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ECB6B57B-B2E3-47E8-9121-D09B90E84F56}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E84B1FBC-1026-4B74-ACF2-2C0C79DD704E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E84B1FBC-1026-4B74-ACF2-2C0C79DD704E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E84B1FBC-1026-4B74-ACF2-2C0C79DD704E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E84B1FBC-1026-4B74-ACF2-2C0C79DD704E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

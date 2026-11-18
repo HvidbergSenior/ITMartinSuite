@@ -1,0 +1,30 @@
+@page "/pas"
+
+<PageTitle>Mit pas – Easy-Pass</PageTitle>
+
+@* The needs are saved in this browser only (localStorage "ep-pas"). Nothing is sent to us except as a filter in a search. *@
+<div data-page="pas">
+    <section class="k-card">
+        <h2 class="k-card-title">Mit pas</h2>
+        <p>Sæt kryds ved det, der passer på dig. Så står der ved hvert sted, om det passer til dig – og hvorfor.</p>
+        <p class="k-muted">Dit pas gemmes kun i din egen browser. Vi gemmer det ikke.</p>
+        <div id="behov-liste" class="ep-behov"></div>
+        <p id="pas-gemt" class="ep-ok" aria-live="polite"></p>
+    </section>
+
+    <section class="k-card">
+        <h2 class="k-card-title">Vis dit pas ved indgangen</h2>
+        <p class="k-muted">Tryk Vis stort, og vis skærmen til personalet. Så ved de, hvad du har brug for, uden at du skal forklare det hele.</p>
+        <button id="vis-stort" class="k-btn k-btn-primary" type="button">Vis stort</button>
+        <div id="stort" class="ep-stort" hidden></div>
+    </section>
+
+    <section class="k-card">
+        <h2 class="k-card-title">Tag dit pas med til en anden telefon</h2>
+        <p class="k-muted">Kopiér linket, og åbn det på den anden telefon eller computer. Så har den samme kryds.</p>
+        <div class="ep-row">
+            <input id="pas-link" class="ep-input ep-grow" readonly aria-label="Link til dit pas" />
+            <button id="kopier" class="k-btn k-btn-secondary" type="button">Kopiér</button>
+        </div>
+    </section>
+</div>

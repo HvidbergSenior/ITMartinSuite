@@ -1,0 +1,52 @@
+/* Easy-Pass: colours ONLY from Kolibri tokens (light + dark follow the shared design). Never colour alone - every badge
+   has its word ("Passer til dig", "Tjek selv", "Passer ikke"), every table cell says Ja / Nej / Ikke tjekket. */
+:root {
+    --ep-ok-bg: color-mix(in srgb, var(--k-success) 14%, var(--k-card));
+    --ep-ok-line: color-mix(in srgb, var(--k-success) 50%, var(--k-card));
+    --ep-warn-bg: color-mix(in srgb, var(--k-warning) 14%, var(--k-card));
+    --ep-warn-line: color-mix(in srgb, var(--k-warning) 50%, var(--k-card));
+    --ep-err-bg: color-mix(in srgb, var(--k-danger) 12%, var(--k-card));
+    --ep-err-line: color-mix(in srgb, var(--k-danger) 50%, var(--k-card));
+}
+.ep-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 12px; }
+.ep-nav a { padding: 8px 14px; border: 1px solid var(--k-border); border-radius: 999px; color: var(--k-text); text-decoration: none; font-weight: 600; background: var(--k-card); }
+.ep-nav a:hover, .ep-nav a:focus-visible { border-color: var(--k-text); }
+.ep-count { font-weight: 400; color: var(--k-muted); }
+.ep-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.ep-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+.ep-row label { display: grid; gap: 4px; font-size: .9rem; color: var(--k-muted); }
+.ep-input { font: inherit; font-size: 1.05rem; padding: 10px 12px; border: 1px solid var(--k-muted-2); border-radius: 10px; background: var(--k-card); color: var(--k-text); min-width: 0; }
+.ep-grow { flex: 1 1 220px; }
+.ep-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.ep-chip { font: inherit; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--k-border); background: var(--k-card); color: var(--k-text); cursor: pointer; }
+.ep-chip[aria-pressed="true"] { background: var(--k-accent-soft); border-color: var(--k-text); font-weight: 700; }
+.ep-check { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; font-size: 1.05rem; cursor: pointer; }
+.ep-check input { width: 22px; height: 22px; flex: none; margin-top: 2px; }
+.ep-list { display: grid; gap: 8px; }
+.ep-sted { display: grid; gap: 4px; padding: 12px; border: 1px solid var(--k-border); border-radius: 12px; color: var(--k-text); text-decoration: none; background: var(--k-card); }
+a.ep-sted:hover, a.ep-sted:focus-visible { border-color: var(--k-text); }
+.ep-sted-navn { font-weight: 700; font-size: 1.05rem; color: var(--k-text); }
+.ep-klaret { opacity: .6; }
+.ep-badge { justify-self: start; display: inline-block; padding: 3px 10px; border-radius: 999px; font-weight: 700; font-size: .9rem; color: var(--k-text); border: 1px solid; }
+.ep-passer { background: var(--ep-ok-bg); border-color: var(--ep-ok-line); }
+.ep-tjek { background: var(--ep-warn-bg); border-color: var(--ep-warn-line); }
+.ep-ikke { background: var(--ep-err-bg); border-color: var(--ep-err-line); }
+.ep-pas-linje { font-weight: 600; }
+.ep-gruppe { border: 1px solid var(--k-border); border-radius: 12px; padding: 6px 14px 8px; margin: 0 0 10px; }
+.ep-gruppe legend { font-weight: 700; padding: 0 6px; }
+.ep-ok { font-weight: 600; }
+.ep-stort { margin-top: 12px; font-size: 1.5rem; line-height: 1.4; border: 2px solid var(--k-text); border-radius: 12px; padding: 16px; }
+.ep-stort ul { margin: 0; padding-left: 1.2em; }
+.ep-h1 { margin: 0 0 4px; font-size: 1.6rem; text-wrap: balance; }
+.ep-eksempel { background: var(--ep-warn-bg); border: 1px solid var(--ep-warn-line); border-radius: 8px; padding: 8px 10px; font-weight: 600; }
+.ep-match { display: grid; gap: 4px; margin: 10px 0; }
+.ep-match p { margin: 0; }
+.ep-table { width: 100%; border-collapse: collapse; margin: 6px 0 10px; }
+.ep-table th, .ep-table td { text-align: left; padding: 7px 4px; border-bottom: 1px solid var(--k-border); font-weight: 400; }
+.ep-table td { font-weight: 700; white-space: nowrap; }
+.ep-svar-ukendt { color: var(--k-muted); font-weight: 400 !important; }
+.ep-tlf { font-weight: 600; }
+.ep-form { display: grid; gap: 6px; }
+.ep-form label { font-size: .9rem; color: var(--k-muted); }
+.ep-fac { border: 1px solid var(--k-border); border-radius: 12px; padding: 8px 12px; }
+.ep-fac-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0; color: var(--k-text) !important; }

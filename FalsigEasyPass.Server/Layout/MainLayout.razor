@@ -1,0 +1,13 @@
+@inherits LayoutComponentBase
+
+<KolibriTitle />   @* tab title fallback - here, not in KolibriHeader, so the page's own <PageTitle> wins *@
+<KolibriHeader />
+<div class="k-main"><div class="k-content">
+    <nav class="ep-nav" aria-label="Easy-Pass">
+        <a href="/">Find steder</a>
+        <a href="/pas">Mit pas <span id="nav-pas" class="ep-count"></span></a>
+        <a href="/tur">Min tur <span id="nav-tur" class="ep-count"></span></a>
+    </nav>
+    @Body
+</div></div>
+<KolibriFooter />

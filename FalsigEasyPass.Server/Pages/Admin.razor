@@ -1,0 +1,65 @@
+@page "/admin"
+
+<PageTitle>Admin – Easy-Pass</PageTitle>
+
+@* PIN = EasyPass__AdminPin (6+ chars), sent as X-Pin, kept in sessionStorage only while the tab is open. *@
+<div data-page="admin">
+    <section class="k-card" id="pin-kort">
+        <h2 class="k-card-title">Admin</h2>
+        <form id="pin-form" class="ep-row">
+            <label class="ep-sr" for="pin">PIN</label>
+            <input id="pin" class="ep-input" type="password" placeholder="PIN" autocomplete="current-password" />
+            <button class="k-btn k-btn-primary" type="submit">Log ind</button>
+        </form>
+        <p id="pin-svar" aria-live="polite"></p>
+    </section>
+
+    <div id="admin-indhold" hidden>
+        <section class="k-card">
+            <h2 class="k-card-title">Beskeder fra gæster og steder</h2>
+            <div id="beskeder" class="ep-list"></div>
+        </section>
+
+        <section class="k-card">
+            <h2 class="k-card-title">Tilføj eller ret et sted</h2>
+            <p class="k-muted">Skriv et navn i søgefeltet for at rette et sted, der findes. Ellers udfyld og tryk Gem.</p>
+            <div class="ep-row">
+                <input id="ret-soeg" class="ep-input ep-grow" placeholder="Find sted at rette" aria-label="Find sted at rette" />
+            </div>
+            <div id="ret-fund" class="ep-chips"></div>
+            <form id="sted-form" class="ep-form">
+                <input type="hidden" id="s-id" />
+                <label for="s-navn">Navn</label><input id="s-navn" class="ep-input" maxlength="120" />
+                <label for="s-kategori">Kategori</label><select id="s-kategori" class="ep-input"></select>
+                <label for="s-adresse">Adresse</label><input id="s-adresse" class="ep-input" maxlength="160" />
+                <div class="ep-row">
+                    <label for="s-postnr">Postnr <input id="s-postnr" class="ep-input" maxlength="4" inputmode="numeric" /></label>
+                    <label for="s-by">By <input id="s-by" class="ep-input" maxlength="80" /></label>
+                </div>
+                <div class="ep-row">
+                    <label for="s-lat">Breddegrad <input id="s-lat" class="ep-input" inputmode="decimal" placeholder="56.15" /></label>
+                    <label for="s-lng">Længdegrad <input id="s-lng" class="ep-input" inputmode="decimal" placeholder="10.20" /></label>
+                </div>
+                <label for="s-web">Hjemmeside</label><input id="s-web" class="ep-input" maxlength="200" />
+                <label for="s-tlf">Telefon</label><input id="s-tlf" class="ep-input" maxlength="30" />
+                <label for="s-beskrivelse">Beskrivelse</label><textarea id="s-beskrivelse" class="ep-input" rows="3" maxlength="2000"></textarea>
+                <fieldset class="ep-fac"><legend>Hvad har stedet?</legend><div id="s-fac"></div></fieldset>
+                <div class="ep-row">
+                    <button class="k-btn k-btn-primary" type="submit">Gem</button>
+                    <button id="s-ny" class="k-btn k-btn-secondary" type="button">Nyt sted</button>
+                    <button id="s-slet" class="k-btn k-btn-secondary" type="button" hidden>Slet stedet</button>
+                </div>
+                <p id="sted-svar" aria-live="polite"></p>
+            </form>
+        </section>
+
+        <section class="k-card">
+            <h2 class="k-card-title">Hent steder fra en CSV-fil</h2>
+            <p class="k-muted">Fx eksporten fra den gamle Easy-Pass. Kolonner findes på navnet: navn, kategori, adresse, postnr, by, lat, lng, hjemmeside, telefon, beskrivelse – og en kolonne pr. facilitet med ja/nej. Samme navn og postnr opdaterer stedet.</p>
+            <input id="csv-fil" type="file" accept=".csv,text/csv" aria-label="Vælg CSV-fil" />
+            <button id="csv-hent" class="k-btn k-btn-primary" type="button">Hent steder</button>
+            <p id="csv-svar" aria-live="polite"></p>
+            <p><button id="slet-eksempler" class="k-btn k-btn-secondary" type="button">Slet alle eksempler</button></p>
+        </section>
+    </div>
+</div>

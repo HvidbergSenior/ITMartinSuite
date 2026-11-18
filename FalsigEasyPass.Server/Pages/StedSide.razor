@@ -1,0 +1,39 @@
+@page "/sted/{Id}"
+
+<PageTitle>Sted – Easy-Pass</PageTitle>
+
+<div data-page="sted" data-id="@Id">
+    <section class="k-card" id="sted-kort">
+        <p class="k-muted">Henter stedet …</p>
+    </section>
+
+    <section class="k-card">
+        <h2 class="k-card-title">Er noget forkert?</h2>
+        <p class="k-muted">Skriv, hvad der ikke passer – fx "der er tre trin ved indgangen". Vi tjekker det og retter.</p>
+        <form id="fejl-form" class="ep-form">
+            <label for="fejl-tekst">Hvad er forkert?</label>
+            <textarea id="fejl-tekst" class="ep-input" rows="3" maxlength="1000"></textarea>
+            <label for="fejl-mail">Din mail (hvis du vil have svar)</label>
+            <input id="fejl-mail" class="ep-input" type="email" maxlength="120" placeholder="navn@mail.dk" />
+            <button class="k-btn k-btn-primary" type="submit">Send</button>
+            <p id="fejl-svar" aria-live="polite"></p>
+        </form>
+    </section>
+
+    <section class="k-card">
+        <h2 class="k-card-title">Det er vores sted</h2>
+        <p class="k-muted">Arbejder du her? Skriv til os, så hjælper vi jer med at udfylde alt – gratis. Gæster med særlige behov kommer, når de ved, hvad de kan forvente.</p>
+        <form id="ejer-form" class="ep-form">
+            <label for="ejer-tekst">Hvem er du, og hvad vil I gerne rette?</label>
+            <textarea id="ejer-tekst" class="ep-input" rows="3" maxlength="1000"></textarea>
+            <label for="ejer-mail">Stedets mail</label>
+            <input id="ejer-mail" class="ep-input" type="email" maxlength="120" placeholder="info@stedet.dk" />
+            <button class="k-btn k-btn-primary" type="submit">Send</button>
+            <p id="ejer-svar" aria-live="polite"></p>
+        </form>
+    </section>
+</div>
+
+@code {
+    [Parameter] public string Id { get; set; } = "";
+}
