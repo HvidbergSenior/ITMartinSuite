@@ -41,44 +41,8 @@
     </div>
 </div>
 
-<script>
-// Deferred one tick: Blazor can still be inserting this markup when the script runs.
-setTimeout(function () {
-    const fileInput = document.getElementById('csvFile');
-    const ledgerInput = document.getElementById('ledgerId');
-    const status = document.getElementById('status');
-    if (!fileInput) return;
-    const show = (kind, html) => status.innerHTML = `<div class="k-alert k-alert-${kind}">${html}</div>`;
-
-    fileInput.addEventListener('change', async () => {
-        const file = fileInput.files[0];
-        // Lowercased here and on the server - "Familie" and "familie" must be the same account.
-        const ledgerId = ledgerInput.value.trim().toLowerCase();
-        if (!file) return;
-        if (!ledgerId) { show('danger', 'Skriv kontoens navn først.'); fileInput.value = ''; return; }
-        if (!file.name.toLowerCase().endsWith('.csv')) { show('danger', 'Filen skal være en CSV-fil fra netbanken.'); fileInput.value = ''; return; }
-
-        show('info', 'Lægger ind...');
-        const form = new FormData();
-        form.append('ledgerId', ledgerId);
-        form.append('scopeMode', document.querySelector('input[name="scopeMode"]:checked')?.value || 'Both');
-        form.append('file', file);
-        try {
-            const res = await fetch('/api/shop/upload', { method: 'POST', body: form });
-            if (!res.ok) { show('danger', await res.text()); return; }
-            const body = await res.json();
-            const msg = body.imported > 0
-                ? `${body.imported} betalinger er lagt ind på "${ledgerId}".`
-                : 'Der var ingen nye betalinger. Dem, der allerede var lagt ind, er sprunget over.';
-            show('ok', `${msg}<div class="k-mt"><a class="k-btn k-btn-primary k-btn-sm" href="/kategorier/${encodeURIComponent(ledgerId)}">Se kategorierne</a></div>`);
-        } catch (e) {
-            show('danger', 'Det lykkedes ikke at lægge filen ind. Prøv igen.');
-        } finally {
-            fileInput.value = '';
-        }
-    });
-}, 0);
-</script>
+@* The upload script is wwwroot/js/laeg-ind.js (loaded in App.razor): a script inside the page does not run when the
+   page is opened from the menu (Blazor's enhanced navigation), so the file was chosen and nothing happened. *@
 
 @code {
     [Parameter] public string? LedgerId { get; set; }
