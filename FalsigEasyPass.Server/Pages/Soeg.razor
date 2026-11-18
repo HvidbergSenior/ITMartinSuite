@@ -1,0 +1,27 @@
+@page "/soeg"
+
+<PageTitle>Søg selv – Easy-Pass</PageTitle>
+
+@* easypass.js fills this page: the search asks /api/steder with the needs from Mit pas (kept in this browser only). *@
+<div data-page="find">
+    <section class="k-card" id="pas-kort">
+        <h2 class="k-card-title">Dit pas</h2>
+        <p id="pas-tom" class="k-muted">Du har ikke sat kryds i Mit pas endnu. Gør det først, så kan vi sige, om et sted passer til dig.</p>
+        <p id="pas-linje" class="ep-pas-linje" hidden></p>
+        <a class="k-btn k-btn-secondary" href="/pas">Ret Mit pas</a>
+    </section>
+
+    <section class="k-card">
+        <h2 class="k-card-title">Søg selv</h2>
+        <form id="soeg-form" class="ep-row" autocomplete="off">
+            <label class="ep-sr" for="q">By, postnummer eller navn</label>
+            <input id="q" class="ep-input ep-grow" placeholder="Fx Aarhus, 8600 eller museum" enterkeyhint="search" />
+            <button class="k-btn k-btn-primary" type="submit">Søg</button>
+            <button id="naer" class="k-btn k-btn-secondary" type="button">Nær mig</button>
+        </form>
+        <div id="kategorier" class="ep-chips" role="group" aria-label="Vælg slags sted"></div>
+        <label class="ep-check"><input type="checkbox" id="kun-passer" /> Skjul steder, der ikke passer til mig</label>
+        <p id="soeg-info" class="k-muted" aria-live="polite"></p>
+        <div id="resultater" class="ep-list"></div>
+    </section>
+</div>

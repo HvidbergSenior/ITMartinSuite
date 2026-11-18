@@ -2,12 +2,49 @@
 
 <PageTitle>Sted – Easy-Pass</PageTitle>
 
+@* A place = a PLAN, not a data sheet: the answer first, then 1 Før du tager af sted, 2 Tag med, 3 Ved indgangen, 4 Bagefter.
+   The full facility list is folded at the bottom ("Alt om stedet"). *@
 <div data-page="sted" data-id="@Id">
     <section class="k-card" id="sted-kort">
         <p class="k-muted">Henter stedet …</p>
     </section>
 
-    <section class="k-card">
+    <section class="k-card" id="plan" hidden>
+        <h2 class="k-card-title">Din plan</h2>
+        <ol class="ep-plan">
+            <li id="p1">
+                <h3>Før du tager af sted</h3>
+                <div id="p1-indhold"></div>
+            </li>
+            <li id="p2">
+                <h3>Tag med</h3>
+                <ul id="p2-liste" class="ep-tjekliste"></ul>
+            </li>
+            <li id="p3">
+                <h3>Ved indgangen</h3>
+                <p>Vis dit pas til personalet, så ved de, hvad du har brug for – uden at du skal forklare det hele.</p>
+                <button id="vis-pas" class="k-btn k-btn-primary ep-big" type="button">Vis mit pas stort</button>
+            </li>
+            <li id="p4">
+                <h3>Bagefter: hvordan gik det?</h3>
+                <p class="k-muted">Dit svar hjælper den næste, der skal derhen.</p>
+                <div class="ep-next">
+                    <button id="gik-godt" class="k-btn k-btn-secondary ep-big" type="button">Det passede</button>
+                    <button id="gik-skidt" class="k-btn k-btn-secondary ep-big" type="button">Noget passede ikke</button>
+                </div>
+                <p id="gik-svar" aria-live="polite"></p>
+            </li>
+        </ol>
+    </section>
+
+    <div id="stort-pas" class="ep-overlay" hidden role="dialog" aria-modal="true" aria-label="Mit pas">
+        <div class="ep-overlay-in">
+            <div id="stort-pas-tekst"></div>
+            <button id="luk-pas" class="k-btn k-btn-primary ep-big" type="button">Luk</button>
+        </div>
+    </div>
+
+    <section class="k-card" id="fejl-kort">
         <h2 class="k-card-title">Er noget forkert?</h2>
         <p class="k-muted">Skriv, hvad der ikke passer – fx "der er tre trin ved indgangen". Vi tjekker det og retter.</p>
         <form id="fejl-form" class="ep-form">
@@ -20,7 +57,7 @@
         </form>
     </section>
 
-    <section class="k-card">
+    <section class="k-card" data-fold-closed>
         <h2 class="k-card-title">Det er vores sted</h2>
         <p class="k-muted">Arbejder du her? Skriv til os, så hjælper vi jer med at udfylde alt – gratis. Gæster med særlige behov kommer, når de ved, hvad de kan forvente.</p>
         <form id="ejer-form" class="ep-form">

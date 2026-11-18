@@ -49,6 +49,32 @@ public class MatchTests
         Katalog.Alle.SelectMany(b => b.Kraever).Should().OnlyContain(k => Katalog.FindFacilitet(k) != null);
 }
 
+public class PlanTests
+{
+    [Test]
+    public void Unchecked_things_become_questions_to_ask_and_the_card_goes_in_the_bag()
+    {
+        var sted = new Sted { Navn = "X", By = "Aarhus", Faciliteter = new() { ["niveaufri"] = Svar.Ja } };
+        var plan = Planlaegger.Lav(sted, Katalog.Laes("korestol,ledsager"));
+        plan.SpoergOm.Should().Contain("Har I et handicaptoilet?").And.Contain("Kommer en ledsager gratis ind med ledsagerkort?");
+        plan.SpoergOm.Should().NotContain(q => q.Contains("trin"));   // checked = no need to ask
+        plan.TagMed.Should().Equal("Dit ledsagerkort");
+        plan.Raad.Should().StartWith("Ring eller skriv");
+    }
+
+    [Test]
+    public void Everything_checked_means_no_calls_and_a_good_trip()
+    {
+        var sted = new Sted { Navn = "X", By = "Aarhus", Faciliteter = new() { ["toilet"] = Svar.Ja } };
+        var plan = Planlaegger.Lav(sted, Katalog.Laes("toilet"));
+        plan.SpoergOm.Should().BeEmpty();
+        plan.Raad.Should().Be("Stedet har det, du har brug for. God tur!");
+    }
+
+    [Test]
+    public void Every_facility_has_a_question() => Katalog.Faciliteter.Should().OnlyContain(f => f.Spoergsmaal.EndsWith("?"));
+}
+
 public class RulesTests
 {
     [Test]
@@ -129,7 +155,7 @@ public class ApiTests
     public async Task Pages_and_search_answer()
     {
         var c = _app.CreateClient();
-        foreach (var page in new[] { "/", "/pas", "/tur", "/admin", "/om" })
+        foreach (var page in new[] { "/", "/soeg", "/pas", "/tur", "/admin", "/om" })
             (await c.GetAsync(page)).StatusCode.Should().Be(HttpStatusCode.OK, page);
 
         var r = await c.GetFromJsonAsync<SoegResultat>("/api/steder?behov=korestol");
@@ -153,7 +179,11 @@ public class ApiTests
         var c = _app.CreateClient();
         var id = (await c.GetFromJsonAsync<SoegResultat>("/api/steder?q=Havnecaf"))!.Steder[0].Id;
         (await c.PostAsJsonAsync($"/api/steder/{id}/besked", new { tekst = "Der er et trin", mail = "", ejer = false })).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await c.PostAsJsonAsync($"/api/steder/{id}/besked", new { godt = true })).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await c.GetFromJsonAsync<StedDetaljeDto>($"/api/steder/{id}"))!.AntalGodt.Should().Be(1);
         c.DefaultRequestHeaders.Add("X-Pin", "123456");
-        (await c.GetStringAsync("/api/admin/beskeder")).Should().Contain("Der er et trin");
+        (await c.GetStringAsync("/api/admin/beskeder")).Should().Contain("Der er et trin").And.Contain("Det passede");
     }
 }
+
+internal sealed record StedDetaljeDto(int AntalGodt);

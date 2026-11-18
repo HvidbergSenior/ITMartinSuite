@@ -4,10 +4,12 @@ namespace FalsigEasyPass.Domain;
 public enum Svar { Ukendt = 0, Ja = 1, Nej = 2 }
 
 /// <summary>One thing a place can have (or not), with the Danish words people see.</summary>
-public sealed record Facilitet(string Noegle, string Navn);
+/// <summary>Spoergsmaal = what to ask the place when nobody has checked it ("Har I handicaptoilet?").</summary>
+public sealed record Facilitet(string Noegle, string Navn, string Spoergsmaal);
 
 /// <summary>One need a person can tick in "Mit pas", and the facilities that need asks of a place.</summary>
-public sealed record Behov(string Noegle, string Gruppe, string Tekst, IReadOnlyList<string> Kraever);
+/// <summary>TagMed = what to bring for this need (empty = nothing).</summary>
+public sealed record Behov(string Noegle, string Gruppe, string Tekst, IReadOnlyList<string> Kraever, string TagMed = "");
 
 /// <summary>
 /// The fixed lists behind Easy-Pass. Groups follow Jacob's needs profile (bevægelse, syn, hørelse, skjulte handicap,
@@ -18,21 +20,21 @@ public static class Katalog
 {
     public static readonly IReadOnlyList<Facilitet> Faciliteter =
     [
-        new("niveaufri", "Adgang uden trin (eller rampe)"),
-        new("elevator", "Elevator til alle etager for gæster"),
-        new("toilet", "Handicaptoilet"),
-        new("parkering", "Handicapparkering tæt på indgangen"),
-        new("siddepladser", "Steder at sidde og hvile"),
-        new("korte-afstande", "Korte afstande inde på stedet"),
-        new("stille-rum", "Et stille sted at trække sig"),
-        new("roligt", "Normalt roligt (ikke larmende)"),
-        new("teleslynge", "Teleslynge"),
-        new("skrift", "Vigtig info på skrift (skilte, tekst)"),
-        new("stor-skrift", "Stor skrift eller lyd/oplæsning"),
-        new("ledsagerkort", "Ledsager gratis med ledsagerkort"),
-        new("hund", "Servicehunde er velkomne"),
-        new("solsikke", "Personalet kender solsikkesnoren"),
-        new("allergivenlig", "Allergivenligt (fx ingen dyr, røg eller stærk duft)"),
+        new("niveaufri", "Adgang uden trin (eller rampe)", "Kan man komme ind uden trin, eller er der en rampe?"),
+        new("elevator", "Elevator til alle etager for gæster", "Er der elevator til alle etager, gæster må bruge?"),
+        new("toilet", "Handicaptoilet", "Har I et handicaptoilet?"),
+        new("parkering", "Handicapparkering tæt på indgangen", "Er der handicapparkering tæt på indgangen?"),
+        new("siddepladser", "Steder at sidde og hvile", "Er der steder, hvor man kan sidde og hvile?"),
+        new("korte-afstande", "Korte afstande inde på stedet", "Hvor langt skal man gå inde hos jer?"),
+        new("stille-rum", "Et stille sted at trække sig", "Er der et stille sted, man kan trække sig til?"),
+        new("roligt", "Normalt roligt (ikke larmende)", "Hvornår er der mest roligt hos jer?"),
+        new("teleslynge", "Teleslynge", "Har I teleslynge?"),
+        new("skrift", "Vigtig info på skrift (skilte, tekst)", "Står de vigtige ting på skilte eller på skrift?"),
+        new("stor-skrift", "Stor skrift eller lyd/oplæsning", "Har I stor skrift eller oplæsning?"),
+        new("ledsagerkort", "Ledsager gratis med ledsagerkort", "Kommer en ledsager gratis ind med ledsagerkort?"),
+        new("hund", "Servicehunde er velkomne", "Må min servicehund komme med ind?"),
+        new("solsikke", "Personalet kender solsikkesnoren", "Kender personalet solsikkesnoren?"),
+        new("allergivenlig", "Allergivenligt (fx ingen dyr, røg eller stærk duft)", "Er der dyr, røg eller stærk duft hos jer?"),
     ];
 
     public static readonly IReadOnlyList<Behov> Alle =
@@ -51,14 +53,14 @@ public static class Katalog
         new("hoerelse", "Hørelse", "Jeg hører dårligt", ["teleslynge", "skrift"]),
         new("tegnsprog", "Hørelse", "Jeg taler tegnsprog eller skal have ting på skrift", ["skrift"]),
 
-        new("larm", "Skjulte handicap", "Jeg har det svært med larm og mange mennesker", ["roligt", "stille-rum"]),
-        new("angst", "Skjulte handicap", "Jeg kan få angst og skal kunne trække mig", ["stille-rum"]),
-        new("solsikke", "Skjulte handicap", "Jeg bærer solsikkesnor (skjult handicap)", ["solsikke"]),
+        new("larm", "Skjulte handicap", "Jeg har det svært med larm og mange mennesker", ["roligt", "stille-rum"], "Høretelefoner eller ørepropper"),
+        new("angst", "Skjulte handicap", "Jeg kan få angst og skal kunne trække mig", ["stille-rum"], "Høretelefoner eller noget, der gør dig tryg"),
+        new("solsikke", "Skjulte handicap", "Jeg bærer solsikkesnor (skjult handicap)", ["solsikke"], "Din solsikkesnor"),
         new("overblik", "Overblik", "Jeg har brug for ekstra tid og et klart overblik", ["skrift", "roligt"]),
 
-        new("ledsager", "Andet", "Jeg har ledsagerkort", ["ledsagerkort"]),
-        new("hund", "Andet", "Jeg har en servicehund", ["hund"]),
-        new("allergi", "Andet", "Jeg har allergi eller astma", ["allergivenlig"]),
+        new("ledsager", "Andet", "Jeg har ledsagerkort", ["ledsagerkort"], "Dit ledsagerkort"),
+        new("hund", "Andet", "Jeg har en servicehund", ["hund"], "Hundens dækken og papirer"),
+        new("allergi", "Andet", "Jeg har allergi eller astma", ["allergivenlig"], "Din medicin"),
     ];
 
     public static readonly IReadOnlyList<string> Kategorier =

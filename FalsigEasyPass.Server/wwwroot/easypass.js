@@ -26,6 +26,7 @@
     function copy(input, btn) {
         btn.addEventListener("click", function () {
             var done = function () { btn.textContent = "Kopieret"; };
+            if (input.tagName === "TEXTAREA" && input.classList.contains("ep-sr")) { try { navigator.clipboard.writeText(input.value).then(done, function () { }); } catch (e) { } return; }
             try { navigator.clipboard.writeText(input.value).then(done, function () { input.select(); }); } catch (e) { input.select(); }
         });
     }
@@ -110,31 +111,132 @@
         copy($("pas-link"), $("kopier"));
     }
 
-    // ---------------- Ét sted ----------------
+    // ---------------- Guide: one question per screen ----------------
+    if (kind === "guide") {
+        var g = { grupper: [], sted: null, pos: null, kat: "" }, trin = 1, hist = [];
+        var GRUPPE_ORD = { "Bevægelse": "At gå, trapper eller kørestol", "Energi": "Jeg bliver hurtigt træt", "Syn": "At se", "Hørelse": "At høre",
+            "Skjulte handicap": "Larm, mange mennesker eller angst", "Overblik": "At få overblik", "Andet": "Ledsagerkort, hund eller allergi" };
+        function vis(n, back) {
+            if (!back && trin !== n) hist.push(trin);
+            trin = n;
+            for (var i = 1; i <= 5; i++) $("g" + i).hidden = i !== n;
+            $("g-trin").textContent = n <= 4 ? "Trin " + n + " af 4" : "Dit svar";
+            window.scrollTo(0, 0);
+            var h = $("g" + n).querySelector("h1"); if (h) { h.setAttribute("tabindex", "-1"); h.focus(); }
+        }
+        [].forEach.call(document.querySelectorAll(".ep-tilbage"), function (b) {
+            b.addEventListener("click", function () { if (hist.length) vis(hist.pop(), true); });
+        });
+        function tile(val, text, on) { return '<button type="button" class="ep-tile" aria-pressed="' + (on ? "true" : "false") + '" data-v="' + esc(val) + '">' + esc(text) + "</button>"; }
+        function toggle(box) {
+            box.addEventListener("click", function (e) {
+                var b = e.target.closest(".ep-tile"); if (!b) return;
+                b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") === "true" ? "false" : "true");
+            });
+        }
+        function valgte(box) { return [].map.call(box.querySelectorAll('.ep-tile[aria-pressed="true"]'), function (b) { return b.getAttribute("data-v"); }); }
+
+        katalogP().then(function (k) {
+            var grupper = [];
+            k.behov.forEach(function (b) { if (grupper.indexOf(b.gruppe) < 0) grupper.push(b.gruppe); });
+            var mineGrupper = k.behov.filter(function (b) { return pas.indexOf(b.noegle) >= 0; }).map(function (b) { return b.gruppe; });
+            $("g1-valg").innerHTML = grupper.map(function (gr) { return tile(gr, GRUPPE_ORD[gr] || gr, mineGrupper.indexOf(gr) >= 0); }).join("");
+            toggle($("g1-valg"));
+            $("g1-videre").addEventListener("click", function () {
+                g.grupper = valgte($("g1-valg"));
+                if (!g.grupper.length) { pas = []; save("ep-pas", pas); navCounts(); return til3(); }
+                $("g2-valg").innerHTML = k.behov.filter(function (b) { return g.grupper.indexOf(b.gruppe) >= 0; })
+                    .map(function (b) { return tile(b.noegle, b.tekst, pas.indexOf(b.noegle) >= 0); }).join("");
+                vis(2);
+            });
+            $("g1-intet").addEventListener("click", function () { pas = []; save("ep-pas", pas); navCounts(); til3(); });
+            toggle($("g2-valg"));
+            $("g2-videre").addEventListener("click", function () {
+                pas = valgte($("g2-valg")); save("ep-pas", pas); navCounts(); til3();
+            });
+            $("g4-valg").innerHTML = tile("", "Det er lige meget", false) + k.kategorier.map(function (c) { return tile(c, c, false); }).join("");
+            $("g4-valg").addEventListener("click", function (e) {
+                var b = e.target.closest(".ep-tile"); if (!b) return;
+                g.kat = b.getAttribute("data-v"); svar();
+            });
+            function til3() {
+                var tekst = k.behov.filter(function (b) { return pas.indexOf(b.noegle) >= 0; }).map(function (b) { return b.tekst; });
+                $("g3-pas").textContent = tekst.length ? "Dit pas: " + tekst.join(" · ") : "";
+                vis(3);
+            }
+            // Already have a pass? Start at "Hvor vil du gerne hen?" - the person should not answer the same again.
+            if (pas.length) til3(); else vis(1);
+        });
+
+        $("g3-naer").addEventListener("click", function () {
+            if (!navigator.geolocation) { $("g3-info").textContent = "Din telefon kan ikke finde din placering. Skriv en by i stedet."; return; }
+            $("g3-info").textContent = "Finder din placering …";
+            navigator.geolocation.getCurrentPosition(function (p) { g.pos = { lat: p.coords.latitude, lng: p.coords.longitude }; g.sted = null; $("g3-info").textContent = ""; vis(4); },
+                function () { $("g3-info").textContent = "Vi fik ikke lov at se din placering. Skriv en by i stedet."; }, { timeout: 10000 });
+        });
+        $("g3-form").addEventListener("submit", function (e) {
+            e.preventDefault();
+            var v = $("g3-by").value.trim();
+            if (!v) { $("g3-info").textContent = "Skriv en by eller et postnummer – eller tryk Nær mig."; return; }
+            g.sted = v; g.pos = null; $("g3-info").textContent = ""; vis(4);
+        });
+
+        function kort(s) {
+            return '<a class="ep-sted ep-sted-big" href="/sted/' + encodeURIComponent(s.id) + '"><span class="ep-sted-navn">' + esc(s.navn) + "</span>"
+                + '<span class="k-muted">' + esc(s.kategori) + (s.by ? " · " + esc(s.by) : "") + (s.km != null ? " · " + String(s.km).replace(".", ",") + " km" : "") + "</span>"
+                + (pas.length ? badge(s.pasning, s.ord) : "") + '<span class="ep-se">Se stedet og din plan</span></a>';
+        }
+        function svar() {
+            var p = new URLSearchParams({ behov: pas.join(",") });
+            if (g.sted) p.set("q", g.sted);
+            if (g.pos) { p.set("lat", g.pos.lat); p.set("lng", g.pos.lng); }
+            if (g.kat) p.set("kategori", g.kat);
+            $("g5-svar").textContent = "Finder steder …"; vis(5);
+            api("/api/steder?" + p).then(function (r) {
+                var passer = r.steder.filter(function (s) { return s.pasning === "Passer" || !pas.length; });
+                var tjek = pas.length ? r.steder.filter(function (s) { return s.pasning === "TjekSelv"; }) : [];
+                var ikke = pas.length ? r.steder.filter(function (s) { return s.pasning === "PasserIkke"; }) : [];
+                $("g5-svar").textContent = r.antal === 0 ? "Vi fandt ingen steder her endnu. Prøv en anden by, eller tryk Det er lige meget."
+                    : !pas.length ? "Her er " + passer.length + (passer.length === 1 ? " sted" : " steder")
+                    : passer.length ? passer.length + (passer.length === 1 ? " sted passer" : " steder passer") + " til dig"
+                    : "Ingen steder er tjekket helt endnu – men se dem herunder";
+                $("g5-passer").innerHTML = passer.map(kort).join("");
+                $("g5-tjek-titel").hidden = $("g5-tjek-tekst").hidden = !tjek.length;
+                $("g5-tjek").innerHTML = tjek.map(kort).join("");
+                $("g5-ikke-boks").hidden = !ikke.length;
+                $("g5-ikke-antal").textContent = ikke.length;
+                $("g5-ikke").innerHTML = ikke.map(kort).join("");
+            }).catch(function (e) { $("g5-svar").textContent = e.message; });
+        }
+        $("g5-forfra").addEventListener("click", function () { hist = []; g = { grupper: [], sted: null, pos: null, kat: "" }; vis(1, true); });
+    }
+
+    // ---------------- Ét sted = svar + plan ----------------
     if (kind === "sted") {
         var id = page.getAttribute("data-id");
+        function sendBesked(body) {
+            return api("/api/steder/" + encodeURIComponent(id) + "/besked", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        }
         api("/api/steder/" + encodeURIComponent(id) + "?behov=" + encodeURIComponent(pas.join(","))).then(function (d) {
-            var s = d.sted, m = d.match, paaTur = tur.indexOf(s.id) >= 0;
+            var s = d.sted, m = d.match, plan = d.plan, paaTur = tur.indexOf(s.id) >= 0;
             document.title = s.navn + " – Easy-Pass";
             var adr = [s.adresse, [s.postnr, s.by].filter(Boolean).join(" ")].filter(Boolean).join(", ");
             var html = '<h1 class="ep-h1">' + esc(s.navn) + "</h1>"
                 + '<p class="k-muted">' + esc(s.kategori) + (adr ? " · " + esc(adr) : "") + "</p>"
-                + (s.kilde === "Eksempel" ? '<p class="ep-eksempel">Eksempel – ikke et rigtigt sted. Det viser, hvordan Easy-Pass virker.</p>' : "")
-                + (s.beskrivelse ? "<p>" + esc(s.beskrivelse) + "</p>" : "");
-            if (pas.length) {
-                html += '<div class="ep-match">' + badge(m.pasning, m.ord)
-                    + (m.mangler.length ? "<p><b>Mangler:</b> " + m.mangler.map(esc).join(", ") + "</p>" : "")
-                    + (m.ukendt.length ? "<p><b>Ikke tjekket – spørg stedet:</b> " + m.ukendt.map(esc).join(", ") + "</p>" : "")
-                    + (m.godt.length ? "<p><b>Har:</b> " + m.godt.map(esc).join(", ") + "</p>" : "") + "</div>";
-            } else html += '<p class="ep-match">Sæt kryds i <a href="/pas">Mit pas</a>, så står der, om stedet passer til dig.</p>';
-            html += '<h2 class="k-card-title">Hvad har stedet?</h2><table class="ep-table"><tbody>'
+                + (s.kilde === "Eksempel" ? '<p class="ep-eksempel">Eksempel – ikke et rigtigt sted. Det viser, hvordan Easy-Pass virker.</p>' : "");
+            if (pas.length) html += '<div class="ep-match">' + badge(m.pasning, m.ord) + '<p class="ep-raad">' + esc(plan.raad) + "</p></div>";
+            else html += '<p class="ep-match">Svar på <a href="/">fire små spørgsmål</a>, så står der, om stedet passer til dig.</p>';
+            if (d.antalGodt > 0) html += '<p class="ep-ok">' + d.antalGodt + (d.antalGodt === 1 ? " har" : " har") + " skrevet, at det passede.</p>";
+            if (s.beskrivelse) html += "<p>" + esc(s.beskrivelse) + "</p>";
+            html += '<div class="ep-row">'
+                + (s.telefon ? '<a class="k-btn k-btn-primary" href="tel:' + esc(s.telefon.replace(/\s/g, "")) + '">Ring: ' + esc(s.telefon) + "</a>" : "")
+                + (s.hjemmeside ? '<a class="k-btn k-btn-secondary" href="' + esc(/^https?:/.test(s.hjemmeside) ? s.hjemmeside : "https://" + s.hjemmeside) + '" target="_blank" rel="noopener">Stedets hjemmeside</a>' : "")
+                + '<button id="tur-knap" class="k-btn k-btn-secondary" type="button">' + (paaTur ? "Fjern fra min tur" : "Læg på min tur") + "</button></div>"
+                + '<details class="ep-alt"><summary>Alt om stedet</summary><table class="ep-table"><tbody>'
                 + d.faciliteter.map(function (f) { return "<tr><th scope=\"row\">" + esc(f.navn) + '</th><td class="ep-svar-' + (f.svar === "Ja" ? "ja" : f.svar === "Nej" ? "nej" : "ukendt") + '">' + esc(f.svar) + "</td></tr>"; }).join("")
                 + "</tbody></table>"
                 + (s.sidstTjekket ? '<p class="k-muted">Sidst tjekket ' + new Date(s.sidstTjekket).toLocaleDateString("da-DK") + " · kilde: " + esc(s.kilde) + "</p>" : "")
-                + '<div class="ep-row">'
-                + (s.hjemmeside ? '<a class="k-btn k-btn-secondary" href="' + esc(/^https?:/.test(s.hjemmeside) ? s.hjemmeside : "https://" + s.hjemmeside) + '" target="_blank" rel="noopener">Stedets hjemmeside</a>' : "")
-                + (s.telefon ? '<span class="ep-tlf">Telefon: ' + esc(s.telefon) + "</span>" : "")
-                + '<button id="tur-knap" class="k-btn k-btn-primary" type="button">' + (paaTur ? "Fjern fra min tur" : "Læg på min tur") + "</button></div>";
+                + "</details>";
             $("sted-kort").innerHTML = html;
             $("tur-knap").addEventListener("click", function () {
                 paaTur = !paaTur;
@@ -142,17 +244,49 @@
                 save("ep-tur", tur); navCounts();
                 this.textContent = paaTur ? "Fjern fra min tur" : "Læg på min tur";
             });
-        }).catch(function (e) { $("sted-kort").innerHTML = "<p>" + esc(e.message) + '</p><a class="k-btn k-btn-secondary" href="/">Find steder</a>'; });
 
-        function send(form, tekst, mail, svar, ejer) {
+            // The plan
+            $("plan").hidden = false;
+            if (plan.spoergOm.length) {
+                $("p1-indhold").innerHTML = "<p>Ring eller skriv til stedet, og spørg:</p><ul class=\"ep-tjekliste\">"
+                    + plan.spoergOm.map(function (q) { return "<li>" + esc(q) + "</li>"; }).join("") + "</ul>"
+                    + (s.telefon ? '<p><a class="k-btn k-btn-primary" href="tel:' + esc(s.telefon.replace(/\s/g, "")) + '">Ring: ' + esc(s.telefon) + "</a></p>" : "")
+                    + '<button id="kopier-spm" class="k-btn k-btn-secondary" type="button">Kopiér spørgsmålene</button>'
+                    + '<textarea id="spm-tekst" class="ep-sr" aria-hidden="true" tabindex="-1">' + esc("Hej. Jeg vil gerne besøge jer og har et par spørgsmål:\n" + plan.spoergOm.map(function (q) { return "- " + q; }).join("\n")) + "</textarea>";
+                copy($("spm-tekst"), $("kopier-spm"));
+            } else {
+                $("p1-indhold").innerHTML = pas.length ? "<p>Alt det, du har brug for, er tjekket. Du behøver ikke ringe først.</p>"
+                    : '<p>Svar på <a href="/">fire små spørgsmål</a>, så laver vi en plan til dig.</p>';
+            }
+            $("p2-liste").innerHTML = ["Telefonen med Easy-Pass (dit pas er her)"].concat(plan.tagMed)
+                .map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("");
+        }).catch(function (e) { $("sted-kort").innerHTML = "<p>" + esc(e.message) + '</p><a class="k-btn k-btn-secondary" href="/">Find et sted</a>'; });
+
+        $("vis-pas").addEventListener("click", function () {
+            katalogP().then(function (k) {
+                var valgt = k.behov.filter(function (b) { return pas.indexOf(b.noegle) >= 0; });
+                $("stort-pas-tekst").innerHTML = valgt.length ? "<p>Hej. Jeg har brug for, at I ved:</p><ul>" + valgt.map(function (b) { return "<li>" + esc(b.tekst) + "</li>"; }).join("") + "</ul><p>Tak for hjælpen.</p>"
+                    : '<p>Du har ikke udfyldt dit pas endnu.</p><p><a href="/">Svar på fire små spørgsmål</a></p>';
+                $("stort-pas").hidden = false; $("luk-pas").focus();
+            });
+        });
+        $("luk-pas").addEventListener("click", function () { $("stort-pas").hidden = true; $("vis-pas").focus(); });
+        $("gik-godt").addEventListener("click", function () {
+            var b = this; b.disabled = true;
+            sendBesked({ godt: true }).then(function () { $("gik-svar").textContent = "Tak! Det hjælper den næste."; }).catch(function (e) { b.disabled = false; $("gik-svar").textContent = e.message; });
+        });
+        $("gik-skidt").addEventListener("click", function () {
+            $("gik-svar").textContent = "Skriv herunder, hvad der ikke passede.";
+            $("fejl-tekst").focus();
+        });
+
+        function send(form, tekst, mail, svarId, ejer) {
             $(form).addEventListener("submit", function (e) {
                 e.preventDefault();
-                $(svar).textContent = "Sender …";
-                api("/api/steder/" + encodeURIComponent(id) + "/besked", {
-                    method: "POST", headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ tekst: $(tekst).value, mail: $(mail).value, ejer: ejer }),
-                }).then(function () { $(svar).textContent = "Tak. Vi har fået det og vender tilbage."; $(tekst).value = ""; })
-                  .catch(function (er) { $(svar).textContent = er.message; });
+                $(svarId).textContent = "Sender …";
+                sendBesked({ tekst: $(tekst).value, mail: $(mail).value, ejer: ejer })
+                    .then(function () { $(svarId).textContent = "Tak. Vi har fået det og vender tilbage."; $(tekst).value = ""; })
+                    .catch(function (er) { $(svarId).textContent = er.message; });
             });
         }
         send("fejl-form", "fejl-tekst", "fejl-mail", "fejl-svar", false);
@@ -205,7 +339,7 @@
         function beskeder() {
             adm("/api/admin/beskeder").then(function (l) {
                 $("beskeder").innerHTML = l.length ? l.map(function (t) {
-                    return '<div class="ep-sted' + (t.klaret ? " ep-klaret" : "") + '"><b>' + (t.type === "Ejer" ? "Stedet selv: " : "Fejl: ") + esc(t.sted) + "</b>"
+                    return '<div class="ep-sted' + (t.klaret ? " ep-klaret" : "") + '"><b>' + (t.type === "Ejer" ? "Stedet selv: " : t.type === "Godt" ? "Det passede: " : "Fejl: ") + esc(t.sted) + "</b>"
                         + "<span>" + esc(t.tekst) + "</span><span class=\"k-muted\">" + new Date(t.tid).toLocaleString("da-DK") + (t.mail ? " · " + esc(t.mail) : "") + "</span>"
                         + (t.klaret ? '<span class="k-muted">Klaret</span>' : '<button class="k-btn k-btn-secondary" type="button" data-klaret="' + esc(t.id) + '">Klaret</button>') + "</div>";
                 }).join("") : '<p class="k-muted">Ingen beskeder endnu.</p>';

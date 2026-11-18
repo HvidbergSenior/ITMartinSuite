@@ -1,27 +1,72 @@
 @page "/"
 
-<PageTitle>Easy-Pass – find steder, der passer til dig</PageTitle>
+<PageTitle>Easy-Pass – find et sted, der passer til dig</PageTitle>
 
-@* easypass.js fills this page: the search asks /api/steder with the needs from Mit pas (kept in this browser only). *@
-<div data-page="find">
-    <section class="k-card" id="pas-kort">
-        <h2 class="k-card-title">Dit pas</h2>
-        <p id="pas-tom" class="k-muted">Du har ikke sat kryds i Mit pas endnu. Gør det først, så kan vi sige, om et sted passer til dig.</p>
-        <p id="pas-linje" class="ep-pas-linje" hidden></p>
-        <a class="k-btn k-btn-secondary" href="/pas">Ret Mit pas</a>
-    </section>
+@* The guided way (user 2026-11-18: "EASY and process oriented. Help the person with special need"):
+   one question per screen, big buttons, Tilbage on every step. easypass.js runs it; answers stay in this browser. *@
+<div data-page="guide">
+    <section class="k-card ep-guide" aria-live="polite">
+        <p id="g-trin" class="ep-trin"></p>
 
-    <section class="k-card">
-        <h2 class="k-card-title">Find steder</h2>
-        <form id="soeg-form" class="ep-row" autocomplete="off">
-            <label class="ep-sr" for="q">By, postnummer eller navn</label>
-            <input id="q" class="ep-input ep-grow" placeholder="Fx Aarhus, 8600 eller museum" enterkeyhint="search" />
-            <button class="k-btn k-btn-primary" type="submit">Søg</button>
-            <button id="naer" class="k-btn k-btn-secondary" type="button">Nær mig</button>
-        </form>
-        <div id="kategorier" class="ep-chips" role="group" aria-label="Vælg slags sted"></div>
-        <label class="ep-check"><input type="checkbox" id="kun-passer" /> Skjul steder, der ikke passer til mig</label>
-        <p id="soeg-info" class="k-muted" aria-live="polite"></p>
-        <div id="resultater" class="ep-list"></div>
+        <div id="g1" hidden>
+            <h1 class="ep-q">Hvad gør det svært for dig at komme ud?</h1>
+            <p class="k-muted">Tryk på alt, der passer. Du kan altid rette det bagefter.</p>
+            <div id="g1-valg" class="ep-tiles"></div>
+            <div class="ep-next">
+                <button id="g1-videre" class="k-btn k-btn-primary ep-big" type="button">Videre</button>
+                <button id="g1-intet" class="k-btn k-btn-secondary" type="button">Intet af det – vis bare steder</button>
+            </div>
+        </div>
+
+        <div id="g2" hidden>
+            <h1 class="ep-q">Hvad passer på dig?</h1>
+            <p class="k-muted">Tryk på de sætninger, der passer. Så ved vi, hvad stedet skal have.</p>
+            <div id="g2-valg" class="ep-tiles ep-tiles-wide"></div>
+            <div class="ep-next">
+                <button id="g2-videre" class="k-btn k-btn-primary ep-big" type="button">Videre</button>
+                <button class="k-btn k-btn-secondary ep-tilbage" type="button">Tilbage</button>
+            </div>
+        </div>
+
+        <div id="g3" hidden>
+            <p id="g3-pas" class="ep-pas-linje"></p>
+            <h1 class="ep-q">Hvor vil du gerne hen?</h1>
+            <button id="g3-naer" class="k-btn k-btn-primary ep-big" type="button">Nær mig</button>
+            <p class="k-muted">eller skriv en by eller et postnummer</p>
+            <form id="g3-form" class="ep-row" autocomplete="off">
+                <label class="ep-sr" for="g3-by">By eller postnummer</label>
+                <input id="g3-by" class="ep-input ep-grow ep-big-input" placeholder="Fx Aarhus eller 8600" enterkeyhint="next" />
+                <button class="k-btn k-btn-primary" type="submit">Videre</button>
+            </form>
+            <p id="g3-info" class="k-muted"></p>
+            <div class="ep-next">
+                <button class="k-btn k-btn-secondary ep-tilbage" type="button">Tilbage</button>
+                <a class="k-btn k-btn-secondary" href="/pas">Ret Mit pas</a>
+            </div>
+        </div>
+
+        <div id="g4" hidden>
+            <h1 class="ep-q">Hvad har du lyst til?</h1>
+            <div id="g4-valg" class="ep-tiles"></div>
+            <div class="ep-next">
+                <button class="k-btn k-btn-secondary ep-tilbage" type="button">Tilbage</button>
+            </div>
+        </div>
+
+        <div id="g5" hidden>
+            <h1 class="ep-q" id="g5-svar"></h1>
+            <div id="g5-passer" class="ep-list"></div>
+            <h2 id="g5-tjek-titel" class="ep-q2" hidden>Ring og spørg først</h2>
+            <p id="g5-tjek-tekst" class="k-muted" hidden>Her er ikke alt tjekket endnu. Tryk på stedet – så står der, hvad du skal spørge om.</p>
+            <div id="g5-tjek" class="ep-list"></div>
+            <details id="g5-ikke-boks" hidden>
+                <summary>Steder, der ikke passer til dig (<span id="g5-ikke-antal"></span>)</summary>
+                <div id="g5-ikke" class="ep-list"></div>
+            </details>
+            <div class="ep-next">
+                <button class="k-btn k-btn-secondary ep-tilbage" type="button">Tilbage</button>
+                <button id="g5-forfra" class="k-btn k-btn-secondary" type="button">Start forfra</button>
+            </div>
+        </div>
     </section>
 </div>

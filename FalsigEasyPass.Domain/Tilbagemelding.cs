@@ -1,7 +1,7 @@
 namespace FalsigEasyPass.Domain;
 
-/// <summary>Fejl = a visitor says something is wrong. Ejer = the place says "det er vores sted" and wants to fill it in.</summary>
-public enum TilbagemeldingType { Fejl, Ejer }
+/// <summary>Fejl = a visitor says something is wrong. Ejer = the place says "det er vores sted". Godt = "Det passede" after a visit.</summary>
+public enum TilbagemeldingType { Fejl, Ejer, Godt }
 
 /// <summary>A message about one place. Only the text and an optional mail - no name, no needs, no tracking.</summary>
 public sealed class Tilbagemelding
@@ -16,6 +16,7 @@ public sealed class Tilbagemelding
 
     public static string? Problem(string tekst, string? mail, TilbagemeldingType type)
     {
+        if (type == TilbagemeldingType.Godt) return null;
         if (string.IsNullOrWhiteSpace(tekst) || tekst.Trim().Length < 3) return "Skriv kort, hvad der er forkert.";
         if (tekst.Length > 1000) return "Højst 1000 tegn.";
         if (type == TilbagemeldingType.Ejer && !Ligner(mail)) return "Skriv stedets mail, så vi kan svare jer.";

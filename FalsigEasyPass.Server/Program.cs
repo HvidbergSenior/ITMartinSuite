@@ -24,10 +24,10 @@ builder.Services.AddKolibri(k =>
     ];
     k.HowTo =
     [
-        "Tryk Mit pas, og sæt kryds ved det, der passer på dig.",
-        "Tryk Find steder, og skriv en by eller et postnummer – eller tryk Nær mig.",
-        "Tryk på et sted for at se, hvad det har. Tryk Læg på min tur for at samle steder til en tur.",
-        "Er noget forkert, så skriv det på stedets side. Er det dit sted, så tryk Det er vores sted.",
+        "Svar på fire små spørgsmål: hvad der er svært for dig, hvad der passer på dig, hvor du vil hen, og hvad du har lyst til.",
+        "Så får du de steder, der passer til dig, først. Steder hvor ikke alt er tjekket står under Ring og spørg først.",
+        "Tryk på et sted. Der står din plan: hvad du skal spørge om, hvad du skal tage med, og en knap der viser dit pas stort ved indgangen.",
+        "Bagefter trykker du Det passede eller Noget passede ikke. Det hjælper den næste.",
     ];
     k.Version = "2026.11.18";
     k.ThemeColor = "#f4f6f5";
@@ -61,7 +61,7 @@ app.MapGet("/api/steder/{id}", (string id, string? behov, VisSted vis) =>
 
 app.MapPost("/api/steder/{id}/besked", (string id, BeskedRequest r, SendTilbagemelding send) =>
 {
-    var type = r.Ejer ? TilbagemeldingType.Ejer : TilbagemeldingType.Fejl;
+    var type = r.Godt ? TilbagemeldingType.Godt : r.Ejer ? TilbagemeldingType.Ejer : TilbagemeldingType.Fejl;
     return send.Udfoer(id, type, r.Tekst ?? "", r.Mail) is { } fejl ? Results.BadRequest(new { fejl }) : Results.Ok();
 }).DisableAntiforgery();
 

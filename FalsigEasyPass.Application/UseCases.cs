@@ -4,7 +4,8 @@ namespace FalsigEasyPass.Application;
 
 public sealed record StedKort(string Id, string Navn, string Kategori, string By, double? Km, string Pasning, string Ord, int Mangler, bool Eksempel);
 
-public sealed record StedDetalje(Sted Sted, MatchResultat Match, IReadOnlyList<FacilitetLinje> Faciliteter);
+/// <summary>AntalGodt = how many visitors pressed "Det passede".</summary>
+public sealed record StedDetalje(Sted Sted, MatchResultat Match, TurPlan Plan, IReadOnlyList<FacilitetLinje> Faciliteter, int AntalGodt);
 
 public sealed record FacilitetLinje(string Noegle, string Navn, string Svar);
 
@@ -42,7 +43,7 @@ public sealed class FindSteder(IStedStore store)
         || s.Postnr == q || s.Kategori.Contains(q, StringComparison.OrdinalIgnoreCase);
 }
 
-public sealed class VisSted(IStedStore store)
+public sealed class VisSted(IStedStore store, ITilbagemeldingStore beskeder)
 {
     public StedDetalje? Udfoer(string id, string? behov)
     {
@@ -52,7 +53,9 @@ public sealed class VisSted(IStedStore store)
         {
             Svar.Ja => "Ja", Svar.Nej => "Nej", _ => "Ikke tjekket",
         })).ToList();
-        return new StedDetalje(s, Matcher.Vurder(s, Katalog.Laes(behov)), linjer);
+        var mine = Katalog.Laes(behov);
+        var godt = beskeder.Alle().Count(t => t.StedId == id && t.Type == TilbagemeldingType.Godt);
+        return new StedDetalje(s, Matcher.Vurder(s, mine), Planlaegger.Lav(s, mine), linjer, godt);
     }
 }
 
@@ -65,7 +68,7 @@ public sealed class SendTilbagemelding(IStedStore steder, ITilbagemeldingStore s
         if (Tilbagemelding.Problem(tekst, mail, type) is { } p) return p;
         store.Gem(new Tilbagemelding
         {
-            StedId = stedId, Type = type, Tekst = tekst.Trim(), Mail = string.IsNullOrWhiteSpace(mail) ? null : mail.Trim(),
+            StedId = stedId, Type = type, Tekst = type == TilbagemeldingType.Godt ? "Det passede" : tekst.Trim(), Mail = string.IsNullOrWhiteSpace(mail) ? null : mail.Trim(),
             Tid = clock.GetUtcNow().UtcDateTime,
         });
         return null;

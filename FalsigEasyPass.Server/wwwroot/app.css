@@ -50,3 +50,34 @@ a.ep-sted:hover, a.ep-sted:focus-visible { border-color: var(--k-text); }
 .ep-form label { font-size: .9rem; color: var(--k-muted); }
 .ep-fac { border: 1px solid var(--k-border); border-radius: 12px; padding: 8px 12px; }
 .ep-fac-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0; color: var(--k-text) !important; }
+
+/* Guided steps (2026-11-18 "EASY and process oriented"): one question per screen, big targets (min 56 px), words not icons. */
+.ep-trin { margin: 0 0 4px; font-size: .9rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--k-muted); }
+.ep-q { margin: 0 0 8px; font-size: 1.6rem; line-height: 1.2; text-wrap: balance; }
+.ep-q:focus { outline: none; }
+.ep-q2 { margin: 18px 0 4px; font-size: 1.2rem; }
+.ep-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 12px 0; }
+.ep-tiles-wide { grid-template-columns: 1fr; }
+.ep-tile { font: inherit; font-size: 1.1rem; font-weight: 600; text-align: left; min-height: 64px; padding: 14px 16px; border-radius: 14px;
+    border: 2px solid var(--k-border); background: var(--k-card); color: var(--k-text); cursor: pointer; }
+.ep-tile:hover, .ep-tile:focus-visible { border-color: var(--k-text); }
+.ep-tile[aria-pressed="true"] { background: var(--k-accent-soft); border-color: var(--k-text); }
+.ep-tile[aria-pressed="true"]::before { content: "Valgt: "; font-weight: 400; color: var(--k-muted); }
+.ep-next { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 14px; }
+.ep-big { min-height: 56px; padding: 12px 22px; font-size: 1.1rem; }
+.ep-big-input { font-size: 1.2rem; min-height: 52px; }
+.ep-sted-big { padding: 16px; }
+.ep-se { font-weight: 700; text-decoration: underline; color: var(--k-text); }
+.ep-raad { font-size: 1.1rem; font-weight: 600; }
+.ep-alt { margin-top: 12px; }
+.ep-alt summary { cursor: pointer; font-weight: 700; padding: 8px 0; }
+.ep-plan { margin: 0; padding-left: 1.4em; display: grid; gap: 18px; }
+.ep-plan > li { padding-left: 4px; }
+.ep-plan > li::marker { font-weight: 800; font-size: 1.2rem; }
+.ep-plan h3 { margin: 0 0 6px; font-size: 1.2rem; }
+.ep-plan p { margin: 4px 0; }
+.ep-tjekliste { margin: 6px 0; padding-left: 1.2em; line-height: 1.6; font-size: 1.05rem; }
+.ep-overlay { position: fixed; inset: 0; z-index: 50; background: var(--k-bg, var(--k-card)); overflow: auto;
+    padding: calc(env(safe-area-inset-top, 0px) + 24px) max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px)); }
+.ep-overlay-in { max-width: 640px; margin: 0 auto; font-size: 1.7rem; line-height: 1.4; display: grid; gap: 16px; }
+.ep-overlay-in ul { margin: 0; padding-left: 1.2em; }
