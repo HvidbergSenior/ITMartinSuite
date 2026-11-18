@@ -496,15 +496,15 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinIndbakke.Server", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinIndbakke.Tests", "ITMartinIndbakke.Tests\ITMartinIndbakke.Tests.csproj", "{E699345A-8F7A-4BCD-8286-22BBBE07991D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FalsigForening.Domain", "FalsigForening.Domain\FalsigForening.Domain.csproj", "{5AE942F8-D7A8-4DBE-BAE4-F3F3A4276832}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Foreningsmakker.Domain", "Foreningsmakker.Domain\Foreningsmakker.Domain.csproj", "{5AE942F8-D7A8-4DBE-BAE4-F3F3A4276832}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FalsigForening.Application", "FalsigForening.Application\FalsigForening.Application.csproj", "{13775234-C222-42F5-AB21-429364EEA8FF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Foreningsmakker.Application", "Foreningsmakker.Application\Foreningsmakker.Application.csproj", "{13775234-C222-42F5-AB21-429364EEA8FF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FalsigForening.Infrastructure", "FalsigForening.Infrastructure\FalsigForening.Infrastructure.csproj", "{8ABF68AD-9931-46E5-A986-B71B42168B2B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Foreningsmakker.Infrastructure", "Foreningsmakker.Infrastructure\Foreningsmakker.Infrastructure.csproj", "{8ABF68AD-9931-46E5-A986-B71B42168B2B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FalsigForening.Server", "FalsigForening.Server\FalsigForening.Server.csproj", "{C75184CB-BF3A-47B3-B201-52D2AD0BF7D4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Foreningsmakker.Server", "Foreningsmakker.Server\Foreningsmakker.Server.csproj", "{C75184CB-BF3A-47B3-B201-52D2AD0BF7D4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FalsigForening.Tests", "FalsigForening.Tests\FalsigForening.Tests.csproj", "{A02554A6-355E-4DED-B8EF-CE6CD1CB58ED}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Foreningsmakker.Tests", "Foreningsmakker.Tests\Foreningsmakker.Tests.csproj", "{A02554A6-355E-4DED-B8EF-CE6CD1CB58ED}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinSalgsveje.Domain", "ITMartinSalgsveje.Domain\ITMartinSalgsveje.Domain.csproj", "{B4E20C32-8174-4DD6-AA56-8B70A6C09D98}"
 EndProject
@@ -536,15 +536,15 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinHjemmeside.Server",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinHjemmeside.Tests", "ITMartinHjemmeside.Tests\ITMartinHjemmeside.Tests.csproj", "{3290DF65-08AE-4EE1-B185-CB4443D346E7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FalsigEasyPass.Domain", "FalsigEasyPass.Domain\FalsigEasyPass.Domain.csproj", "{2AE76ED3-B018-42EF-826D-77EEA252118C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EasyPass.Domain", "EasyPass.Domain\EasyPass.Domain.csproj", "{2AE76ED3-B018-42EF-826D-77EEA252118C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FalsigEasyPass.Application", "FalsigEasyPass.Application\FalsigEasyPass.Application.csproj", "{69E12217-EFC5-402E-BC48-A339B1F2672A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EasyPass.Application", "EasyPass.Application\EasyPass.Application.csproj", "{69E12217-EFC5-402E-BC48-A339B1F2672A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FalsigEasyPass.Infrastructure", "FalsigEasyPass.Infrastructure\FalsigEasyPass.Infrastructure.csproj", "{21676AEE-D005-4082-938F-689A663E9D59}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EasyPass.Infrastructure", "EasyPass.Infrastructure\EasyPass.Infrastructure.csproj", "{21676AEE-D005-4082-938F-689A663E9D59}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FalsigEasyPass.Server", "FalsigEasyPass.Server\FalsigEasyPass.Server.csproj", "{ECB6B57B-B2E3-47E8-9121-D09B90E84F56}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EasyPass.Server", "EasyPass.Server\EasyPass.Server.csproj", "{ECB6B57B-B2E3-47E8-9121-D09B90E84F56}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FalsigEasyPass.Tests", "FalsigEasyPass.Tests\FalsigEasyPass.Tests.csproj", "{E84B1FBC-1026-4B74-ACF2-2C0C79DD704E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EasyPass.Tests", "EasyPass.Tests\EasyPass.Tests.csproj", "{E84B1FBC-1026-4B74-ACF2-2C0C79DD704E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

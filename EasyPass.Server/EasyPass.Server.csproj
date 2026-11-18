@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <!-- Easy-Pass (our version, 2026-11-18): places that fit your needs. Static pages + easypass.js + a small JSON API. -->
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>EasyPass.Server</RootNamespace>
+        <AssemblyName>EasyPass.Server</AssemblyName>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
+        <ProjectReference Include="..\EasyPass.Infrastructure\EasyPass.Infrastructure.csproj" />
+        <ProjectReference Include="..\EasyPass.Application\EasyPass.Application.csproj" />
+        <ProjectReference Include="..\EasyPass.Domain\EasyPass.Domain.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="EasyPass.Tests" />
+    </ItemGroup>
+
+</Project>
