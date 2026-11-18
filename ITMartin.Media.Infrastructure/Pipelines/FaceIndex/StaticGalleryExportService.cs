@@ -10,6 +10,12 @@ namespace ITMartin.Media.Infrastructure.Pipelines.FaceIndex;
 
 public sealed class StaticGalleryExportService : IStaticGalleryExportService
 {
+    // Danish page, Danish months ("13. januar 2002", not "13. January 2002") - the server's culture is not Danish (user 2026-11-18).
+    private static readonly System.Globalization.CultureInfo Danish = System.Globalization.CultureInfo.GetCultureInfo("da-DK");
+
+    // "1 fil", "2 filer" (user 2026-11-18: the 2000 card said "1 filer").
+    public static string Files(int count) => count == 1 ? "1 fil" : $"{count} filer";
+
     // Sits alongside the real library, never mixed with SmartFolders' symlink
     // output - this folder's thumbnails are real files, safe to copy anywhere
     // (an external drive, a different PC) and still work with no server at all.
@@ -618,7 +624,7 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
         foreach (var card in cards)
         {
             sb.AppendLine($"<a class=\"card\" href=\"{card.FileName}\"><div class=\"label\">{WebUtility.HtmlEncode(card.Label)}</div>" +
-                          $"<div class=\"count\">{card.Count} filer</div></a>");
+                          $"<div class=\"count\">{Files(card.Count)}</div></a>");
         }
         sb.AppendLine("</div></body></html>");
         return sb.ToString();
@@ -738,7 +744,7 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
             // known instead.
             var caption = item.IsYearOnly
                 ? $"{item.Date:yyyy} (dato ukendt)"
-                : item.Date?.ToString("d. MMMM yyyy") ?? full;
+                : item.Date?.ToString("d. MMMM yyyy", Danish) ?? full;
             sb.Append("{t:\"").Append(JsEscape(thumb)).Append("\",f:\"").Append(JsEscape(full))
               .Append("\",v:").Append(item.IsVideo ? "true" : "false")
               .Append(",w:").Append(item.IsVideo || IsWebSafeImage(item.SourcePath) ? "true" : "false")
@@ -852,7 +858,7 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
             // instead of claiming a specific date that was never known.
             var caption = item.IsYearOnly
                 ? $"{item.Date:yyyy} (dato ukendt)"
-                : item.Date?.ToString("d. MMMM yyyy") ?? full;
+                : item.Date?.ToString("d. MMMM yyyy", Danish) ?? full;
             sb.Append("{t:\"").Append(JsEscape(thumb)).Append("\",f:\"").Append(JsEscape(full))
               .Append("\",v:").Append(item.IsVideo ? "true" : "false")
               .Append(",w:").Append(item.IsVideo || IsWebSafeImage(item.SourcePath) ? "true" : "false")
@@ -937,7 +943,7 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
             var coverWeb = ToWebPath(Path.GetRelativePath(libraryPath, cover.ThumbPath));
             var href = ToWebPath(Path.Combine(Path.GetFileName(galleryRoot), $"{yearGroup.Key}.html"));
             sb.AppendLine($"<a class=\"card\" href=\"{href}\"><img src=\"{coverWeb}\" loading=\"lazy\">" +
-                          $"<div class=\"label\">{WebUtility.HtmlEncode(yearGroup.Key)}<div class=\"count\">{yearGroup.Count()} filer</div></div></a>");
+                          $"<div class=\"label\">{WebUtility.HtmlEncode(yearGroup.Key)}<div class=\"count\">{Files(yearGroup.Count())}</div></div></a>");
         }
         sb.AppendLine("</div>");
 
