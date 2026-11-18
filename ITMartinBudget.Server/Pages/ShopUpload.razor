@@ -1,116 +1,78 @@
 @page "/shop-upload"
 @page "/shop-upload/{LedgerId}"
-@using ITMartinBudget.Server.Budget
-@* No @rendermode: plain HTML form + fetch() below instead of Blazor InputFile,
-   which needs a live SignalR circuit - has previously gotten stuck reconnecting
-   ("Forbinder...") through this app's Cloudflare Tunnel domain.
-   No @layout override either - this used to sit under BudgetMainLayout while
-   the other two steps used the default BudgetLayout, so the nav bar itself
-   changed shape mid-flow. All three step pages now share one layout. *@
+@page "/laeg-ind"
+@layout ITMartinBudget.Server.Layout.KolibriLayout
+@inject IConfiguration Config
+@* No @rendermode: plain HTML form + fetch() instead of Blazor InputFile, which needs a live SignalR circuit -
+   it has got stuck on "Forbinder..." through the Cloudflare tunnel before. *@
 
-<div class="budget-container">
+<PageTitle>Læg ind – MitBudget</PageTitle>
 
-    <StepNav LedgerId="@_defaultLedgerId" CurrentStep="1" />
+<details class="k-card mb-box">
+    <summary class="mb-sum"><span class="k-card-title">Om siden</span></summary>
+    <p>Her lægger du et kontoudtog ind. MitBudget kender selv formatet fra de danske banker. Betalinger, der allerede er lagt ind, bliver sprunget over.</p>
+    <p><b>Sådan gør du:</b> hent kontoudtoget i din netbank som CSV-fil (fx under Konti, Eksporter). Vælg filen herunder. Bagefter ser du betalingerne under Kategorier.</p>
+</details>
 
-    <ContentCard>
+<div class="k-card">
+    <h1 class="k-card-title">Læg kontoudtog ind</h1>
+    <p class="k-card-sub">Hver konto holdes for sig, fx din egen og forretningens.</p>
 
-        <div class="stack">
-
-            <div>
-                <h2>📁 Upload kontoudtog</h2>
-                <div class="meta">
-                    Genkender automatisk kontoudtogets format. Hver konto (Bogshoppen, Hvidberg, ITMartin, ...) holdes helt adskilt fra hinanden.
-                </div>
-            </div>
-
-            <div>
-                <label class="meta" for="ledgerId">Konto-id (bruges i overbliks-linket)</label>
-                <input id="ledgerId" class="input" value="@_defaultLedgerId" placeholder="fx bogshoppen"
-                       autocapitalize="off" autocorrect="off" spellcheck="false" />
-            </div>
-
-            <div id="scopeModePicker">
-                <label class="meta">Hvad indeholder denne konto?</label>
-                <div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">
-                    <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer">
-                        <input type="radio" name="scopeMode" value="Both" checked /> Både forretning og privat
-                    </label>
-                    <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer">
-                        <input type="radio" name="scopeMode" value="PrivateOnly" /> Kun privat
-                    </label>
-                    <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer">
-                        <input type="radio" name="scopeMode" value="BusinessOnly" /> Kun forretning
-                    </label>
-                </div>
-                <div class="meta" style="margin-top:6px">Vælges kun én gang - ved en ny konto. Gælder for alle fremtidige uploads til samme konto-id.</div>
-            </div>
-
-            <div class="upload-box">
-                <input type="file" id="csvFile" accept=".csv" />
-            </div>
-
-            <div id="status"></div>
-
+    <div class="k-stack">
+        <div>
+            <label class="k-label" for="ledgerId">Kontoens navn</label>
+            <input id="ledgerId" class="k-input" value="@_ledger" autocapitalize="off" autocorrect="off" spellcheck="false" />
         </div>
 
-    </ContentCard>
+        <fieldset class="mb-fieldset">
+            <legend class="k-label">Hvad bruges kontoen til?</legend>
+            <label class="mb-radio"><input type="radio" name="scopeMode" value="Both" checked /> Både privat og forretning</label>
+            <label class="mb-radio"><input type="radio" name="scopeMode" value="PrivateOnly" /> Kun privat</label>
+            <label class="mb-radio"><input type="radio" name="scopeMode" value="BusinessOnly" /> Kun forretning</label>
+            <p class="k-muted mb-small">Vælges kun første gang en konto lægges ind.</p>
+        </fieldset>
 
+        <div>
+            <label class="k-btn k-btn-primary" for="csvFile">Vælg CSV-fil</label>
+            <input type="file" id="csvFile" accept=".csv" class="k-visually-hidden" />
+        </div>
+
+        <div id="status" aria-live="polite"></div>
+    </div>
 </div>
 
 <script>
-// Deferred one tick: Blazor's DOM-patching (enhanced nav / streaming render)
-// can still be inserting this script's own sibling markup when the script
-// tag itself runs, so an immediate getElementById('csvFile') can race and
-// return null ("Cannot read properties of null") - waiting a tick guarantees
-// the surrounding markup has finished landing in the DOM first.
+// Deferred one tick: Blazor can still be inserting this markup when the script runs.
 setTimeout(function () {
     const fileInput = document.getElementById('csvFile');
     const ledgerInput = document.getElementById('ledgerId');
     const status = document.getElementById('status');
     if (!fileInput) return;
+    const show = (kind, html) => status.innerHTML = `<div class="k-alert k-alert-${kind}">${html}</div>`;
 
     fileInput.addEventListener('change', async () => {
         const file = fileInput.files[0];
-        // Lowercased client-side too (server does the same) - LedgerId is
-        // matched with plain case-sensitive equality everywhere downstream,
-        // so "Bogshoppen" and "bogshoppen" would otherwise silently become
-        // two disconnected ledgers instead of one.
+        // Lowercased here and on the server - "Familie" and "familie" must be the same account.
         const ledgerId = ledgerInput.value.trim().toLowerCase();
-
         if (!file) return;
-        if (!ledgerId) {
-            status.innerHTML = '<div class="alert error">Angiv et konto-id</div>';
-            fileInput.value = '';
-            return;
-        }
-        if (!file.name.toLowerCase().endsWith('.csv')) {
-            status.innerHTML = '<div class="alert error">Kun CSV-filer</div>';
-            fileInput.value = '';
-            return;
-        }
+        if (!ledgerId) { show('danger', 'Skriv kontoens navn først.'); fileInput.value = ''; return; }
+        if (!file.name.toLowerCase().endsWith('.csv')) { show('danger', 'Filen skal være en CSV-fil fra netbanken.'); fileInput.value = ''; return; }
 
-        status.innerHTML = '<div class="meta">Importerer...</div>';
-
-        const scopeMode = document.querySelector('input[name="scopeMode"]:checked')?.value || 'Both';
-
+        show('info', 'Lægger ind...');
         const form = new FormData();
         form.append('ledgerId', ledgerId);
-        form.append('scopeMode', scopeMode);
+        form.append('scopeMode', document.querySelector('input[name="scopeMode"]:checked')?.value || 'Both');
         form.append('file', file);
-
         try {
             const res = await fetch('/api/shop/upload', { method: 'POST', body: form });
-            if (!res.ok) {
-                status.innerHTML = `<div class="alert error">${await res.text()}</div>`;
-                return;
-            }
+            if (!res.ok) { show('danger', await res.text()); return; }
             const body = await res.json();
             const msg = body.imported > 0
-                ? `✔ Importerede ${body.imported} transaktioner til '${ledgerId}'`
-                : 'Ingen nye transaktioner (dubletter sprunget over)';
-            status.innerHTML = `<div class="alert success">${msg}<div style="margin-top:10px"><a class="btn" href="/shop-categorize/${encodeURIComponent(ledgerId)}">Kategoriser</a></div></div>`;
+                ? `${body.imported} betalinger er lagt ind på "${ledgerId}".`
+                : 'Der var ingen nye betalinger. Dem, der allerede var lagt ind, er sprunget over.';
+            show('ok', `${msg}<div class="k-mt"><a class="k-btn k-btn-primary k-btn-sm" href="/kategorier/${encodeURIComponent(ledgerId)}">Se kategorierne</a></div>`);
         } catch (e) {
-            status.innerHTML = '<div class="alert error">Upload fejlede - prøv igen</div>';
+            show('danger', 'Det lykkedes ikke at lægge filen ind. Prøv igen.');
         } finally {
             fileInput.value = '';
         }
@@ -119,13 +81,6 @@ setTimeout(function () {
 </script>
 
 @code {
-    // "bogshoppen" was previously hardcoded here regardless of context - the
-    // right default for Bogshoppen's own first-upload redirect, but wrong
-    // for anyone reaching /shop-upload directly for a different ledger.
-    // {LedgerId} now carries the real context (e.g. from ShopOverview's
-    // empty-ledger redirect); the bare /shop-upload route with no segment
-    // keeps the old default so existing links/bookmarks still land somewhere
-    // sensible.
     [Parameter] public string? LedgerId { get; set; }
-    private string _defaultLedgerId => string.IsNullOrWhiteSpace(LedgerId) ? "bogshoppen" : LedgerId;
+    private string _ledger => string.IsNullOrWhiteSpace(LedgerId) ? (Config["Budget:DefaultLedger"] ?? "familie") : LedgerId;
 }

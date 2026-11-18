@@ -1,21 +1,24 @@
 @page "/login"
-@layout ITMartinBudget.Server.Layout.EmptyLayout
+@layout ITMartinBudget.Server.Layout.KolibriLayout
 
-<PageTitle>Log ind – Budget</PageTitle>
+<PageTitle>Log ind – MitBudget</PageTitle>
 
-<div class="login-wrap">
-    <div class="login-box">
-        <div class="login-icon">💰</div>
-        <div class="login-title">Budget</div>
+<div class="mb-narrow">
+    <div class="k-card">
+        <h1 class="k-card-title">Log ind</h1>
+        <p class="k-card-sub">Dine tal er private. Skriv din PIN-kode for at se dem.</p>
         @if (Error == "1")
         {
-            <div class="login-error">Forkert PIN – prøv igen</div>
+            <div class="k-alert k-alert-danger" role="alert">Forkert PIN-kode. Prøv igen.</div>
         }
-        <form method="post" action="/api/auth/login">
-            <input type="password" name="pin" class="login-field" placeholder="PIN-kode" autofocus maxlength="30" />
-            <button type="submit" class="login-btn">Log ind</button>
+        @* A plain form post, so logging in works without a live connection. *@
+        <form method="post" action="/api/auth/login" class="k-stack">
+            <label class="k-label" for="pin">PIN-kode</label>
+            <input id="pin" type="password" name="pin" class="k-input" autocomplete="current-password" autofocus maxlength="30" />
+            <button type="submit" class="k-btn k-btn-primary k-btn-block">Log ind</button>
         </form>
     </div>
+    <p class="k-muted mb-center">Har du ikke en PIN-kode? Skriv til Martin på ITMartin@Mensa.dk eller ring 31 19 47 30.</p>
 </div>
 
 @code {

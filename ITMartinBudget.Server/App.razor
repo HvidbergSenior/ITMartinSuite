@@ -114,6 +114,9 @@
         {
             var path = HttpContext?.Request.Path.Value ?? "/";
             return path == "/" || path.StartsWith("/kategorier", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/login", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/shop-upload", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/laeg-ind", StringComparison.OrdinalIgnoreCase)
                 || path.StartsWith("/kolibri", StringComparison.OrdinalIgnoreCase);
         }
     }
