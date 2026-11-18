@@ -128,3 +128,23 @@ html, body {
 .task-line { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center; padding: 10px 0; border-top: 1px solid var(--border); }
 .task-line-main { flex: 1; min-width: 200px; }
 .task-late .msg-item-title { color: var(--red); }
+
+
+/* Forms on the start pages (opret forening, "Du er den første", log ind) - 2026-11-18: shared here so every page that shows
+   FoundForm gets them (they lived only on the create page, so the join page showed raw inputs). Kolibri tokens only;
+   dark text on a pale accent (no white text on orange), 16 px inputs (no iPhone zoom), 52 px buttons. */
+.create-wrap { display: flex; justify-content: center; padding: 24px 16px 40px; }
+.create-card { background: var(--k-card); border: 1px solid var(--k-border); border-radius: 20px; padding: 32px 24px; width: 100%; max-width: 480px; text-align: center; color: var(--k-text); }
+.create-title { font-size: 26px; font-weight: 900; margin: 0 0 8px; text-wrap: balance; }
+.create-sub { font-size: 15px; color: var(--k-muted); margin: 0 0 24px; line-height: 1.45; }
+.create-field { text-align: left; margin-bottom: 16px; }
+.create-field label { display: block; font-size: 14px; font-weight: 700; color: var(--k-text); margin-bottom: 6px; }
+.create-hint-text { font-size: 13px; color: var(--k-muted); margin-top: 6px; line-height: 1.45; }
+.create-input { width: 100%; box-sizing: border-box; background: var(--k-card); border: 1px solid var(--k-muted-2); border-radius: 10px; padding: 12px 14px; color: var(--k-text); font-size: 16px; }
+.create-input:focus-visible { outline: 2px solid var(--k-text); outline-offset: 1px; }
+.create-btn { width: 100%; min-height: 52px; padding: 13px; border-radius: 12px; border: 2px solid var(--k-text); background: var(--k-accent-soft); color: var(--k-text); font-size: 17px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+.create-btn:hover:not(:disabled) { border-color: var(--k-accent-dark); }
+.create-btn:disabled { opacity: .55; cursor: default; }
+.create-error { background: color-mix(in srgb, var(--k-danger) 10%, var(--k-card)); border: 1px solid var(--k-danger-border); border-radius: 10px; padding: 10px 14px; font-size: 14px; color: var(--k-text); font-weight: 600; margin-bottom: 16px; text-align: left; }
+.found { text-align: left; }
+.found p { line-height: 1.5; }

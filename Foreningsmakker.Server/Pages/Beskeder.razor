@@ -15,7 +15,7 @@ else
 
         <div class="msg-body">
             <h2 class="msg-h">Beskeder</h2>
-            <p class="msg-help">Noget vigtigt til hele holdet? Skriv det her – så kan du se, hvem der har set det, og hvem der har bekræftet.</p>
+            <p class="msg-help">Noget vigtigt til hele foreningen? Skriv det her – så kan du se, hvem der har set det, og hvem der har bekræftet.</p>
 
             @if (_pushMsg is null)
             {
@@ -30,7 +30,7 @@ else
 
             @if (!_writing)
             {
-                <button class="msg-btn msg-btn-primary msg-big" @onclick="() => _writing = true">Skriv en besked til holdet</button>
+                <button class="msg-btn msg-btn-primary msg-big" @onclick="() => _writing = true">Skriv en besked til foreningen</button>
             }
             else
             {
@@ -43,7 +43,7 @@ else
                         <textarea class="msg-input" rows="6" @bind="_text" @bind:event="oninput" maxlength="4000" placeholder="Skriv det, de skal vide …"></textarea>
                     </label>
                     <label class="msg-check"><input type="checkbox" @bind="_confirm" /> De skal trykke <b>"Jeg har læst det"</b> (og få en påmindelse efter 24 timer, hvis de ikke har)</label>
-                    <p class="msg-help">Går til alle @_others andre på holdet – med push på telefonen@(Messages.MailConfigured ? " og mail til dem, der har skrevet deres mail" : "").</p>
+                    <p class="msg-help">Går til alle @_others andre i foreningen – med push på telefonen@(Messages.MailConfigured ? " og mail til dem, der har skrevet deres mail" : "").</p>
                     <div class="msg-row">
                         <button class="msg-btn msg-btn-primary" @onclick="Send" disabled="@(_sending || string.IsNullOrWhiteSpace(_title) || string.IsNullOrWhiteSpace(_text))">Send</button>
                         <button class="msg-btn" @onclick="() => _writing = false">Annullér</button>
@@ -137,7 +137,7 @@ else
         {
             "granted" => "Notifikationer er slået til på denne enhed.",
             "denied" => "Notifikationer er blokeret i browseren. Slå dem til under browserens indstillinger for siden.",
-            "unsupported" => "Denne browser kan ikke give notifikationer. På iPhone: læg Club på hjemmeskærmen først (nederst), og åbn den derfra.",
+            "unsupported" => "Denne browser kan ikke give notifikationer. På iPhone: læg Foreningsmakker på hjemmeskærmen først (nederst), og åbn den derfra.",
             _ => "Det gik ikke – prøv igen.",
         };
     }

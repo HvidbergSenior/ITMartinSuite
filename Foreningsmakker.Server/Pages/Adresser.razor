@@ -89,7 +89,7 @@ else
             {
                 <div class="msg-card card">
                     <h2 class="msg-h">Invitationer</h2>
-                    <p class="msg-help">Hver person får sit eget link. Det logger dem ind uden kode og viser, hvordan de lægger Club på telefonen. Et nyt link gør det gamle ugyldigt.</p>
+                    <p class="msg-help">Hver person får sit eget link. Det logger dem ind uden kode og viser, hvordan de lægger Foreningsmakker på telefonen. Et nyt link gør det gamle ugyldigt.</p>
                     @foreach (var m in _members.Where(m => m.Id != _member.Id))
                     {
                         var phone = PhoneOf(m);
@@ -110,7 +110,7 @@ else
                             }
                             @if (_confirmRemove == m.Id)
                             {
-                                <div class="msg-row"><span>Fjern @m.Name fra holdet?</span>
+                                <div class="msg-row"><span>Fjern @m.Name fra foreningen?</span>
                                     <button class="msg-btn msg-btn-sm" @onclick="() => Remove(m)">Ja, fjern</button>
                                     <button class="msg-btn msg-btn-sm" @onclick="() => _confirmRemove = null">Nej</button></div>
                             }
