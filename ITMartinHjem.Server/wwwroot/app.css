@@ -422,6 +422,30 @@ html[data-family="idag"] .hj-news::before{content:"🤝 ITMARTIN + BOGSHOPPEN";p
 .bu-h3 { font-size: 1.05rem; margin: 16px 0 6px; }
 .bu-bankvague { background: var(--hj-yellow-bg); border: 1px solid var(--hj-yellow-line); border-radius: 10px; padding: 8px 12px; color: var(--k-text); margin: 6px 0 10px; }
 .bu-own { border-top: 1px dashed var(--k-border-3); margin-top: 14px; padding-top: 4px; }
+/* Budget 2026-11-18: key numbers, month bars, the bank's groups. */
+.bu-key { margin: 10px 0 4px; }
+.bu-key .bu-tile-num { font-size: 1.6rem; }
+.bu-good { color: #067647; }
+.bu-bad { color: #b42318; }
+[data-theme="dark"] .bu-good { color: #7ee2a8; }
+[data-theme="dark"] .bu-bad { color: #ff8a80; }
+.bu-months { list-style: none; padding: 0; margin: 6px 0; }
+.bu-months li { display: grid; grid-template-columns: 7.5em 1fr auto auto; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--k-border); }
+.bu-mname { text-transform: capitalize; font-weight: 600; }
+.bu-bars { display: flex; flex-direction: column; gap: 3px; }
+.bu-bars i { display: block; height: 8px; border-radius: 4px; min-width: 2px; }
+.bu-in { background: #2f9e44; }
+.bu-out { background: #e8590c; }
+.bu-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: middle; }
+.bu-mnum { font-size: .85rem; text-align: right; color: var(--k-muted); }
+.bu-months b { min-width: 6.5em; text-align: right; }
+.bu-group { border-bottom: 1px solid var(--k-border); }
+.bu-group summary { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; cursor: pointer; list-style: none; }
+.bu-group summary::-webkit-details-marker { display: none; }
+.bu-group summary span::before { content: '\25B8  '; color: var(--k-muted); }
+.bu-group[open] summary span::before { content: '\25BE  '; }
+.bu-group .bu-list { margin: 0 0 8px 1.2em; }
+@media (max-width: 560px) { .bu-months li { grid-template-columns: 5.5em 1fr auto; } .bu-mnum { display: none; } }
 
 /* Mine apps: a picture of the app in use (2026-10-08) */
 .hj-app-pic { display: block; max-width: 100%; max-height: 420px; margin: 10px auto 0; border-radius: 12px; border: 1px solid var(--k-border-3); }

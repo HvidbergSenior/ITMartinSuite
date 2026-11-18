@@ -120,3 +120,32 @@ test('When the bank already knows what a payment was, it is not difficult', () =
     assert.equal(u.sum, 150);
     assert.equal(u.bankVague, 1);
 });
+
+// 2026-11-18: "Ind og ud pr. måned" + "Hvad går pengene til" (the bank's own groups) - easy and intuitive.
+const jyske = [
+    'Dato;Tekst;Beløb;Saldo;Afstemt;Kontonummer;Kontonavn;Hovedkategori;Kategori;Kommentar',
+    '30.01.2026;LØNOVERFØRSEL;36.818,27;40.000,00;;1;Total;Indtægter;Løn, dagpenge og pension;',
+    '19.01.2026;Opsparingskonto;20.000,00;3.000,00;;1;Total;Indtægter;Indtægter (Andet);',
+    '20.01.2026;Opsparingskonto;-5.000,00;1.000,00;;1;Total;Opsparing og investering;Opsparing;',
+    '05.01.2026;Termin Jyske Realkredit;-13.832,00;5.000,00;;1;Total;Bolig;Realkreditlån;',
+    '06.01.2026;DK LIDL;-400,00;4.600,00;;1;Total;Mad og indkøb;Dagligvarer;',
+    '06.02.2026;DK NETTO;-600,00;4.000,00;;1;Total;Mad og indkøb;Dagligvarer;',
+    '07.02.2026;MobilePay Telenor;-300,00;3.700,00;;1;Total;Medier;Telefon, internet, streaming og TV;',
+].join('\n');
+
+test('salary is income, savings moves are neither income nor spending', () => {
+    const a = B.analyse(B.readTransactions(jyske));
+    assert.equal(Math.round(a.income), 36818);
+    assert.equal(Math.round(a.spent), 13832 + 400 + 600 + 300);
+    assert.deepEqual(a.months.map((m) => [m.key, Math.round(m.inn), Math.round(m.out)]), [['2026-01', 36818, 14232], ['2026-02', 0, 900]]);
+});
+
+test('the bank\'s own groups with the finer categories inside', () => {
+    const a = B.analyse(B.readTransactions(jyske));
+    assert.equal(a.hasGroups, true);
+    assert.deepEqual(a.groups.map((g) => g.name), ['Bolig', 'Mad og indkøb', 'Medier']);
+    const mad = a.groups.find((g) => g.name === 'Mad og indkøb');
+    assert.equal(mad.sum, 1000);
+    assert.equal(mad.monthly, 500);
+    assert.deepEqual(mad.subs.map((s) => s.name), ['Dagligvarer']);
+});

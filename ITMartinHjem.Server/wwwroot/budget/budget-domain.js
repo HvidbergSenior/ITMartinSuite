@@ -92,7 +92,9 @@
                 // The bank's own category, the finer one if both exist ("Kategori" before "Hovedkategori").
                 var cat = head.findIndex(function (c) { return /^kategori$|^category$/i.test(c); });
                 if (cat < 0) cat = head.findIndex(function (c) { return CATEGORY.test(c); });
-                return { start: h + 1, date: date, amount: amount, texts: texts, category: cat };
+                // The bank's main group ("Bolig", "Mad og indkøb" ...) - the first, easy level of "Hvad går pengene til".
+                var group = head.findIndex(function (c) { return /^hovedkategori$|^main ?category$|^kategorigruppe$/i.test(c); });
+                return { start: h + 1, date: date, amount: amount, texts: texts, category: cat, group: group };
             }
         }
         // No header (e.g. a raw export that starts with the account number): judge by contents.
@@ -126,7 +128,8 @@
             if (!date || amount === null) return;
             var txt = c.texts.map(function (i) { return r[i] || ''; }).filter(Boolean)
                 .filter(function (t, i, a) { return a.indexOf(t) === i; }).join(' · ');
-            list.push({ date: date, amount: amount, text: txt || '(uden tekst)', category: c.category >= 0 ? (r[c.category] || '') : '' });
+            list.push({ date: date, amount: amount, text: txt || '(uden tekst)', category: c.category >= 0 ? (r[c.category] || '') : '',
+                group: c.group >= 0 ? (r[c.group] || '') : '' });
         });
         return list;
     }
@@ -138,6 +141,14 @@
     var FUEL = /circle ?k|q8|shell|\bok\b|ok plus|uno-?x|ingo|f24|go'on|clever|tesla|e\.on|spirii|rejsekort|dsb|midttrafik|movia|parkering|easypark|parkman|apcoa|brobizz/i;
     var FEES = /gebyr|rente|renter|overtræk|rykker|kortgebyr|årsgebyr/i;
     var OWN = /overf|overført|opsparing|egen konto|til konto|fra konto/i;
+    var OWN_GROUP = /^opsparing|investering|indgår ikke/i;   // the bank's own "not spending" groups
+    var PAY = /løn|dagpenge|pension|su|indtægt|feriepenge/i;   // "LØNOVERFØRSEL" is income, not a move between own accounts
+    var SAVINGS = /opsparing|egen konto|børneopsparing/i;   // to/from savings is never income or spending, whatever the bank's group says
+    function isOwn(t) {
+        if (SAVINGS.test(t.text)) return true;
+        if (PAY.test(t.text) || PAY.test(t.group || '') || PAY.test(t.category || '')) return false;
+        return OWN.test(t.text) || OWN_GROUP.test(t.group || '') || OWN_GROUP.test(t.category || '');
+    }
     // The point of the free Budget (user 2026-10-08): show the payments nobody can sort - MobilePay to people,
     // transfers to an account number, cash. The bank knows only who got the money, never what it was for.
     var TRANSFER_OTHER = /^(til|overf\S*(\s+til)?)\s+\d[\d ]{5,}/i;
@@ -192,12 +203,42 @@
 
     function monthKey(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
 
+    // "Ind og ud pr. måned" (user 2026-11-18: easy and intuitive): money in, money out and what is left, month by month.
+    // Moves between your own accounts and savings are left out - they are not income or spending.
+    function byMonth(list) {
+        var m = {};
+        list.forEach(function (t) {
+            if (isOwn(t)) return;
+            var k = monthKey(t.date), x = m[k] = m[k] || { key: k, inn: 0, out: 0 };
+            if (t.amount > 0) x.inn += t.amount; else x.out -= t.amount;
+        });
+        return Object.keys(m).sort().map(function (k) { return m[k]; });
+    }
+
+    // "Hvad går pengene til": the bank's own groups when the file has them (Bolig, Mad og indkøb ...), with the finer
+    // categories inside. Without them: one group per place (cleaned text) - the old "where most money goes".
+    function byGroup(out, monthCount) {
+        var g = {};
+        out.forEach(function (t) {
+            var name = t.group || t.category || 'Uden kategori';
+            var sub = t.group ? (t.category || 'Andet') : '';
+            var x = g[name] = g[name] || { name: name, sum: 0, n: 0, subs: {} };
+            x.sum -= t.amount; x.n++;
+            if (sub) { var y = x.subs[sub] = x.subs[sub] || { name: sub, sum: 0, n: 0 }; y.sum -= t.amount; y.n++; }
+        });
+        return Object.values(g).map(function (x) {
+            x.monthly = x.sum / monthCount;
+            x.subs = Object.values(x.subs).sort(function (a, b) { return b.sum - a.sum; });
+            return x;
+        }).sort(function (a, b) { return b.sum - a.sum; });
+    }
+
     function analyse(list) {
         list.sort(function (a, b) { return a.date - b.date; });
         var months = {};
         list.forEach(function (t) { months[monthKey(t.date)] = true; });
         var monthCount = Math.max(1, Object.keys(months).length);
-        var out = list.filter(function (t) { return t.amount < 0 && !OWN.test(t.text); });
+        var out = list.filter(function (t) { return t.amount < 0 && !isOwn(t); });
         function sum(a) { return a.reduce(function (s, t) { return s - t.amount; }, 0); }
         function where(re) { return out.filter(function (t) { return re.test(t.text); }); }
 
@@ -258,7 +299,8 @@
 
         return {
             first: list[0].date, last: list[list.length - 1].date, monthCount: monthCount, lines: list.length,
-            income: list.filter(function (t) { return t.amount > 0 && !OWN.test(t.text); }).reduce(function (s, t) { return s + t.amount; }, 0),
+            income: list.filter(function (t) { return t.amount > 0 && !isOwn(t); }).reduce(function (s, t) { return s + t.amount; }, 0),
+            months: byMonth(list), groups: byGroup(out, monthCount), hasGroups: out.some(function (t) { return t.group || t.category; }),
             spent: sum(out),
             unclear: unclear,
             mp: { sum: sum(mp), n: mp.length, topMonth: mpTop, topSum: mpTop ? mpByMonth[mpTop] : 0 },
@@ -269,7 +311,7 @@
 
     return {
         decode: decode, pickDelimiter: pickDelimiter, splitLine: splitLine, parseDate: parseDate, parseAmount: parseAmount,
-        findColumns: findColumns, readTransactions: readTransactions, unclearKind: unclearKind, recipient: recipient, clean: clean, monthKey: monthKey, interval: interval, analyse: analyse,
+        findColumns: findColumns, readTransactions: readTransactions, byMonth: byMonth, byGroup: byGroup, isOwn: isOwn, unclearKind: unclearKind, recipient: recipient, clean: clean, monthKey: monthKey, interval: interval, analyse: analyse,
         patterns: { MOBILEPAY: MOBILEPAY, GROCERY: GROCERY, EATOUT: EATOUT, FUEL: FUEL, FEES: FEES, OWN: OWN }
     };
 });

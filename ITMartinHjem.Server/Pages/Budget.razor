@@ -1,15 +1,14 @@
 @page "/budget"
 
-@* Gratis Budget (user 2026-10-08): drop the bank's CSV file and see where the money goes. wwwroot/budget.js reads the
+@* Gratis Budget (user 2026-10-08; rebuilt 2026-11-18 'easy and intuitive', paid = MitBudget like ElPriser/MinElpris): wwwroot/budget/*.js reads the
    file in the browser - nothing is sent or saved. Paid (Udvidet) = the full Budget app, asked for in the chat. *@
 <PageTitle>Budget · Martin Hvidberg</PageTitle>
 
 @* The same head as the other tabs - gradient, Martin's photo, tag (user 2026-10-28: "need to have the feel"). *@
 <PageHead Title="Hvor går pengene hen?" Tag="Budget – gratis" />
 <article class="k-card hj-page" data-nofold>
-    <p>Læg en fil med dine posteringer fra netbanken ind her, så ser du de betalinger, <b>banken ikke kan sortere for dig</b>:
-        <b>MobilePay</b>, <b>overførsler</b> og <b>kontanter</b>. Her står kun, <i>hvem</i> der fik pengene – aldrig <i>hvad</i> de var til.
-        Du ser, hvor meget det er, og hvem der fik dem.</p>
+    <p>Læg en fil med dine posteringer fra netbanken ind her. På få sekunder ser du <b>hvad der kommer ind og går ud hver måned</b>,
+        <b>hvad pengene går til</b> – og de betalinger, banken ikke kan sortere for dig: MobilePay, overførsler og kontanter.</p>
     <p class="bu-safe"><b>Filen forlader aldrig din computer.</b> Den bliver læst her i din egen browser – intet bliver sendt til mig eller gemt.</p>
 
     <label id="bu-drop" class="bu-drop">
@@ -31,8 +30,8 @@
         Mange små betalinger føles ikke af noget, men tilsammen kan de blive til tusindvis af kroner om måneden.</p>
     <p><b>Det kan du selv gøre:</b> åbn MobilePay-appen og kig dine betalinger igennem. Ved mange af dem står den besked, der blev skrevet med –
         den fortæller ofte, hvad pengene var til.</p>
-    <p><span class="k-tag hj-tag-plus">Udvidet</span> Vi går dine MobilePay-betalinger igennem sammen og sætter hver modtager i en rigtig kategori
-        (børn, mad, fritid, køb og salg …). Næste gang kommer de samme modtagere automatisk det rigtige sted hen. Pris via chat.</p>
+    <p><span class="k-tag hj-tag-plus">MitBudget</span> Vi går dine MobilePay-betalinger igennem sammen og sætter hver modtager i en rigtig kategori
+        (børn, mad, fritid, køb og salg …). Næste gang kommer de samme modtagere automatisk det rigtige sted hen. Prisen aftaler vi sammen.</p>
 </details>
 
 <details class="k-card" data-remember="bu-hent">
@@ -55,7 +54,8 @@
 </details>
 
 <details class="k-card" data-remember="bu-udvidet">
-    <summary><b>Gratis eller udvidet?</b></summary>
-    <p><span class="k-tag">Gratis</span> Det, du ser her: MobilePay, faste betalinger, dagligvarer, mad ude, transport, gebyrer og de største modtagere – for den periode, din fil dækker.</p>
-    <p><span class="k-tag hj-tag-plus">Udvidet</span> <b>Dine egne kategorier</b> – også MobilePay fordelt på det, det faktisk var: benzin, dagligvarer, lommepenge, brugtkøb … Måned for måned, et budget der passer til jer, og hjælp til at opsige det, I ikke bruger. Pris via chat.</p>
+    <summary><b>Gratis Budget eller MitBudget?</b></summary>
+    <p><span class="k-tag">Gratis</span> Det, du ser her: ind og ud pr. måned, hvad pengene går til, MobilePay og faste betalinger – for den periode, din fil dækker. Intet bliver gemt.</p>
+    <p><span class="k-tag hj-tag-plus">MitBudget</span> Dine tal bliver gemt, så du kan følge med måned for måned: <b>dine egne kategorier</b> (også MobilePay), <b>familiens budget</b>,
+        <b>privat og firma hver for sig</b> med det, der kan trækkes fra, og <b>del med din rådgiver</b> – kun de vigtige tal. Ingen abonnement – prisen aftaler vi sammen.</p>
 </details>
