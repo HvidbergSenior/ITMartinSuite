@@ -19,23 +19,22 @@ public sealed class FindSteder(IStedStore store, IByOpslag byer)
     public const double RadiusKm = 30;
 
     /// <summary>
-    /// Text that matches a place's name/by/kategori = those places. Text that matches nothing (or a postnummer) = a town:
-    /// we look it up and show the nearest places within 30 km. Most places from OpenStreetMap have a position but no address.
+    /// Text = first a town/postnummer (Nominatim): the nearest places within 30 km. Else the name search.
+    /// Most places from OpenStreetMap have a position but no address, so the town search is what makes "Hammel" work.
     /// </summary>
     public async Task<SoegResultat> UdfoerAsync(string? q, string? kategori, string? behov, bool kunPasser, double? lat, double? lng, CancellationToken ct = default)
     {
         var tekst = (q ?? "").Trim();
         if (tekst.Length > 0 && lat is null)
         {
-            var erPostnr = tekst.Length == 4 && tekst.All(char.IsDigit);
-            var direkte = Udfoer(tekst, kategori, behov, kunPasser, null, null);
-            if (direkte.Antal > 0 && !erPostnr) return direkte;
+            // A town or postnummer (what most people type) -> everything within 30 km, nearest first.
+            // Nothing found as a place on the map -> the name search ("Kystmuseet").
             if (await byer.FindAsync(tekst, ct) is { } p)
             {
                 var naer = Udfoer(null, kategori, behov, kunPasser, p.Lat, p.Lng, RadiusKm);
-                return naer with { Ved = p.Navn };
+                if (naer.Antal > 0) return naer with { Ved = p.Navn };
             }
-            return direkte;
+            return Udfoer(tekst, kategori, behov, kunPasser, null, null);
         }
         return Udfoer(tekst, kategori, behov, kunPasser, lat, lng, lat is null ? null : RadiusKm * 2);
     }

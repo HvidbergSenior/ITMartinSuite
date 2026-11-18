@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Net.Http.Json;
 using EasyPass.Application;
@@ -142,6 +143,16 @@ public class OpenStreetMapTests
         r.Ved.Should().Be("Hammel");
         r.Steder.Should().ContainSingle().Which.Navn.Should().Be("Café ved søen");
     }
+
+    [Test]
+    public async Task Not_a_town_falls_back_to_the_name()
+    {
+        var store = new Mem();
+        store.Gem(Osm("node/1", "Kystmuseet"));
+        var r = await new FindSteder(store, new FakeBy(null)).UdfoerAsync("Kystmus", null, null, false, null, null);
+        r.Steder.Should().ContainSingle();
+        r.Ved.Should().BeNull();
+    }
 }
 
 public class RulesTests
@@ -211,6 +222,8 @@ public class ApiTests
             b.UseSetting("EasyPass:DataDir", _dir);
             b.UseSetting("EasyPass:AdminPin", "123456");
             b.UseSetting("EasyPass:OsmAuto", "false");
+            // No real Nominatim calls from tests.
+            b.ConfigureServices(sv => sv.AddSingleton<IByOpslag>(new IngenBy()));
         });
     }
 
@@ -257,3 +270,8 @@ public class ApiTests
 }
 
 internal sealed record StedDetaljeDto(int AntalGodt);
+
+internal sealed class IngenBy : IByOpslag
+{
+    public Task<Punkt?> FindAsync(string tekst, CancellationToken ct = default) => Task.FromResult<Punkt?>(null);
+}
