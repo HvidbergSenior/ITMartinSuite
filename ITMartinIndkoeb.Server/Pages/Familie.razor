@@ -1,0 +1,66 @@
+@page "/h/{Key}"
+
+<PageTitle>Ugens indkøb</PageTitle>
+
+@* The family's week. indkoeb.js asks /api/h/{key}; the name of who adds a purchase is remembered in this browser only. *@
+<div data-page="familie" data-key="@Key">
+    <section class="k-card ui-uge" id="uge" aria-live="polite">
+        <p class="ui-eyebrow" id="u-navn">Henter …</p>
+        <p class="ui-left"><span id="u-tilbage">–</span> <small>kr tilbage denne uge</small></p>
+        <div class="ui-bar" role="progressbar" aria-valuemin="0" id="u-bar"><span id="u-fill"></span></div>
+        <p class="ui-meta"><span id="u-brugt"></span> · <span id="u-ture"></span></p>
+        <p class="ui-next" id="u-next"></p>
+        <ul class="ui-warn" id="u-warn"></ul>
+    </section>
+
+    <section class="k-card">
+        <h2 class="k-card-title">Har du handlet?</h2>
+        <form id="koeb-form" class="ui-form" autocomplete="off">
+            <label for="k-beloeb">Beløb (kr)</label>
+            <input id="k-beloeb" class="ui-input ui-amount" inputmode="decimal" placeholder="fx 245" />
+            <span class="ui-label">Butik</span>
+            <div id="k-butikker" class="ui-shops" role="group" aria-label="Butik"></div>
+            <details class="ui-more"><summary>Hvem og hvornår</summary>
+                <label for="k-hvem">Hvem handlede?</label>
+                <input id="k-hvem" class="ui-input" maxlength="30" placeholder="dit fornavn" />
+                <label for="k-dato">Dato</label>
+                <input id="k-dato" class="ui-input" type="date" />
+            </details>
+            <p id="k-svar" aria-live="polite"></p>
+        </form>
+    </section>
+
+    <section class="k-card">
+        <h2 class="k-card-title">Denne uges indkøb</h2>
+        <div id="liste" class="ui-list"></div>
+    </section>
+
+    <section class="k-card">
+        <h2 class="k-card-title">Måneder</h2>
+        <p class="k-muted" id="m-maal"></p>
+        <div id="maaneder" class="ui-list"></div>
+    </section>
+
+    <section class="k-card" data-fold-closed>
+        <h2 class="k-card-title">Ugemål</h2>
+        <form id="maal-form" class="ui-form">
+            <label for="m-navn">Familiens navn</label><input id="m-navn" class="ui-input" maxlength="40" />
+            <label for="m-uge">Ugemål (kr)</label><input id="m-uge" class="ui-input" inputmode="numeric" />
+            <label for="m-ture">Højst antal ture om ugen</label><input id="m-ture" class="ui-input" inputmode="numeric" />
+            <label for="m-suppl">En supplering må højst koste (kr)</label><input id="m-suppl" class="ui-input" inputmode="numeric" />
+            <label for="m-stort">Et stort indkøb er fra (kr)</label><input id="m-stort" class="ui-input" inputmode="numeric" />
+            <button class="k-btn k-btn-primary" type="submit">Gem</button>
+            <p id="maal-svar" aria-live="polite"></p>
+        </form>
+    </section>
+
+    <section class="k-card" data-fold-closed>
+        <h2 class="k-card-title">Del med familien</h2>
+        <p class="k-muted">Linket er jeres adgang. Læg det i jeres Snak-rum, så har alle det.</p>
+        <div class="ui-row"><input id="del-link" class="ui-input ui-grow" readonly aria-label="Link til familiens side" /><button id="del-kopier" class="k-btn k-btn-secondary" type="button">Kopiér</button></div>
+    </section>
+</div>
+
+@code {
+    [Parameter] public string Key { get; set; } = "";
+}

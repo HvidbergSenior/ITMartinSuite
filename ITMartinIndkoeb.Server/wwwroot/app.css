@@ -1,0 +1,33 @@
+/* Ugens indkøb: Kolibri tokens only (light + dark follow the shared design). The week card says its state in words AND
+   a coloured edge - never colour alone. Big targets: shop buttons 52 px, amount field 24 px text. */
+.ui-h1 { margin: 0 0 8px; font-size: 1.6rem; text-wrap: balance; }
+.ui-eyebrow { margin: 0; color: var(--k-muted); font-weight: 600; font-size: .9rem; }
+.ui-uge { border-left: 6px solid var(--k-success); }
+.ui-uge[data-state="paspaa"] { border-left-color: var(--k-warning); }
+.ui-uge[data-state="over"] { border-left-color: var(--k-danger); }
+.ui-left { margin: 6px 0; font-size: 3rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.ui-left small { font-size: 1rem; font-weight: 600; color: var(--k-muted); }
+.ui-bar { height: 12px; border-radius: 999px; background: var(--k-border); overflow: hidden; margin: 10px 0; }
+.ui-bar span { display: block; height: 100%; width: 0; background: var(--k-accent); transition: width .3s; }
+@media (prefers-reduced-motion: reduce) { .ui-bar span { transition: none; } }
+.ui-meta { margin: 0; color: var(--k-muted); font-variant-numeric: tabular-nums; }
+.ui-next { margin: 12px 0 0; font-size: 1.1rem; font-weight: 700; }
+.ui-warn { margin: 8px 0 0; padding-left: 1.2em; color: var(--k-text); }
+.ui-warn:empty { display: none; }
+.ui-form { display: grid; gap: 8px; }
+.ui-form label, .ui-label { font-size: .9rem; font-weight: 700; }
+.ui-input { font: inherit; font-size: 1.05rem; padding: 11px 12px; border: 1px solid var(--k-muted-2); border-radius: 10px; background: var(--k-card); color: var(--k-text); min-width: 0; }
+.ui-amount { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ui-shops { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
+.ui-shop { min-height: 52px; font-size: 1.05rem; }
+.ui-big { min-height: 52px; font-size: 1.05rem; }
+.ui-more summary { cursor: pointer; font-weight: 600; margin: 4px 0; }
+.ui-more[open] { display: grid; gap: 8px; }
+.ui-list { display: grid; gap: 8px; }
+.ui-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--k-border); border-radius: 10px; }
+.ui-item > div { display: grid; min-width: 0; }
+.ui-item span { color: var(--k-muted); font-size: .9rem; }
+.ui-item.ok { border-left: 4px solid var(--k-success); }
+.ui-item.over { border-left: 4px solid var(--k-danger); }
+.ui-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.ui-grow { flex: 1 1 220px; }

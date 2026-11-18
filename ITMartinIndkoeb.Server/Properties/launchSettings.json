@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "ITMartinIndkoeb": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "applicationUrl": "http://localhost:5271",
+      "environmentVariables": { "ASPNETCORE_ENVIRONMENT": "Development" }
+    }
+  }
+}

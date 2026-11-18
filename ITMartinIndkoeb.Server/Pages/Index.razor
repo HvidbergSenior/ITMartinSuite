@@ -1,0 +1,17 @@
+@page "/"
+
+<PageTitle>Ugens indkøb – start</PageTitle>
+
+@* Start: make the family's page. The link that comes back IS the access - put it in the family's Snak room. *@
+<div data-page="start">
+    <section class="k-card">
+        <h1 class="ui-h1">Ugens indkøb</h1>
+        <p>Et fælles ugemål for familiens dagligvarer – fx <b>750 kr og 5 ture om ugen</b>. Alle lægger deres indkøb ind, og alle kan se, hvad der er tilbage.</p>
+        <form id="ny-form" class="ui-form">
+            <label for="ny-navn">Hvad hedder jeres familie?</label>
+            <input id="ny-navn" class="ui-input" maxlength="40" placeholder="fx Familien Hvidberg" />
+            <button class="k-btn k-btn-primary ui-big" type="submit">Lav vores side</button>
+            <p id="ny-svar" aria-live="polite"></p>
+        </form>
+    </section>
+</div>

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <!-- Ugens indkøb (2026-11-18): the family grocery week. Static pages + indkoeb.js + a small JSON API. -->
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>ITMartinIndkoeb.Server</RootNamespace>
+        <AssemblyName>ITMartinIndkoeb.Server</AssemblyName>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
+        <ProjectReference Include="..\ITMartinIndkoeb.Infrastructure\ITMartinIndkoeb.Infrastructure.csproj" />
+        <ProjectReference Include="..\ITMartinIndkoeb.Application\ITMartinIndkoeb.Application.csproj" />
+        <ProjectReference Include="..\ITMartinIndkoeb.Domain\ITMartinIndkoeb.Domain.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="ITMartinIndkoeb.Tests" />
+    </ItemGroup>
+
+</Project>
