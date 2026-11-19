@@ -8,6 +8,7 @@
 @inject PhotoReader Photos
 @inject ITMartinElPriser.Application.RunMeasuringUseCases Measuring
 @inject RunLogService RunLog
+@inject ILogger<Enheder> Log
 
 <PageTitle>Enheder – MinElpris</PageTitle>
 
@@ -65,7 +66,8 @@ else
                     {
                         var recipe = Measuring.Recipe(a);
                         <div class="small u-mt6"><b>Test maskinen:</b> @recipe.Text Start ikke andre store ting imens (ovn, tørretumbler, elbil).</div>
-                        <button class="k-btn k-btn-primary k-btn-sm u-mt6" @onclick="() => StartTestAsync(a.Id)">Jeg starter testen nu</button>
+                        <button class="k-btn k-btn-primary k-btn-sm u-mt6" disabled="@_testBusy.Contains(a.Id)" @onclick="() => StartTestAsync(a.Id)">@(_testBusy.Contains(a.Id) ? "Starter testen…" : "Jeg starter testen nu")</button>
+                        @if (_testMsg.TryGetValue(a.Id, out var tm)) { <div class="small err u-mt6" role="alert">@tm</div> }
                     }
                 </div>
                 <div class="dev-actions">
@@ -280,12 +282,36 @@ else
     }
 
 
+    // The answer to "Jeg starter testen nu" shows right under that button (user 2026-11-19 on the phone: "the frame of the
+    // button is red but nothing happens" - the message was at the top of the card, out of sight).
+    private readonly Dictionary<Guid, string> _testMsg = new();
+    private readonly HashSet<Guid> _testBusy = new();
+
     private async Task StartTestAsync(Guid id)
     {
-        if (DemoHousehold.IsDemo(Store.HouseholdId)) { _photoError = "I demoen gemmes intet – opret din egen MinElpris for at teste maskinerne."; return; }
-        if (Store.Get().Appliances.FirstOrDefault(x => x.Id == id) is not { } a) return;
-        var entry = await RunLog.LogAsync(id, DkTime.Now, null, default, Measuring.Recipe(a));
-        _photoError = entry is null ? "Prisen for nu kendes ikke – prøv igen om lidt." : null;
+        _testMsg.Remove(id);
+        if (DemoHousehold.IsDemo(Store.HouseholdId)) { _testMsg[id] = "I demoen gemmes intet – opret din egen MinElpris for at teste maskinerne."; return; }
+        if (Store.Get().Appliances.FirstOrDefault(x => x.Id == id) is not { } a) { _testMsg[id] = "Maskinen findes ikke længere – genindlæs siden."; return; }
+        _testBusy.Add(id);
+        try
+        {
+            var now = DkTime.Now;
+            var recipe = Measuring.Recipe(a);
+            var entry = await RunLog.LogAsync(id, now, null, default, recipe);
+            if (entry is null)
+            {
+                var day = await Prices.GetDayAsync(DateOnly.FromDateTime(now), Store.Get().Settings.PriceArea);
+                Log.LogWarning("Test not started for {Machine}: no price for {Now:HH:mm} ({Hours} h). Prices for today: {Count}, first {First}, last {Last}",
+                    a.Name, now, recipe.Hours, day.Count, day.FirstOrDefault()?.TimeDk, day.LastOrDefault()?.TimeDk);
+                _testMsg[id] = "Testen blev ikke startet: elprisen for lige nu kunne ikke hentes. Prøv igen om et par minutter.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.LogError(ex, "Test start failed for {Machine}", a.Name);
+            _testMsg[id] = "Testen blev ikke startet – noget gik galt. Prøv igen om lidt.";
+        }
+        finally { _testBusy.Remove(id); }
     }
 
     private bool _reading;
