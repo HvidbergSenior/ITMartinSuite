@@ -54,6 +54,9 @@ public interface ICoverReader
     Task<Dictionary<string, PileReading>?> PileBatchResultsAsync(string batchId, CancellationToken ct);
     Task<Dictionary<int, string>> WriteInterestAsync(IReadOnlyList<string> lines, CancellationToken ct);
     Task<Dictionary<int, KolofonReading>> ReadKolofonsAsync(IReadOnlyList<byte[]> jpegs, CancellationToken ct);
+    /// <summary>One thing, started by a person (ItemCheckUseCases): what is it, with what they typed as the starting point.
+    /// WholePile = the photo is the whole pile, the typed text says which one. Null = not found. One call, under the cap.</summary>
+    Task<Identified?> IdentifyAsync(byte[] jpeg, bool wholePile, string typed, CancellationToken ct);
 }
 
 /// <summary>Grand Comics Database (2026-10-25): the year of a Danish comic from its series and number. Null = not known for

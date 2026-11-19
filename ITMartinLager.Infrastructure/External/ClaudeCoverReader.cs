@@ -444,6 +444,67 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
         return parsed.Items.Where(x => x.Index >= 0 && x.Index < jpegs.Count).GroupBy(x => x.Index).ToDictionary(g => g.Key, g => g.First().ToReading());
     }
 
+    private const string IdentifySystem = """
+        Du hjælper en dansk antikvarbutik med at finde ud af, præcis hvad en ting er (bog, tegneserie, blad, CD, DVD, plade, spil).
+        Du får et billede og det, en person har skrevet om tingen. Personen har rettet det, AI'en først læste forkert - det, personen
+        skrev, er udgangspunktet og kan være kun en del (fx kun serien). Find den RIGTIGE ting: læs titel, kunstner/forfatter,
+        serie/blad, nummer og år af billedet, og brug din viden om danske udgivelser til at gøre navnet fuldt og rigtigt stavet.
+        Er billedet en hel bunke, så find den ting, der passer til det skrevne, og læs kun den.
+        Kald report_thing. Gæt aldrig: et felt, du ikke kan se eller ikke ved, er tomt (år = null). Skriv kort i note, hvad du
+        er usikker på. kind er en af: Bog, Tegneserie, Superhelteblad, Anders And-blad, Jumbobog, Magasin, CD, DVD, Blu-ray, VHS,
+        Vinyl, Computerspil, Brætspil, Rollespil, Andet.
+        """;
+
+    private static readonly Tool IdentifyTool = new()
+    {
+        Name = "report_thing",
+        Description = "Report what the thing is",
+        InputSchema = new()
+        {
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["kind"] = JsonDocument.Parse("""{ "type": "string" }""").RootElement,
+                ["title"] = JsonDocument.Parse("""{ "type": "string" }""").RootElement,
+                ["artist"] = JsonDocument.Parse("""{ "type": "string" }""").RootElement,
+                ["series"] = JsonDocument.Parse("""{ "type": "string" }""").RootElement,
+                ["number"] = JsonDocument.Parse("""{ "type": "string" }""").RootElement,
+                ["year"] = JsonDocument.Parse("""{ "type": ["integer", "null"] }""").RootElement,
+                ["note"] = JsonDocument.Parse("""{ "type": "string" }""").RootElement,
+            },
+        },
+    };
+
+    // ItemCheckUseCases: one call per press of Gem / new photo - a person starts it, never a loop. Cheap model, same daily cap.
+    public async Task<Identified?> IdentifyAsync(byte[] jpeg, bool wholePile, string typed, CancellationToken ct)
+    {
+        if (!Enabled) throw new InvalidOperationException("AI er ikke slået til (Claude:ApiKey mangler).");
+        await ReserveCallAsync(ct);
+        var content = new List<ContentBlockParam>
+        {
+            new ImageBlockParam { Source = new Base64ImageSource { Data = Convert.ToBase64String(jpeg), MediaType = "image/jpeg" } },
+            new TextBlockParam { Text = (wholePile ? "Billedet er en HEL BUNKE - find den ting, der passer.\n" : "Billedet er tingen selv.\n")
+                + "Det har personen skrevet:\n" +(typed.Trim() == "" ? "(intet)" : typed) },
+        };
+        var client = new AnthropicClient { ApiKey = cfg["Claude:ApiKey"] };
+        var response = await client.Messages.Create(new MessageCreateParams
+        {
+            Model = Model,
+            MaxTokens = 800,
+            System = Cached(IdentifySystem),
+            Tools = [IdentifyTool],
+            ToolChoice = new ToolChoiceTool { Name = "report_thing" },
+            Messages = [new() { Role = Role.User, Content = content }],
+        }, ct);
+        await CountTokensAsync(response, ct);
+        if (response.Content.Select(b => b.Value).OfType<ToolUseBlock>().FirstOrDefault() is not { } tool) return null;
+        var r = JsonSerializer.Deserialize<RawItem>(JsonSerializer.Serialize(tool.Input), Json) ?? new RawItem();
+        log.LogInformation("Thing identified: {Title} / {Series} {Number}, {In}/{Out} tokens", r.Title, r.Series, r.Number,
+            response.Usage.InputTokens, response.Usage.OutputTokens);
+        var found = new Identified((r.Kind ?? "").Trim() == "" ? "" : Kinds.Normalise(r.Kind), (r.Title ?? "").Trim(), (r.Artist ?? "").Trim(),
+            (r.Series ?? "").Trim(), (r.Number ?? "").Trim(), r.Year is > 1800 and < 2100 ? r.Year : null, (r.Note ?? "").Trim());
+        return found.Title == "" && found.Series == "" ? null : found;
+    }
+
     private async Task CountTokensAsync(Message response, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);

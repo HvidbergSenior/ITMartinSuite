@@ -11,6 +11,7 @@ public static class DependencyInjection
         services.AddScoped<BoxUseCases>();
         services.AddScoped<ItemUseCases>();
         services.AddScoped<ItemPhotoUseCases>();
+        services.AddScoped<ItemCheckUseCases>();
         services.AddScoped<FundUseCases>();
         services.AddScoped<ThingDescriptionUseCases>();
         services.AddScoped<RegistrationUseCases>();

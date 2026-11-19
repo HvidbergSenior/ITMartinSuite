@@ -2,6 +2,7 @@
 @inject IJSRuntime JS
 @inject ItemUseCases Items
 @inject ItemPhotoUseCases ItemPhotos
+@inject ItemCheckUseCases Check
 @inject NavigationManager Nav
 @inject AuctionUseCases Auction
 @inject VareinfoLinks Vareinfo
@@ -110,17 +111,40 @@ else
             @if (Fixing)
             {
                 @* Gem and Næste apart (user 2026-11-19 "not gem and næste just gem. And næste as another button"): save, look, then go on. *@
-                <button class="k-btn k-btn-primary" @onclick="Save">Gem</button>
+                <button class="k-btn k-btn-primary" @onclick="SaveAndCheck" disabled="@_checking">Gem</button>
                 <button class="k-btn k-btn-secondary" @onclick="GoNext">Næste</button>
             }
             else
             {
-                <button class="k-btn k-btn-primary" @onclick="Save">Gem</button>
+                <button class="k-btn k-btn-primary" @onclick="SaveAndCheck" disabled="@_checking">Gem</button>
             }
             @if (Admin) { <button class="k-btn k-btn-ghost" @onclick="Delete" title="Ud af lageret – gemmes som Ikke købt, slettes ikke">Slet</button> }
         </div>
         @if (_msg is not null) { <p class="lg-ok" role="status">✓ @_msg</p> }
         @if (_err is not null) { <p class="lg-warn" role="alert">⚠ @_err</p> }
+        @* AI on Gem (user 2026-11-19 "1 and 2"): the AI looks at the photo with what was typed and suggests the right thing. *@
+        @if (_checking) { <p class="lg-check" role="status">AI'en kigger på billedet og det, du skrev …</p> }
+        else if (_suggestion is { } sug)
+        {
+            <div class="lg-check lg-suggest" role="status">
+                @if (sug.Changes.Count > 0)
+                {
+                    <p><b>AI'en foreslår:</b></p>
+                    <ul>
+                        @foreach (var c in sug.Changes)
+                        {
+                            <li>@c.Label: <b>@c.Ai</b> @(c.Mine == "" ? "" : $"(du har: {c.Mine})")</li>
+                        }
+                    </ul>
+                    @if (sug.Ai is { Note.Length: > 0 } a) { <p class="k-small">@a.Note</p> }
+                    <div class="lg-row">
+                        <button class="k-btn k-btn-primary k-btn-sm" @onclick="UseSuggestion">Brug forslaget</button>
+                        <button class="k-btn k-btn-secondary k-btn-sm" @onclick="() => _suggestion = null">Behold mit</button>
+                    </div>
+                }
+                else { <p>@sug.Message</p> }
+            </div>
+        }
     </section>
 
     @* Calm (2026-11-16): prices live in Priser, so no price line here; the auction box only for a thing marked rare - the only
@@ -249,6 +273,8 @@ else
     {
         var view = await Items.GetAsync(Id);
         _item = view?.Item;
+        _wasUnsure = _item is { Confidence: < 1 };
+        _suggestion = null;
         _box = _item?.Box?.Code;
         _boxLabel = _item?.Box?.Label;
         _others = _item is null ? [] : await Items.OthersLikeAsync(_item);
@@ -260,6 +286,37 @@ else
         {
             await Items.SaveAsync(_item!);
             _msg = "Gemt."; _err = null;
+        }
+        catch (Exception ex) { _err = ex.Message; }
+    }
+
+    private bool _checking, _wasUnsure;
+    private ItemSuggestion? _suggestion;
+
+    // Gem = save, then (the thing was unsure) the AI looks again with what was typed. One call per press.
+    private async Task SaveAndCheck()
+    {
+        await Save();
+        if (_err is null && (_wasUnsure || Fixing)) await Suggest();
+    }
+
+    private async Task Suggest()
+    {
+        if (!Check.Enabled) { _suggestion = new(null, [], "AI'en er ikke slået til (Claude-nøglen mangler i Lager) – det, du skrev, er gemt."); return; }
+        _checking = true; _suggestion = null;
+        StateHasChanged();
+        try { _suggestion = await Check.SuggestAsync(Id); }
+        catch (Exception ex) { _suggestion = new(null, [], "AI'en kunne ikke svare: " + ex.Message); }
+        finally { _checking = false; }
+    }
+
+    private async Task UseSuggestion()
+    {
+        if (_suggestion?.Ai is not { } ai) return;
+        try
+        {
+            if (await Check.ApplyAsync(Id, ai, Items) is { } saved) _item = saved;
+            _suggestion = null; _msg = "AI'ens forslag er gemt – priserne søges igen."; _err = null;
         }
         catch (Exception ex) { _err = ex.Message; }
     }
@@ -280,6 +337,8 @@ else
             await using (var s = e.File.OpenReadStream(30 * 1024 * 1024)) _item!.ItemPhoto = await Items.SavePhotoAsync(Id, s);
             _photoVer = DateTime.UtcNow.Ticks;
             _msg = "Billedet er gemt.";
+            _busy = false;
+            await Suggest();   // a new photo of the thing: the AI reads it with what was typed (user 2026-11-19 "1 and 2")
         }
         catch (Exception ex) { _err = ex.Message; }
         finally { _busy = false; }
