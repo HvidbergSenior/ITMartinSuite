@@ -1,0 +1,42 @@
+@inject Customers Kartotek
+
+@* Status on bogshoppen.dk (user 2026-11-19): many customers look for things; finding them in the boxes takes time, but every
+   wish is noted. Under it, what people look for - the groups they ticked (counted) and their own words, never who wrote them.
+   Data: Kunder (/api/kunder/oensker), only those who still said yes to Bogshoppen. *@
+<section class="k-card bs-card bs-status" id="status">
+    <span class="bs-tag">Status</span>
+    <h2 class="k-card-title">Mange leder efter noget bestemt</h2>
+    <p>
+        Mange kunder har skrevet, hvad de leder efter. Det tager tid at finde det i kasserne – vi har mange tusind bøger, blade,
+        film og cd'er at gå igennem. <b>Dit ønske er noteret.</b> Når vi finder noget, du leder efter, skriver vi til dig.
+    </p>
+    @if (_w is { People: > 0 })
+    {
+        <h3 class="bs-status-h">Det leder folk efter</h3>
+        <p class="k-muted">@_w.People kunder har skrevet sig op med ønsker.</p>
+        <ul class="bs-wish-groups" aria-label="Det leder folk efter">
+            @foreach (var g in _w.Groups)
+            {
+                <li><span>@g.Title</span><b>@g.Count</b></li>
+            }
+        </ul>
+        @if (_w.Wishes.Count > 0)
+        {
+            <h3 class="bs-status-h">Med deres egne ord</h3>
+            <ul class="bs-wishes">
+                @foreach (var w in _w.Wishes) { <li>@ITMartinHjem.Server.Services.NoEmoji.Strip(w)</li> }
+            </ul>
+        }
+    }
+    <a class="k-btn k-btn-primary bs-btn" href="#foelg">Skriv hvad du leder efter</a>
+</section>
+
+@code {
+    private ITMartinHjem.Domain.BogshoppenWishes.Summary? _w;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _w = await Kartotek.BogshoppenWishesAsync(); }
+        catch { _w = null; }   // the status text shows without the list
+    }
+}

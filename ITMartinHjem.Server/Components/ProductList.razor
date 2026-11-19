@@ -93,7 +93,7 @@
         {
             @* A box per shop with how much it has and a few of its pictures - the whole box is pressed. *@
             <ul class="bs-families">
-                @foreach (var f in ShopFamilies.All)
+                @foreach (var f in ShopFamilies.Shown)
                 {
                     var count = Count(f);
                     <li>

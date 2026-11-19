@@ -210,6 +210,11 @@ public sealed class Kundekartotek(ICustomerRepository repo, TimeProvider clock, 
             $"køb gemmes i {Retention.PurchaseKeepYears} år (bogføringsloven). Se itmartin.dk/vilkaar.");
 
     /// <summary>Only people with a yes to that company that still stands - for the Bcc line or a mail tool.</summary>
+    /// <summary>Only the interest texts of those who still said yes to the company - never who wrote them.</summary>
+    public async Task<List<string>> WishesAsync(string company, CancellationToken ct = default) =>
+        (await repo.AllAsync(ct)).Where(c => c.SaidYesTo(company) && c.Interests.Trim() != "")
+            .OrderBy(c => c.CreatedAt).Select(c => c.Interests).ToList();
+
     public async Task<List<Customer>> ActiveAsync(string company, CancellationToken ct = default) =>
         (await repo.AllAsync(ct)).Where(c => c.SaidYesTo(company)).OrderBy(c => c.Name).ToList();
 

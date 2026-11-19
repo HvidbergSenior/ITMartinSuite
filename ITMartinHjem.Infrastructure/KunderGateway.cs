@@ -19,4 +19,7 @@ public sealed class KunderGateway(KunderClient kunder) : ICustomerGateway
 
     public async Task<IReadOnlyList<FreeAppView>> FreeAppsAsync(CancellationToken ct = default) =>
         (await kunder.FreeAppsAsync(ct)).Select(a => new FreeAppView(a.Name, a.Url, a.NeedsCode)).ToList();
+
+    public async Task<IReadOnlyList<string>?> BogshoppenWishesAsync(CancellationToken ct = default) =>
+        await kunder.WishesAsync(Companies.Bogshoppen, ct);
 }

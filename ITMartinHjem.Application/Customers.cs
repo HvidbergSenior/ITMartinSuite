@@ -23,6 +23,8 @@ public interface ICustomerGateway
     Task UnsubscribeAsync(string email, CancellationToken ct = default);
     /// <summary>The free apps Martin has switched on in Kunder.</summary>
     Task<IReadOnlyList<FreeAppView>> FreeAppsAsync(CancellationToken ct = default);
+    /// <summary>What Bogshoppen's customers ticked and wrote - texts only, no names. Null when Kunder does not answer.</summary>
+    Task<IReadOnlyList<string>?> BogshoppenWishesAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<string>?>(null);
 }
 
 // Martin's inbox (the chat in Svar): a new message there pushes to his phone, and his reply is mailed to the person.
@@ -37,6 +39,19 @@ public sealed class Customers(ICustomerGateway kartotek, IOwnerInbox inbox, IMai
 
     /// <summary>The apps a sign-up gives (the ones Martin has switched on in Kunder).</summary>
     public Task<IReadOnlyList<FreeAppView>> FreeAppsAsync(CancellationToken ct = default) => kartotek.FreeAppsAsync(ct);
+
+    private static BogshoppenWishes.Summary? _wishes;
+    private static DateTime _wishesAt = DateTime.MinValue;
+
+    /// <summary>"Det leder folk efter" on bogshoppen.dk. Asked at most every 10 minutes; while Kunder does not answer,
+    /// the last answer is shown (null until the first one - the box then only shows the status text).</summary>
+    public async Task<BogshoppenWishes.Summary?> BogshoppenWishesAsync(CancellationToken ct = default)
+    {
+        if (DateTime.UtcNow - _wishesAt < TimeSpan.FromMinutes(10)) return _wishes;
+        if (await kartotek.BogshoppenWishesAsync(ct) is { } raw) { _wishes = BogshoppenWishes.Summarize(raw); _wishesAt = DateTime.UtcNow; }
+        else _wishesAt = DateTime.UtcNow - TimeSpan.FromMinutes(9);   // try again in a minute
+        return _wishes;
+    }
 
     /// <summary>"Prøv gratis": customer in the Kundekartotek, the kundenummer by mail at once, a note in Martin's inbox.
     /// Needs the ticked consent and a free app. Topics/note = what they want help with (front page).</summary>

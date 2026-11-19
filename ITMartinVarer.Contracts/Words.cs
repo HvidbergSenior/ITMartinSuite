@@ -334,6 +334,10 @@ public static class ShopFamilies
 
     public static readonly ShopFamily[] All = [Boeger, Tegneserier, Film, Musik, Spil, Fantasy, Kort, Strik, Ting];
 
+    /// <summary>The shops bogshoppen.dk shows (user 2026-11-19: "remove strik, ting, fantasy and card shop from site", "remove gameshoppen also").
+    /// The others stay in All, so Lager still files things under them.</summary>
+    public static readonly ShopFamily[] Shown = [Boeger, Tegneserier, Film, Musik];   // Gameshoppen hidden too (2026-11-19)
+
     /// <summary>The special category (user 2026-11-03: "All the interesting ones, should be manually looked at by us and be in a
     /// special categropy"): everything with a mark or found at 50 kr+ (ShopDeals.Rare) across the shops; no own categories.</summary>
     public static readonly ShopFamily Rare = new("Sjældne fund", "sjaeldne",

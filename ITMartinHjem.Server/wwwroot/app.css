@@ -1108,3 +1108,16 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .hj-tal-grid b{font-size:2rem;line-height:1.1;color:var(--k-text)}
 .hj-tal-grid span{font-size:.9rem;color:var(--k-text)}
 .hj-tal-me td{background:color-mix(in srgb,var(--k-accent) 10%,var(--k-card))}
+
+/* bogshoppen.dk Status + "Det leder folk efter" (2026-11-19) */
+.bs-status { display: grid; gap: 10px; }
+.bs-status .k-card-title { margin: 0; }
+.bs-status p { margin: 0; }
+.bs-status .bs-tag { justify-self: start; }
+.bs-status-h { margin: 6px 0 0; font-size: 1.05rem; color: var(--k-text); }
+.bs-wish-groups { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.bs-wish-groups li { display: inline-flex; align-items: center; gap: 8px; padding: 4px 6px 4px 12px; border: 1px solid var(--k-border); border-radius: 999px; background: var(--k-bg); }
+.bs-wish-groups b { min-width: 1.6em; text-align: center; padding: 0 6px; border-radius: 999px; background: var(--k-text); color: var(--k-bg); font-variant-numeric: tabular-nums; font-size: .85rem; }
+.bs-wishes { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; }
+.bs-wishes li { font-style: italic; }
+.bs-status .bs-btn { justify-self: start; }

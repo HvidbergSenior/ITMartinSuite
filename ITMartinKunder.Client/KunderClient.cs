@@ -130,6 +130,17 @@ public sealed class KunderClient(HttpClient http, KunderOutbox outbox, ILogger<K
         }
     }
 
+    /// <summary>What Bogshoppen's customers look for (texts only). Null when Kunder does not answer.</summary>
+    public async Task<List<string>?> WishesAsync(string company, CancellationToken ct = default)
+    {
+        try { return await http.GetFromJsonAsync<List<string>>($"{KunderApi.Wishes}?firma={Uri.EscapeDataString(company)}", ct) ?? []; }
+        catch (Exception ex) when (Unreachable(ex, ct) || ex is JsonException)
+        {
+            log.LogWarning("Kunder did not give the wishes ({Message})", ex.Message);
+            return null;
+        }
+    }
+
     private async Task<string?> SendOrQueueAsync<T>(string path, T body, CancellationToken ct)
     {
         try

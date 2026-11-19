@@ -20,6 +20,9 @@ public static class KunderApi
     public const string FreeApps = "/api/gratis-apps";
     /// <summary>GET (key): the customers Martin has ticked as Hjælper - Vareinfo's session page picks a helper per box.</summary>
     public const string Helpers = "/api/kunder/hjaelpere";
+    /// <summary>GET (key), ?firma=Bogshoppen: what the customers who still said yes to that company ticked and wrote -
+    /// only the texts, never names or e-mails (bogshoppen.dk shows what people look for, user 2026-11-19).</summary>
+    public const string Wishes = "/api/kunder/oensker";
 }
 
 /// <summary>A ticked helper: the kundenummer (Vareinfo's helper id is minus it) and the name.</summary>

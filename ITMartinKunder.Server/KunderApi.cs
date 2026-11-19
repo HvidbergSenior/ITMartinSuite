@@ -24,6 +24,8 @@ internal static class KunderEndpoints
 
         app.MapGet(KunderApi.FreeApps, async (FreeApps apps) => Results.Ok(await apps.AvailableAsync()));
         app.MapGet(KunderApi.Helpers, async (Kundekartotek k) => Results.Ok(await k.HelpersAsync()));
+        app.MapGet(KunderApi.Wishes, async (string? firma, Kundekartotek k) =>
+            Results.Ok(await k.WishesAsync(Companies.All.Contains(firma ?? "") ? firma! : Companies.Bogshoppen)));
 
         // "Hent mine data" for one person (Martin's cookie) - he sends the file to whoever asked.
         app.MapGet("/kunder/{id:int}.json", async (int id, Kundekartotek k) =>

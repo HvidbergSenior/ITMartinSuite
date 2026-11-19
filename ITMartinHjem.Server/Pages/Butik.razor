@@ -32,5 +32,6 @@
     private ShopFamily _family = ShopFamilies.Boeger;
 
     protected override void OnInitialized() =>
-        _family = ShopFamilies.BySlug(new Uri(Nav.Uri).AbsolutePath) ?? ShopFamilies.Boeger;
+        // A hidden shop (kort, fantasy, strik, ting - 2026-11-19) opens Bogshoppen; old links keep working.
+        _family = ShopFamilies.BySlug(new Uri(Nav.Uri).AbsolutePath) is { } f && (ShopFamilies.Shown.Contains(f) || f == ShopFamilies.Rare) ? f : ShopFamilies.Boeger;
 }

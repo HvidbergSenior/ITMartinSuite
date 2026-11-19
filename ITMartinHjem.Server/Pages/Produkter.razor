@@ -11,11 +11,11 @@
 @if (!BogshoppenHome.IsHost(new Uri(Nav.Uri).Host))
 {
     <PageTitle>Produkter · ITMartin</PageTitle>
-    <PageHead Title="Produkter" Tag="ITMartin" Line="Ting fra kasserne – bøger, film, musik, spil og meget mere." />
+    <PageHead Title="Produkter" Tag="ITMartin" Line="Ting fra kasserne – bøger, tegneserier, film og musik." />
     <div class="hj-subpages hj-doors">
         <a class="k-card hj-subpage" href="https://bogshoppen.dk/produkter" data-nofold>
             <b>Bogshoppen</b>
-            <span>Bøger, tegneserier, film, musik, spil, fantasy, kort, strik og gamle ting@(Prices.On ? " – med billede og vores pris." : " – med billede. Priserne kommer senere.")</span>
+            <span>Bøger, tegneserier, film og musik@(Prices.On ? " – med billede og vores pris." : " – med billede. Priserne kommer senere.")</span>
             <span class="k-btn k-btn-sm k-btn-primary hj-topic-btn">Gå til Bogshoppen</span>
         </a>
         @* Sneboldshoppen removed (user 2026-11-13 "remove sneboldshoppen"). *@
@@ -28,11 +28,14 @@
 <header class="bs-head bs-head-varer bs-head-me">
     <BogshoppenPhoto />
     <h1>Produkter</h1>
-    <p>Vælg en butik: Bogshoppen, Tegneserieshoppen, Filmshoppen, Musikshoppen, Gameshoppen, Fantasyshoppen, Kortshoppen, Strikkeshoppen og Tingshoppen@(Prices.On ? " – med billede og vores pris." : " – med billede. Priserne kommer senere.")</p>
+    <p>Vælg en butik: Bogshoppen, Tegneserieshoppen, Filmshoppen og Musikshoppen@(Prices.On ? " – med billede og vores pris." : " – med billede. Priserne kommer senere.")</p>
     <p class="hj-head-note"><b>Sådan gør du:</b> tryk på en butik for at se alt i den, eller søg i dem alle på én gang. I butikken trykker du på en underkategori, fx <b>DVD</b> eller <b>Serieblade</b>.</p>
 </header>
 
 <MarketNotice />
+
+@* Status + what people look for (user 2026-11-19) - this is bogshoppen.dk's front page. *@
+<BogshoppenStatus />
 
 @* "Det samler vi på" (one button per group to its community) moved off this page (user 2026-10-29 "these should be elsewhere"):
    it comes back as its own Fællesskaber tab when Kolibri Fællesskab is live - until then its links would go nowhere. *@
