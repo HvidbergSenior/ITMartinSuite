@@ -109,8 +109,9 @@ else
         <div class="lg-row">
             @if (Fixing)
             {
-                <button class="k-btn k-btn-primary" @onclick="SaveAndNext">Gem og næste</button>
-                <button class="k-btn k-btn-secondary" @onclick="Skip">Spring over</button>
+                @* Gem and Næste apart (user 2026-11-19 "not gem and næste just gem. And næste as another button"): save, look, then go on. *@
+                <button class="k-btn k-btn-primary" @onclick="Save">Gem</button>
+                <button class="k-btn k-btn-secondary" @onclick="GoNext">Næste</button>
             }
             else
             {
@@ -263,15 +264,7 @@ else
         catch (Exception ex) { _err = ex.Message; }
     }
 
-    // Gem sets the confidence to 1 (ItemUseCases.SaveAsync), so it leaves the list; then the next difficult one, or Søg when done.
-    private async Task SaveAndNext()
-    {
-        await Save();
-        if (_err is null) await GoNext();
-    }
-
-    private Task Skip() => GoNext();
-
+    // Gem sets the confidence to 1 (ItemUseCases.SaveAsync), so it leaves the list; Næste = the next difficult one, or Søg when done.
     private async Task GoNext()
     {
         var next = await Items.NextUnsureAsync(Id);
