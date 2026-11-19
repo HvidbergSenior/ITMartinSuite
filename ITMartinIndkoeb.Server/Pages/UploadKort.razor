@@ -1,0 +1,10 @@
+@* "Upload billeder" - the main way data comes in (user 2026-11-19). Pictures from the phone's own camera, uploaded
+   when it suits; indkoeb.js queues them in the browser (IndexedDB) and sends them one at a time, like Vareinfo. *@
+    <section class="k-card ui-upload">
+        <h2 class="k-card-title">Upload billeder</h2>
+        <p class="k-muted">Kvitteringer og skærmbilleder af tilbud (fx fra Lidl-appen). Tag dem med telefonens kamera – upload, når det passer dig. Kvitteringer bliver til et køb, tilbud kommer på sedlen.</p>
+        <label class="k-btn k-btn-primary ui-big ui-up-btn" for="up-fil">Vælg billeder</label>
+        <input id="up-fil" type="file" accept="image/*" multiple class="ui-sr" />
+        <p id="up-status" class="ui-up-status" aria-live="polite"></p>
+        <div id="billeder" class="ui-list"></div>
+    </section>

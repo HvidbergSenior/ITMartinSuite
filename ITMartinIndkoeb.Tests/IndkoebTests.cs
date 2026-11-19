@@ -63,6 +63,7 @@ public class KvitteringTests
         public Dictionary<string, Husstand> H { get; } = [];
         public Husstand? Hent(string n) => H.GetValueOrDefault(n);
         public void Gem(Husstand h) => H[h.Noegle] = h;
+        public IReadOnlyList<string> MedVentendeBilleder() => H.Values.Where(h => h.Billeder.Any(b => b.Status == BilledStatus.Venter)).Select(h => h.Noegle).ToList();
     }
 
     private sealed class FakeLaeser(KvitteringForslag svar) : IKvitteringLaeser

@@ -73,5 +73,45 @@ public static class ScanApi
                 Items = x.Items.Select(i => new ScanReceiptLineItem { Description = i.Description ?? "", Amount = i.Amount }).ToList(),
             });
         }).DisableAntiforgery();
+
+        // 2026-11-19 (user: "upload pictures will be the main data input"): Indkøb sends ANY uploaded picture. Free OCR + rules
+        // say what it is (kvittering / tilbud / ukendt) and read it; a receipt's lines are checked against that shop's offers
+        // in Tilbud ("did I get the correct rabat"). No AI here. The photo is deleted again at once - Indkøb keeps its own copy.
+        app.MapPost("/api/laes", async (HttpRequest req, IGeneralOcrService ocr, DiscountCheck check, ILogger<ScanCap> log, CancellationToken ct) =>
+        {
+            if (key.Length < 16 || req.Headers["X-Kvittering-Key"] != key) return Results.StatusCode(401);
+            if (!req.HasFormContentType) return Results.BadRequest(new { fejl = "Send billedet som en fil (multipart)." });
+            var form = await req.ReadFormAsync(ct);
+            var file = form.Files.FirstOrDefault();
+            if (file is null || file.Length == 0) return Results.BadRequest(new { fejl = "Der kom intet billede med." });
+            if (file.Length > MaxBytes) return Results.BadRequest(new { fejl = "Billedet er for stort (højst 12 MB)." });
+
+            var ext = Path.GetExtension(file.FileName).ToLowerInvariant() is ".png" or ".webp" ? Path.GetExtension(file.FileName).ToLowerInvariant() : ".jpg";
+            var path = Path.Combine(Path.GetTempPath(), $"laes-{Guid.NewGuid():N}{ext}");
+            string? text;
+            try
+            {
+                await using (var fs = File.Create(path)) await file.CopyToAsync(fs, ct);
+                try { text = await ocr.ExtractTextAsync(path, ct); }
+                catch (Exception e) when (e is not OperationCanceledException) { log.LogWarning(e, "OCR failed"); text = null; }
+            }
+            finally { try { File.Delete(path); } catch { } }
+
+            var r = PictureReader.Read(text);
+            IReadOnlyList<DiscountNote> notes = [];
+            if (r.Kind == PictureKind.Kvittering
+                && double.TryParse(form["lat"], System.Globalization.CultureInfo.InvariantCulture, out var lat)
+                && double.TryParse(form["lng"], System.Globalization.CultureInfo.InvariantCulture, out var lng))
+                notes = await check.CheckAsync(r.Facts.Merchant, r.Facts.Date, r.Lines, lat, lng, ct);
+
+            return Results.Ok(new
+            {
+                slags = r.Kind.ToString().ToLowerInvariant(),
+                butik = r.Facts.Merchant, total = r.Facts.Total, dato = r.Facts.Date,
+                linjer = r.Lines.Select(l => new { tekst = l.Description, pris = l.Price, rabat = l.Discount, rabatTekst = l.DiscountLabel }),
+                tjek = notes.Select(n => n.Text),
+                tilbud = r.Offer is { } o ? new { butik = o.Shop, vare = o.Product, pris = o.Price, kunMedApp = o.AppOnly, app = o.App } : null,
+            });
+        }).DisableAntiforgery();
     }
 }

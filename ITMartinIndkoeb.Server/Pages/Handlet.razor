@@ -8,19 +8,16 @@
 <div data-page="handlet" data-key="@Key">
     <section class="k-card" data-fold-closed>
         <h2 class="k-card-title">Om denne side</h2>
-        <p>Tag et billede af kvitteringen – så er købet gemt. Det kan alle gøre, når de vil.</p>
+        <p>Upload et billede af kvitteringen – så er købet gemt, og vi tjekker, om du fik rabatterne. Det kan alle gøre, når de vil.</p>
         <p class="k-muted">Kan kvitteringen ikke læses, skriver du beløbet og trykker på butikken. Er noget forkert, trykker du Fjern under Denne uges indkøb.</p>
     </section>
 
+    <UploadKort />
+
     <section class="k-card">
-        <h2 class="k-card-title">Har du handlet?</h2>
+        <h2 class="k-card-title">Eller skriv beløbet</h2>
         <form id="koeb-form" class="ui-form" autocomplete="off">
-            <div id="kv-boks" class="ui-kv" hidden>
-                <label class="k-btn k-btn-primary ui-big ui-kv-btn" for="kv-fil">Tag billede af kvitteringen</label>
-                <input id="kv-fil" type="file" accept="image/*" capture="environment" class="ui-sr" />
-                <p id="kv-svar" class="ui-kv-svar" aria-live="polite"></p>
-                <p class="ui-eller">eller skriv beløbet</p>
-            </div>
+            <p id="kv-svar" class="ui-kv-svar" aria-live="polite"></p>
             <label for="k-beloeb">Beløb (kr)</label>
             <input id="k-beloeb" class="ui-input ui-amount" inputmode="decimal" placeholder="fx 245" />
             <span class="ui-label">Butik – tryk for at gemme</span>

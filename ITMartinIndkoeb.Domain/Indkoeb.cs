@@ -49,6 +49,8 @@ public sealed class Husstand
     public List<string> Skjulte { get; set; } = [];
     /// <summary>When the trip to a shop is planned ("Lidl" -> tuesday) - with or without someone who has taken it.</summary>
     public Dictionary<string, DateOnly> TurDag { get; set; } = [];
+    /// <summary>Uploaded pictures (receipts, offer screenshots) - the main way data comes in (user 2026-11-19).</summary>
+    public List<Billede> Billeder { get; set; } = [];
     /// <summary>The shop apps / member cards the family has ("Lidl Plus", "Netto+", "Coop-appen") - decides the price shown.</summary>
     public List<string> Apps { get; set; } = [];
 
@@ -76,6 +78,17 @@ public sealed class Husstand
 public sealed record Vare(string Id, string Tekst, string Hvem, string? Butik, string? Tilbud, bool Koebt, DateTime Oprettet);
 
 public sealed record Sted(string Postnr, string Navn, double Lat, double Lng);
+
+public enum BilledStatus { Venter, Laest, Fejl }
+
+/// <summary>One uploaded picture. Slags = what Kvittering found (kvittering / tilbud / ukendt); Svar = one line for the family;
+/// Tjek = "did I get the discount?" notes; KoebId / VareId = what it became.</summary>
+public sealed record Billede(string Id, string Fil, string Hvem, DateTime Uploadet, BilledStatus Status = BilledStatus.Venter,
+    string? Slags = null, string? Svar = null, IReadOnlyList<string>? Tjek = null, string? KoebId = null, string? VareId = null, int Forsoeg = 0)
+{
+    public const int MaxPrFamilie = 300;   // the oldest pictures leave when more come
+    public const int MaxForsoeg = 3;
+}
 
 public static class SeddelRegler
 {

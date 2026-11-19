@@ -6,7 +6,29 @@ public interface IHusstandStore
 {
     Husstand? Hent(string noegle);
     void Gem(Husstand h);
+    /// <summary>The keys of families with pictures waiting to be read (for the background job).</summary>
+    IReadOnlyList<string> MedVentendeBilleder();
 }
+
+/// <summary>Where the uploaded pictures live (one folder per family).</summary>
+public interface IBilledLager
+{
+    Task<string> GemAsync(string husstandId, Stream data, string filnavn, CancellationToken ct = default);
+    Stream? Aabn(string husstandId, string fil);
+    void Slet(string husstandId, string fil);
+}
+
+/// <summary>What Kvittering's /api/laes says about a picture.</summary>
+public sealed record BilledLaesning(string Slags, string? Butik, decimal? Total, DateOnly? Dato, IReadOnlyList<string> Tjek,
+    string? TilbudButik, string? TilbudVare, decimal? TilbudPris, bool KunMedApp, string? App, string? Fejl);
+
+public interface IBilledLaeser
+{
+    bool Klar { get; }
+    Task<BilledLaesning> LaesAsync(Stream billede, string filnavn, Sted? sted, CancellationToken ct = default);
+}
+
+public sealed record BilledVisning(string Id, string Hvem, DateTime Uploadet, string Status, string? Slags, string? Svar, IReadOnlyList<string> Tjek);
 
 /// <summary>The Tilbud app (GET /api/tilbud + /api/sted). Indkoeb__TilbudUrl; the apps stay separate.</summary>
 public interface ITilbudKilde
@@ -33,7 +55,7 @@ public sealed record KoebVisning(string Id, DateOnly Dato, decimal Beloeb, strin
 
 public sealed record Overblik(string Navn, Maal Maal, UgeStatus Uge, IReadOnlyList<KoebVisning> DenneUge,
     IReadOnlyList<MaanedStatus> Maaneder, IReadOnlyList<string> Butikker, IReadOnlyList<SeddelGruppe> Seddel, string? Sted,
-    IReadOnlyList<string> Skjulte, IReadOnlyList<string> Apps, bool Kvittering = false);
+    IReadOnlyList<string> Skjulte, IReadOnlyList<string> Apps, IReadOnlyList<BilledVisning> Billeder, bool Kvittering = false);
 
 /// <summary>Everything the family page shows, plus adding/removing a purchase and changing the goal.</summary>
 public sealed class Indkoeb(IHusstandStore store, TimeProvider clock)
@@ -60,7 +82,9 @@ public sealed class Indkoeb(IHusstandStore store, TimeProvider clock)
         var maaneder = Enumerable.Range(0, 6).Select(i => first.AddMonths(-i))
             .Select(d => Regler.Maaned(h.Koeb, h.Maal, d.Year, d.Month, idag))
             .Where(ms => ms.Ture > 0 || (ms.Aar == idag.Year && ms.Maaned == idag.Month)).ToList();
-        return new Overblik(h.Navn, h.Maal, uge, denne, maaneder, Regler.Butikker, Grupper(h), h.Sted?.Navn, h.Skjulte, h.Apps);
+        return new Overblik(h.Navn, h.Maal, uge, denne, maaneder, Regler.Butikker, Grupper(h), h.Sted?.Navn, h.Skjulte, h.Apps,
+            h.Billeder.OrderByDescending(b => b.Uploadet).Take(20).Select(b => new BilledVisning(b.Id, b.Hvem, b.Uploadet,
+                b.Status switch { BilledStatus.Venter => "venter", BilledStatus.Laest => "læst", _ => "fejl" }, b.Slags, b.Svar, b.Tjek ?? [])).ToList());
     }
 
     /// <summary>Error text, or null = saved.</summary>

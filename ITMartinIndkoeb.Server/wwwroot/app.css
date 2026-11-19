@@ -77,3 +77,9 @@
 .ui-app.mangler { background: transparent; border: 1px dashed var(--k-muted-2); color: var(--k-muted); }
 .ui-harapp { justify-self: start; margin-top: 4px; }
 .ui-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.ui-upload { border: 2px solid var(--k-accent); }
+.ui-up-btn { display: flex; justify-content: center; align-items: center; cursor: pointer; margin: 6px 0; }
+.ui-up-status:empty { display: none; }
+.ui-up-status { margin: 4px 0; font-weight: 600; }
+.ui-billede.tjek { border-left: 4px solid var(--k-warning); }
+.ui-tjek { color: var(--k-text) !important; font-weight: 600; }

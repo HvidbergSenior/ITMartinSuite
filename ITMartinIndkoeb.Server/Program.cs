@@ -38,6 +38,7 @@ builder.Services.AddKolibri(k =>
 
 builder.Services.AddRazorComponents();
 builder.Services.AddIndkoeb(builder.Configuration);
+builder.Services.AddHostedService<BilledJob>();
 var dataDir = builder.Configuration["Indkoeb:DataDir"] ?? Path.Combine(AppContext.BaseDirectory, "data");
 builder.Services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDir, "keys"))).SetApplicationName("indkoeb");
 
@@ -47,6 +48,7 @@ builder.Services.AddRateLimiter(o =>
     o.RejectionStatusCode = 429;
     o.OnRejected = async (ctx, ct) => await ctx.HttpContext.Response.WriteAsJsonAsync(new { fejl = "Mange på kort tid. Vent lidt, og prøv igen." }, ct);
     o.AddPolicy("opret", ctx => RateLimitPartition.GetFixedWindowLimiter(Visitor(ctx), _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromHours(24) }));
+    o.AddPolicy("billeder", ctx => RateLimitPartition.GetFixedWindowLimiter(Visitor(ctx), _ => new FixedWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromHours(1) }));
     o.AddPolicy("tilbud", ctx => RateLimitPartition.GetFixedWindowLimiter(Visitor(ctx), _ => new FixedWindowRateLimiterOptions { PermitLimit = 40, Window = TimeSpan.FromHours(1) }));
     o.AddPolicy("skriv", ctx => RateLimitPartition.GetFixedWindowLimiter(Visitor(ctx), _ => new FixedWindowRateLimiterOptions { PermitLimit = 120, Window = TimeSpan.FromHours(1) }));
 });
@@ -86,6 +88,22 @@ h.MapDelete("/koeb/{id}", (string key, string id, Indkoeb uc) => uc.Slet(key, id
 h.MapPut("/maal", (string key, MaalRequest r, Indkoeb uc) =>
     uc.GemMaal(key, new Maal(r.UgeMaal, r.MaxTure, r.SupplGraense, r.StortFra), r.Navn) is { Count: > 0 } p
         ? Results.BadRequest(new { fejl = string.Join(" ", p) }) : Results.Ok());
+
+// Upload billeder (the main way data comes in): several pictures per request, read in the background.
+h.MapPost("/billeder", async (string key, HttpRequest req, Billeder uc, CancellationToken ct) =>
+{
+    if (!req.HasFormContentType) return Results.BadRequest(new { fejl = "Vælg billeder." });
+    var form = await req.ReadFormAsync(ct);
+    if (form.Files.Count == 0) return Results.BadRequest(new { fejl = "Vælg billeder." });
+    if (form.Files.Count > Billeder.MaxPrGang) return Results.BadRequest(new { fejl = $"Højst {Billeder.MaxPrGang} billeder ad gangen." });
+    foreach (var f in form.Files)
+    {
+        await using var s = f.OpenReadStream();
+        if (await uc.UploadAsync(key, s, f.FileName, f.Length, form["hvem"].FirstOrDefault(), ct) is { } fejl) return Results.BadRequest(new { fejl });
+    }
+    return Results.Ok(new { antal = form.Files.Count });
+}).RequireRateLimiting("billeder");
+h.MapDelete("/billeder/{id}", (string key, string id, Billeder uc) => uc.Slet(key, id) ? Results.Ok() : Results.NotFound());
 
 // Step 2: Find tilbud (via the Tilbud app) + the family's postnummer.
 h.MapGet("/tilbud", async (string key, string? q, Indkoeb uc, ITilbudKilde tilbud, CancellationToken ct) =>

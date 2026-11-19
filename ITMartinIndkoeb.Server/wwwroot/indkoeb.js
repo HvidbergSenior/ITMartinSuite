@@ -80,6 +80,7 @@
     document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") load(); });
 
     function draw() {
+        if ($("billeder")) drawBilleder();
         if (kind === "uge") drawUge();
         if (kind === "uge" || kind === "handlet") drawListe();
         if (kind === "tilbud") drawTilbudSide();
@@ -87,6 +88,93 @@
         if (kind === "handlet") drawHandlet();
         all("[data-sted] input").forEach(function (i) { if (!i.value && data.sted) i.placeholder = data.sted; });
     }
+
+    // ---- Upload billeder: queue in the browser (survives no signal / closing the page), one picture per request ----
+    var koe = {
+        db: null,
+        open: function () {
+            var self = this;
+            if (self.db) return Promise.resolve(self.db);
+            return new Promise(function (ok, no) {
+                try {
+                    var r = indexedDB.open("indkoeb-billeder", 1);
+                    r.onupgradeneeded = function () { r.result.createObjectStore("koe", { keyPath: "id", autoIncrement: true }); };
+                    r.onsuccess = function () { self.db = r.result; ok(self.db); };
+                    r.onerror = function () { no(r.error); };
+                } catch (e) { no(e); }
+            });
+        },
+        tx: function (mode, f) {
+            return this.open().then(function (db) {
+                return new Promise(function (ok, no) {
+                    var t = db.transaction("koe", mode), r = f(t.objectStore("koe"));
+                    t.oncomplete = function () { ok(r && r.result); }; t.onerror = function () { no(t.error); };
+                });
+            });
+        },
+        mem: [],
+        add: function (item) { var self = this; return self.tx("readwrite", function (st) { return st.add(item); }).catch(function () { item.id = "m" + Date.now() + Math.random(); self.mem.push(item); }); },
+        all: function () { var self = this; return self.tx("readonly", function (st) { return st.getAll(); }).then(function (x) { return (x || []).concat(self.mem); }, function () { return self.mem.slice(); }); },
+        del: function (item) { var self = this; if (typeof item.id === "string") { self.mem = self.mem.filter(function (m) { return m.id !== item.id; }); return Promise.resolve(); } return self.tx("readwrite", function (st) { return st.delete(item.id); }); },
+        busy: false,
+        pump: function () {
+            var self = this;
+            if (self.busy) return; self.busy = true;
+            (function next(wait) {
+                self.all().then(function (items) {
+                    items = items.filter(function (i) { return i.key === key; });
+                    upStatus(items.length);
+                    if (!items.length) { self.busy = false; return; }
+                    var it = items[0], fd = new FormData();
+                    fd.append("billede", it.blob, it.name || "billede.jpg"); fd.append("hvem", it.hvem || "");
+                    fetch(base + "/billeder", { method: "POST", body: fd }).then(function (r) {
+                        if (r.ok || r.status === 400 || r.status === 404) {   // 400 = this picture is refused (too big ...) - do not retry forever
+                            return (r.ok ? Promise.resolve() : r.json().then(function (b) { $("up-status").textContent = (b && b.fejl) || "Et billede blev afvist."; }, function () { }))
+                                .then(function () { return self.del(it); }).then(function () { if (r.ok) load(); next(2000); });
+                        }
+                        throw new Error("prøv igen");
+                    }).catch(function () { upStatus(items.length, true); setTimeout(function () { next(Math.min((wait || 2000) * 2, 60000)); }, wait || 2000); });
+                });
+            })(2000);
+        }
+    };
+    function upStatus(n, retry) {
+        if (!$("up-status")) return;
+        $("up-status").textContent = !n ? "" : retry
+            ? "Ingen forbindelse lige nu. " + n + (n === 1 ? " billede venter" : " billeder venter") + " på telefonen og sendes, så snart der er forbindelse."
+            : "Sender " + n + (n === 1 ? " billede" : " billeder") + " …";
+    }
+    if ($("up-fil")) {
+        $("up-fil").addEventListener("change", function () {
+            var files = [].slice.call(this.files || []), input = this;
+            if (!files.length) return;
+            askName(function (n) {
+                // Copy each file into a Blob first - iPhone gallery Files can arrive empty later (Vareinfo lesson 2026-10-31).
+                Promise.all(files.map(function (f) {
+                    return f.arrayBuffer().then(function (buf) { return koe.add({ key: key, hvem: n, name: f.name, blob: new Blob([buf], { type: f.type || "image/jpeg" }), at: Date.now() }); });
+                })).then(function () { input.value = ""; koe.pump(); });
+            });
+        });
+        window.addEventListener("online", function () { koe.pump(); });
+        koe.pump();
+    }
+
+    function drawBilleder() {
+        var list = data.billeder || [];
+        $("billeder").innerHTML = list.length ? list.map(function (b) {
+            var tid = new Date(b.uploadet).toLocaleDateString("da-DK", { weekday: "short", day: "numeric", month: "short" });
+            var head = b.status === "venter" ? "Læses …" : b.svar || (b.status === "fejl" ? "Kunne ikke læses." : "Læst.");
+            return '<div class="ui-item ui-billede ' + (b.tjek.length ? "tjek" : "") + '"><div><b>' + esc(head) + "</b>"
+                + b.tjek.map(function (t) { return '<span class="ui-tjek">Tjek: ' + esc(t) + "</span>"; }).join("")
+                + "<span>" + esc(tid + (b.hvem ? " · " + b.hvem : "")) + "</span></div>"
+                + '<button class="k-btn k-btn-ghost k-btn-sm" type="button" data-billede="' + esc(b.id) + '">Fjern</button></div>';
+        }).join("") : "";
+    }
+    if ($("billeder")) $("billeder").addEventListener("click", function (e) {
+        var b = e.target.closest("[data-billede]"); if (!b) return;
+        if (b.getAttribute("data-sure") !== "1") { b.setAttribute("data-sure", "1"); b.textContent = "Tryk igen"; return; }
+        api(base + "/billeder/" + encodeURIComponent(b.getAttribute("data-billede")), { method: "DELETE" }).then(load);
+    });
 
     // ---- 1 Ugen ----
     function drawUge() {
@@ -298,7 +386,6 @@
     // ---- 4 Har handlet ----
     function drawHandlet() {
         var u = data.uge;
-        $("kv-boks").hidden = !data.kvittering;
         $("h-tilbage").textContent = kr(u.tilbage) + " kr tilbage denne uge · " + u.ture + " af " + data.maal.maxTure + " ture.";
         if (!$("k-butikker").children.length) {
             // The trip you took comes first - that is almost always where you just were.
@@ -310,23 +397,6 @@
     if (kind === "handlet") {
         $("k-hvem").value = hvem();
         $("k-hvem").addEventListener("change", function () { set("ik-hvem", this.value.trim()); });
-        // A picture is enough: read + saved at once. No total found -> type the amount, the shop is marked.
-        $("kv-fil").addEventListener("change", function () {
-            var f = this.files[0]; if (!f) return;
-            var fd = new FormData(); fd.append("billede", f, f.name || "kvittering.jpg"); fd.append("hvem", $("k-hvem").value.trim() || hvem());
-            $("kv-svar").textContent = "Læser kvitteringen … (op til et halvt minut)";
-            all(".ui-shop").forEach(function (b) { b.classList.remove("forslag"); });
-            api(base + "/kvittering", { method: "POST", body: fd }).then(function (r) {
-                if (r.gemt) {
-                    $("kv-svar").textContent = "Gemt: " + kr(r.beloeb) + " kr i " + (r.butik || "Andet")
-                        + (r.dato ? " · " + new Date(r.dato).toLocaleDateString("da-DK", { day: "numeric", month: "short" }) : "") + ". Forkert? Tryk Fjern herunder.";
-                    return load();
-                }
-                $("kv-svar").textContent = "Totalen kunne ikke læses. Skriv beløbet, og tryk på butikken.";
-                var btn = document.querySelector('.ui-shop[data-b="' + (r.butik || "Andet") + '"]'); if (btn) btn.classList.add("forslag");
-            }).catch(function (er) { $("kv-svar").textContent = er.message; })
-              .then(function () { $("kv-fil").value = ""; });
-        });
         $("k-butikker").addEventListener("click", function (e) {
             var b = e.target.closest("[data-b]"); if (!b) return;
             var beloeb = parseFloat(($("k-beloeb").value || "").replace(/\./g, "").replace(",", "."));
