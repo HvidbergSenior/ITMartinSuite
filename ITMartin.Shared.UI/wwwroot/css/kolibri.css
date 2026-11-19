@@ -145,10 +145,15 @@ small, .k-small { font-size: var(--k-fs-small); color: var(--k-muted); }
     .k-header { padding-left: 10px; padding-right: 10px; }
     .k-header-in { gap: 6px; }
     .k-logo-brand { height: 28px; padding: 2px 4px; }
-    .k-brand { flex: none; }
+    .k-brand, .k-brand-link { flex: none; }   /* the link around the name too - else the name ran under the first tab */
     .k-brand span { display: none; }
     .k-header-actions { gap: 0; min-width: 0; }
     .k-header-actions .k-btn-sm { padding: 6px 8px; }
+    /* More tabs than fit (MinElpris has 6 on a 375 px phone, 2026-11-19): the tabs scroll sideways inside the bar
+       instead of pushing the whole page wider than the screen. A soft fade at the right says there is more. */
+    .k-header-actions { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+        mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent); }
+    .k-header-actions::-webkit-scrollbar { display: none; }
 }
 .k-main { flex: 1; padding: var(--k-space-4) 16px var(--k-space-6); }
 .k-content { max-width: var(--k-content-max); margin: 0 auto; }
