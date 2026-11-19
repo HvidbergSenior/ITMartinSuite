@@ -39,6 +39,18 @@
     var MDR = ["januar", "februar", "marts", "april", "maj", "juni", "juli", "august", "september", "oktober", "november", "december"];
     var data = null;
     var hvem = function () { return get("ik-hvem"); };
+    var iso = function (d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+    var dagTekst = function (s) {
+        var d = new Date(s + "T12:00:00"), i = new Date(); i.setHours(12, 0, 0, 0);
+        var n = Math.round((d - i) / 864e5);
+        return n === 0 ? "i dag" : n === 1 ? "i morgen" : d.toLocaleDateString("da-DK", { weekday: "long", day: "numeric", month: "short" });
+    };
+    // The next 8 days as choices: "i dag", "i morgen", "tirsdag 24. nov." …
+    var dagValg = function (valgt) {
+        var o = '<option value="">Hvornår?</option>';
+        for (var k = 0; k < 8; k++) { var d = new Date(); d.setDate(d.getDate() + k); var v = iso(d); o += '<option value="' + v + '"' + (v === valgt ? " selected" : "") + ">" + dagTekst(v) + "</option>"; }
+        return o;
+    };
 
     // "Hvem er du?" - asked once on the steps that need a name, kept in this browser.
     function askName(then) {
@@ -90,7 +102,10 @@
         $("u-next").textContent = u.naesteSkridt;
         $("u-warn").innerHTML = u.advarsler.map(function (a) { return "<li>" + esc(a) + "</li>"; }).join("");
         var tilbage = 0, ture = [];
-        data.seddel.forEach(function (g) { g.varer.forEach(function (v) { if (!v.koebt) tilbage++; }); if (g.handler) ture.push(g.handler + " handler i " + g.butik); });
+        data.seddel.forEach(function (g) {
+            g.varer.forEach(function (v) { if (!v.koebt) tilbage++; });
+            if (g.handler || g.dag) ture.push((g.handler ? g.handler + " handler i " : "") + (g.handler ? g.butik : g.butik) + (g.dag ? " " + dagTekst(g.dag) : ""));
+        });
         $("u-seddel").innerHTML = '<a class="k-btn k-btn-secondary" href="' + home + '/seddel">Indkøbssedlen: ' + tilbage + (tilbage === 1 ? " vare" : " varer") + "</a>"
             + (ture.length ? " <span>" + esc(ture.join(" · ")) + "</span>" : "");
 
@@ -149,6 +164,11 @@
     function drawTilbudSide() {
         $("sted-boks").hidden = !!data.sted;
         $("t-sted").textContent = data.sted ? "Butikker inden for 10 km af " + data.sted + "." : "";
+        var kendte = ["Lidl Plus", "Netto+", "føtex Plus", "Bilka Plus", "Coop-appen", "REMA-appen"];
+        $("apps").innerHTML = kendte.concat(data.apps.filter(function (a) { return kendte.indexOf(a) < 0; })).map(function (a) {
+            var har = data.apps.indexOf(a) >= 0;
+            return '<button type="button" class="k-btn ' + (har ? "k-btn-primary" : "k-btn-secondary") + ' k-btn-sm" aria-pressed="' + har + '" data-app="' + esc(a) + '">' + (har ? "Har " : "") + esc(a) + "</button>";
+        }).join("");
         $("skjult-boks").hidden = !data.skjulte.length;
         $("skjulte").innerHTML = data.skjulte.map(function (b) { return '<button type="button" class="k-btn k-btn-secondary k-btn-sm" data-vis="' + esc(b) + '">Vis ' + esc(b) + " igen</button>"; }).join("");
         if (!$("t-forslag").children.length) {
@@ -167,9 +187,13 @@
                 var i = list.indexOf(o);
                 var til = o.til ? "til " + new Date(o.til).toLocaleDateString("da-DK", { weekday: "short", day: "numeric", month: "short" }) : "";
                 return '<article class="ui-offer">' + (o.billede ? '<img src="' + esc(o.billede) + '" alt="" loading="lazy" referrerpolicy="no-referrer" />' : '<span class="ui-offer-img"></span>')
-                    + '<div class="ui-offer-txt"><b>' + esc(o.butik) + " · " + kr2(o.pris) + " kr</b><span>" + esc(o.titel) + "</span>"
-                    + "<small>" + [o.enhedspris, o.foer ? "før " + kr2(o.foer) + " kr" : "", til, o.kunMedApp ? "kun med " + o.kunMedApp : "", o.naermesteButik ? o.naermesteButik + (o.km ? " (" + o.km.toFixed(1).replace(".", ",") + " km)" : "") : ""]
-                        .filter(Boolean).map(esc).join(" · ") + "</small></div>"
+                    + '<div class="ui-offer-txt"><b>' + esc(o.butik) + " · " + kr2(o.voresPris != null ? o.voresPris : o.pris) + " kr</b>"
+                    + (o.prisNote ? '<em class="ui-app' + (o.manglerApp ? " mangler" : "") + '">' + esc(o.prisNote) + "</em>" : "")
+                    + "<span>" + esc(o.titel) + "</span>"
+                    + "<small>" + [o.enhedspris, o.foer ? "før " + kr2(o.foer) + " kr" : "", til, o.naermesteButik ? o.naermesteButik + (o.km ? " (" + o.km.toFixed(1).replace(".", ",") + " km)" : "") : ""]
+                        .filter(Boolean).map(esc).join(" · ") + "</small>"
+                    + (o.app && (o.manglerApp || (o.appPris != null && data.apps.indexOf(o.app) < 0)) ? '<button class="k-btn k-btn-ghost k-btn-sm ui-harapp" type="button" data-harapp="' + esc(o.app) + '">Vi har ' + esc(o.app) + "</button>" : "")
+                    + "</div>"
                     + '<div class="ui-offer-btns"><button class="k-btn k-btn-primary k-btn-sm" type="button" data-paa="' + i + '">Sæt på sedlen</button>'
                     + '<button class="k-btn k-btn-ghost k-btn-sm" type="button" data-skjul="' + esc(o.butik) + '" title="Vi handler aldrig i ' + esc(o.butik) + '">Skjul ' + esc(o.butik) + "</button></div></article>";
             };
@@ -188,12 +212,17 @@
         var skjul = function (butik, ja) {
             return api(base + "/skjul", json("PUT", { butik: butik, skjul: ja })).then(load).then(function () { var q = $("t-q").value.trim(); if (q) soeg(q); });
         };
+        var app = function (navn, har) {
+            return api(base + "/apps", json("PUT", { app: navn, har: har })).then(load).then(function () { var q = $("t-q").value.trim(); if (q) soeg(q); });
+        };
+        $("apps").addEventListener("click", function (e) { var b = e.target.closest("[data-app]"); if (b) app(b.getAttribute("data-app"), b.getAttribute("aria-pressed") !== "true"); });
         $("skjulte").addEventListener("click", function (e) { var b = e.target.closest("[data-vis]"); if (b) skjul(b.getAttribute("data-vis"), false); });
         $("t-liste").addEventListener("click", function (e) {
             var s = e.target.closest("[data-skjul]"); if (s) { skjul(s.getAttribute("data-skjul"), true); return; }
+            var ha = e.target.closest("[data-harapp]"); if (ha) { app(ha.getAttribute("data-harapp"), true); return; }
             var b = e.target.closest("[data-paa]"); if (!b) return;
             var i = +b.getAttribute("data-paa"), o = sidste[i];
-            var vare = o ? { tekst: o.titel, butik: o.butik, tilbud: kr2(o.pris) + " kr" + (o.til ? ", til " + new Date(o.til).toLocaleDateString("da-DK", { weekday: "long" }) : "") + (o.kunMedApp ? ", kun med " + o.kunMedApp : "") }
+            var vare = o ? { tekst: o.titel, butik: o.butik, tilbud: kr2(o.voresPris != null ? o.voresPris : o.pris) + " kr" + (o.app && o.prisNote && o.prisNote.indexOf("med " + o.app) === 0 ? " med " + o.app : "") + (o.til ? ", til " + new Date(o.til).toLocaleDateString("da-DK", { weekday: "long" }) : "") + (o.manglerApp ? ", kun med " + o.app : "") }
                 : { tekst: $("t-q").value.trim(), butik: null, tilbud: null };
             askName(function (n) {
                 vare.hvem = n;
@@ -206,14 +235,18 @@
     // ---- 3 Indkøbsseddel ----
     function drawSeddel() {
         var sel = $("s-butik");
+        if (!$("s-dag").options.length) $("s-dag").innerHTML = dagValg("").replace("Hvornår?", "Når det passer");
         if (sel.options.length < 2) data.butikker.filter(function (b) { return b !== "Andet"; }).forEach(function (b) { var o = document.createElement("option"); o.value = b; o.textContent = b; sel.appendChild(o); });
         var mig = hvem();
         $("s-grupper").innerHTML = data.seddel.length ? data.seddel.map(function (g) {
             var aabne = g.varer.filter(function (v) { return !v.koebt; }).length;
+            var dag = g.dag ? " " + dagTekst(g.dag) : "";
+            var hvornaar = '<label class="ui-dag"><span class="ui-sr">Hvornår handles der' + (g.butik === "Hvor som helst" ? "" : " i " + esc(g.butik)) + '?</span><select class="ui-input" data-dag="' + esc(g.butik) + '">' + dagValg(g.dag) + "</select></label>";
             var tur = g.handler
-                ? '<p class="ui-tur ' + (g.handler === mig ? "mig" : "") + '"><b>' + esc(g.handler === mig ? "Du handler her" : g.handler + " handler her") + "</b>"
-                    + (g.handler === mig ? ' <button class="k-btn k-btn-ghost k-btn-sm" type="button" data-slip="' + esc(g.butik) + '">Slip turen</button>' : "") + "</p>"
-                : (aabne ? '<button class="k-btn k-btn-secondary ui-big" type="button" data-tag="' + esc(g.butik) + '">Jeg handler ' + (g.butik === "Hvor som helst" ? "det" : "i " + esc(g.butik)) + "</button>" : "");
+                ? '<div class="ui-tur ' + (g.handler === mig ? "mig" : "") + '"><b>' + esc((g.handler === mig ? "Du handler her" : g.handler + " handler her") + dag) + "</b>"
+                    + hvornaar + (g.handler === mig ? ' <button class="k-btn k-btn-ghost k-btn-sm" type="button" data-slip="' + esc(g.butik) + '">Slip turen</button>' : "") + "</div>"
+                : (aabne ? '<div class="ui-tur ledig">' + (g.dag ? "<b>Planlagt" + esc(dag) + "</b>" : "") + hvornaar
+                    + '<button class="k-btn k-btn-secondary" type="button" data-tag="' + esc(g.butik) + '">Jeg handler ' + (g.butik === "Hvor som helst" ? "det" : "i " + esc(g.butik)) + "</button></div>" : "");
             return '<section class="k-card ui-group"><h2 class="k-card-title">' + esc(g.butik) + ' <small>' + aabne + (aabne === 1 ? " vare" : " varer") + "</small></h2>" + tur
                 + '<ul class="ui-check">' + g.varer.map(function (v) {
                     return '<li class="' + (v.koebt ? "koebt" : "") + '"><label><input type="checkbox" data-kryds="' + esc(v.id) + '"' + (v.koebt ? " checked" : "") + " /><span><b>" + esc(v.tekst) + "</b>"
@@ -229,18 +262,34 @@
             e.preventDefault();
             var t = $("s-tekst").value.trim(); if (!t) { $("s-svar").textContent = "Skriv hvad der skal købes, fx mælk."; return; }
             askName(function (n) {
-                api(base + "/seddel", json("POST", { tekst: t, hvem: n, butik: $("s-butik").value || null }))
+                var butik = $("s-butik").value || null, dag = $("s-dag").value || null;
+                api(base + "/seddel", json("POST", { tekst: t, hvem: n, butik: butik }))
+                    .then(function () {
+                        // A day = that shop's trip is planned for that day ("mælk i Lidl tirsdag"); who takes it stays as it is.
+                        if (!dag) return;
+                        var g = data.seddel.filter(function (x) { return x.butik === (butik || "Hvor som helst"); })[0];
+                        return api(base + "/tur", json("PUT", { butik: butik || "Hvor som helst", hvem: g && g.handler || "", dag: dag }));
+                    })
                     .then(function () { $("s-tekst").value = ""; $("s-svar").textContent = ""; $("s-tekst").focus(); return load(); })
                     .catch(function (er) { $("s-svar").textContent = er.message; });
             });
         });
         $("s-grupper").addEventListener("change", function (e) {
+            var d = e.target.closest("[data-dag]");
+            if (d) {
+                var g = data.seddel.filter(function (x) { return x.butik === d.getAttribute("data-dag"); })[0];
+                api(base + "/tur", json("PUT", { butik: d.getAttribute("data-dag"), hvem: g && g.handler || "", dag: d.value || null })).then(load);
+                return;
+            }
             var c = e.target.closest("[data-kryds]"); if (!c) return;
             api(base + "/seddel/" + encodeURIComponent(c.getAttribute("data-kryds")), json("PUT", { koebt: c.checked })).then(load);
         });
         $("s-grupper").addEventListener("click", function (e) {
             var b;
-            if ((b = e.target.closest("[data-tag]"))) askName(function (n) { api(base + "/tur", json("PUT", { butik: b.getAttribute("data-tag"), hvem: n })).then(load); });
+            if ((b = e.target.closest("[data-tag]"))) {
+                var g0 = data.seddel.filter(function (g) { return g.butik === b.getAttribute("data-tag"); })[0];
+                askName(function (n) { api(base + "/tur", json("PUT", { butik: b.getAttribute("data-tag"), hvem: n, dag: g0 && g0.dag || null })).then(load); });
+            }
             else if ((b = e.target.closest("[data-slip]"))) api(base + "/tur", json("PUT", { butik: b.getAttribute("data-slip"), hvem: "" })).then(load);
             else if ((b = e.target.closest("[data-fjern]"))) api(base + "/seddel/" + encodeURIComponent(b.getAttribute("data-fjern")), { method: "DELETE" }).then(load);
         });

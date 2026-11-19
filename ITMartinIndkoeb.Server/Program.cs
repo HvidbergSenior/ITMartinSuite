@@ -97,13 +97,17 @@ h.MapPut("/sted", async (string key, StedRequest r, Indkoeb uc, ITilbudKilde til
 h.MapPut("/skjul", (string key, SkjulRequest r, Indkoeb uc) =>
     uc.SkjulButik(key, r.Butik, r.Skjul) is { } fejl ? Results.BadRequest(new { fejl }) : Results.Ok());
 
+h.MapPut("/apps", (string key, AppRequest r, Indkoeb uc) =>
+    uc.SaetApp(key, r.App, r.Har) is { } fejl ? Results.BadRequest(new { fejl }) : Results.Ok());
+h.MapGet("/apps/kendte", () => AppPriser.Kendte);
+
 // Step 3: the shared list + who takes the trip.
 h.MapPost("/seddel", (string key, VareRequest r, Indkoeb uc) =>
     uc.TilfoejVare(key, r.Tekst, r.Hvem, r.Butik, r.Tilbud) is { } fejl ? Results.BadRequest(new { fejl }) : Results.Ok());
 h.MapPut("/seddel/{id}", (string key, string id, AfkrydsRequest r, Indkoeb uc) => uc.Afkryds(key, id, r.Koebt) ? Results.Ok() : Results.NotFound());
 h.MapDelete("/seddel/{id}", (string key, string id, Indkoeb uc) => uc.FjernVare(key, id) ? Results.Ok() : Results.NotFound());
 h.MapPut("/tur", (string key, TurRequest r, Indkoeb uc) =>
-    uc.TagTur(key, r.Butik, r.Hvem) is { } fejl ? Results.BadRequest(new { fejl }) : Results.Ok());
+    uc.TagTur(key, r.Butik, r.Hvem, r.Dag) is { } fejl ? Results.BadRequest(new { fejl }) : Results.Ok());
 
 app.MapRazorComponents<App>()
     .AddAdditionalAssemblies(typeof(ITMartin.Shared.UI.Components.Kolibri.KolibriOm).Assembly);

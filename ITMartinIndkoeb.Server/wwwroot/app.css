@@ -52,10 +52,16 @@
 .ui-offer-txt small { color: var(--k-muted); }
 .ui-offer-btns { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
 .ui-offer-btns .k-btn-primary { flex: 1 1 160px; min-height: 44px; }
-@media (min-width: 560px) { .ui-offer { grid-template-columns: 64px 1fr auto; } .ui-offer-btns { grid-column: auto; flex-direction: column; } }
+@media (min-width: 560px) {
+    .ui-offer { grid-template-columns: 64px 1fr auto; }
+    .ui-offer-btns { grid-column: auto; flex-direction: column; align-items: stretch; align-self: center; }
+    .ui-offer-btns .k-btn-primary { flex: none; }   /* not a tall box (screenshot 2026-11-19) */
+}
 .ui-groups { display: grid; gap: 16px; }
 .ui-group .k-card-title small { color: var(--k-muted); font-weight: 600; font-size: .9rem; }
 .ui-tur { margin: 0 0 10px; padding: 8px 12px; border-radius: 10px; background: var(--k-accent-soft); display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ui-tur.ledig { background: transparent; padding: 0; }
+.ui-dag select { min-height: 44px; padding: 6px 10px; }
 .ui-check { list-style: none; margin: 10px 0; padding: 0; display: grid; gap: 6px; }
 .ui-check li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border: 1px solid var(--k-border); border-radius: 10px; }
 .ui-check label { display: flex; align-items: center; gap: 12px; min-height: 44px; cursor: pointer; flex: 1; min-width: 0; }
@@ -67,3 +73,7 @@
 .ui-andre { margin-top: 6px; }
 .ui-andre summary { cursor: pointer; font-weight: 600; color: var(--k-muted); padding: 10px 0; }
 .ui-andre[open] { display: grid; gap: 10px; }
+.ui-app { font-style: normal; font-weight: 700; font-size: .85rem; color: var(--k-text); justify-self: start; padding: 1px 8px; border-radius: 999px; background: var(--k-accent-soft); margin: 2px 0; }
+.ui-app.mangler { background: transparent; border: 1px dashed var(--k-muted-2); color: var(--k-muted); }
+.ui-harapp { justify-self: start; margin-top: 4px; }
+.ui-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }

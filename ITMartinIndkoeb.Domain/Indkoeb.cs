@@ -47,6 +47,12 @@ public sealed class Husstand
     public Dictionary<string, string> Handler { get; set; } = [];
     /// <summary>Shops the family never goes to ("we never go to Bilka") - their offers are not shown in Find tilbud.</summary>
     public List<string> Skjulte { get; set; } = [];
+    /// <summary>When the trip to a shop is planned ("Lidl" -> tuesday) - with or without someone who has taken it.</summary>
+    public Dictionary<string, DateOnly> TurDag { get; set; } = [];
+    /// <summary>The shop apps / member cards the family has ("Lidl Plus", "Netto+", "Coop-appen") - decides the price shown.</summary>
+    public List<string> Apps { get; set; } = [];
+
+    public bool HarApp(string? app) => app is not null && Apps.Contains(AppPriser.Navn(app), StringComparer.CurrentCultureIgnoreCase);
 
     public bool Skjult(string butik) => Skjulte.Contains(SeddelRegler.Gruppe(butik), StringComparer.CurrentCultureIgnoreCase);
 
@@ -98,7 +104,56 @@ public static class SeddelRegler
     {
         var g = Gruppe(butik);
         h.Handler.Remove(g);
+        h.TurDag.Remove(g);
         return h.Seddel.RemoveAll(v => v.Koebt && (Gruppe(v.Butik) == g || Gruppe(v.Butik) == HvorSomHelst || g == "Andet"));
+    }
+}
+
+/// <summary>The price the family really pays. ManglerApp = the offer is only for app users and the family does not have it.</summary>
+public sealed record VoresPris(decimal Pris, string? Note, bool ManglerApp, string? App);
+
+/// <summary>User 2026-11-19: "what about offers that are applied if you have card? Like Lidl Plus?"
+/// Tilbud reads three kinds from the leaflets: only with the app (Lidl Plus), a lower price with the app on top of the
+/// normal one (Netto+ "+ PRIS", føtex/Bilka "plus pris", Coop "medlemspris"), and the price without the app if printed.</summary>
+public static class AppPriser
+{
+    /// <summary>The leaflets' many spellings -> one name per app ("Lidl Plus-appen" -> "Lidl Plus").</summary>
+    public static string Navn(string app)
+    {
+        var a = app.ToLowerInvariant();
+        if (a.Contains("lidl")) return "Lidl Plus";
+        if (a.Contains("netto")) return "Netto+";
+        if (a.Contains("føtex") || a.Contains("fotex")) return "føtex Plus";
+        if (a.Contains("bilka")) return "Bilka Plus";
+        if (a.Contains("coop") || a.Contains("medlem")) return "Coop-appen";
+        if (a.Contains("rema")) return "REMA-appen";
+        var t = app.Trim();
+        foreach (var end in new[] { "-appen", " appen", "appen" })
+            if (t.EndsWith(end, StringComparison.OrdinalIgnoreCase)) return t[..^end.Length].Trim();
+        return t;
+    }
+
+    public static readonly string[] Kendte = ["Lidl Plus", "Netto+", "føtex Plus", "Bilka Plus", "Coop-appen", "REMA-appen"];
+
+    public static VoresPris For(decimal pris, string? kunMedApp, string? appNavn, decimal? appPris, decimal? udenAppPris, Func<string, bool> harApp)
+    {
+        static string Kr(decimal v) => v.ToString(v % 1 == 0 ? "0" : "0.00", System.Globalization.CultureInfo.GetCultureInfo("da-DK"));
+        if (kunMedApp is not null)
+        {
+            var app = Navn(kunMedApp);
+            if (harApp(app)) return new(pris, $"med {app}", false, app);
+            return udenAppPris is { } u
+                ? new(u, $"{Kr(pris)} kr med {app}", false, app)
+                : new(pris, $"kun med {app}", true, app);
+        }
+        if (appNavn is not null)
+        {
+            var app = Navn(appNavn);
+            if (appPris is { } ap && ap < pris)
+                return harApp(app) ? new(ap, $"med {app} (ellers {Kr(pris)} kr)", false, app) : new(pris, $"{Kr(ap)} kr med {app}", false, app);
+            return new(pris, harApp(app) ? $"ekstra tilbud i {app}" : null, false, app);
+        }
+        return new(pris, null, false, null);
     }
 }
 

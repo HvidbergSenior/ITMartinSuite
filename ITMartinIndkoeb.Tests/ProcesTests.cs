@@ -122,3 +122,79 @@ public class SkjulTests
         (await uc.SoegTilbudAsync(h.Noegle, "mælk", t)).Tilbud.Should().HaveCount(2);
     }
 }
+
+public class AppPrisTests
+{
+    private static bool Ingen(string _) => false;
+    private static bool Alle(string _) => true;
+
+    [Test]
+    public void Lidl_plus_only_offer_is_marked_when_the_family_has_no_app_and_normal_when_it_has()
+    {
+        AppPriser.For(12, "Lidl Plus-appen", "Lidl Plus-appen", null, null, Ingen).Should().Be(new VoresPris(12, "kun med Lidl Plus", true, "Lidl Plus"));
+        AppPriser.For(12, "Lidl Plus-appen", null, null, null, Alle).ManglerApp.Should().BeFalse();
+    }
+
+    [Test]
+    public void Netto_plus_price_is_used_only_when_the_family_has_netto_plus()
+    {
+        var uden = AppPriser.For(35, null, "Netto+ appen", 30, null, Ingen);
+        uden.Pris.Should().Be(35); uden.Note.Should().Be("30 kr med Netto+");
+        var med = AppPriser.For(35, null, "Netto+ appen", 30, null, Alle);
+        med.Pris.Should().Be(30); med.Note.Should().StartWith("med Netto+");
+    }
+
+    [Test]
+    public void Without_the_app_the_printed_normal_price_is_used()
+    {
+        AppPriser.For(10, "Lidl Plus", null, null, 15, Ingen).Should().Be(new VoresPris(15, "10 kr med Lidl Plus", false, "Lidl Plus"));
+    }
+
+    [TestCase("Coop-appen (medlem)", "Coop-appen")]
+    [TestCase("Bilka plus appen", "Bilka Plus")]
+    [TestCase("Føtex plus appen", "føtex Plus")]
+    public void App_names_from_the_leaflets_are_one_name(string raw, string navn) => AppPriser.Navn(raw).Should().Be(navn);
+
+    [Test]
+    public async Task Offers_get_the_price_the_family_pays_and_app_only_ones_go_last()
+    {
+        var store = new KvitteringTests.Mem(); var h = Husstand.Ny("X", DateTime.UtcNow); store.Gem(h);
+        var uc = new Indkoeb(store, TimeProvider.System); var t = new ToTilbud();
+        await uc.SaetStedAsync(h.Noegle, "8200", t);
+        var r = (await uc.SoegTilbudAsync(h.Noegle, "brød", t)).Tilbud;
+        r.Select(o => o.Butik).Should().Equal("Netto", "Lidl");   // Lidl Plus only, and we have no Lidl Plus
+        uc.SaetApp(h.Noegle, "Lidl Plus-appen", true).Should().BeNull();
+        store.Hent(h.Noegle)!.Apps.Should().Equal("Lidl Plus");
+        r = (await uc.SoegTilbudAsync(h.Noegle, "brød", t)).Tilbud;
+        r.Select(o => o.Butik).Should().Equal("Lidl", "Netto");
+    }
+
+    private sealed class ToTilbud : ITilbudKilde
+    {
+        public Task<IReadOnlyList<TilbudVisning>> SoegAsync(string q, double lat, double lng, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<TilbudVisning>>([
+                new("Lidl", "PÅGEN Brød", null, 12, null, null, null, null, "Lidl Plus-appen", null, null),
+                new("Netto", "Schulstad brød", null, 18, null, null, null, null, null, null, null)]);
+        public Task<Sted?> StedAsync(string p, CancellationToken ct = default) => Task.FromResult<Sted?>(new Sted(p, p, 56, 10));
+    }
+}
+
+public class TurDagTests
+{
+    [Test]
+    public void A_trip_can_be_planned_for_a_day_before_anyone_takes_it_and_is_done_after_the_purchase()
+    {
+        var store = new KvitteringTests.Mem(); var h = Husstand.Ny("X", DateTime.UtcNow); store.Gem(h);
+        var uc = new Indkoeb(store, TimeProvider.System);
+        var idag = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen")));
+        uc.TilfoejVare(h.Noegle, "mælk", "Martin", "Lidl", null);
+        uc.TagTur(h.Noegle, "Lidl", "", idag.AddDays(5)).Should().BeNull();
+        var g = Indkoeb.Grupper(store.Hent(h.Noegle)!).Single();
+        g.Dag.Should().Be(idag.AddDays(5)); g.Handler.Should().BeNull();
+        uc.TagTur(h.Noegle, "Lidl", "Eigil", g.Dag).Should().BeNull();
+        Indkoeb.Grupper(store.Hent(h.Noegle)!).Single().Handler.Should().Be("Eigil");
+        uc.TagTur(h.Noegle, "Lidl", "", idag.AddDays(-1)).Should().NotBeNull();   // not in the past
+        uc.LaegInd(h.Noegle, 300, "Lidl", "Eigil", null);
+        store.Hent(h.Noegle)!.TurDag.Should().BeEmpty();
+    }
+}

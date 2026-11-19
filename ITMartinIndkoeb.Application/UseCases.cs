@@ -16,7 +16,10 @@ public interface ITilbudKilde
 }
 
 public sealed record TilbudVisning(string Butik, string Titel, string? Beskrivelse, decimal Pris, decimal? Foer, string? Enhedspris,
-    DateOnly? Til, string? Billede, string? KunMedApp, string? NaermesteButik, double? Km, bool AndenVare = false);
+    DateOnly? Til, string? Billede, string? KunMedApp, string? NaermesteButik, double? Km, bool AndenVare = false,
+    string? AppNavn = null, decimal? AppPris = null, decimal? UdenAppPris = null,
+    decimal? VoresPris = null, string? PrisNote = null, bool ManglerApp = false, string? App = null);
+// VoresPris/PrisNote/ManglerApp/App: filled by Indkoeb from the family's apps (AppPriser) - what YOU pay.
 // AndenVare: another product than the one searched (kakaomælk, tykmælk, laktosefri for "mælk") - Tilbud decides, the page folds it away.
 
 public sealed record TilbudSvar(IReadOnlyList<TilbudVisning> Tilbud, string? Fejl);
@@ -24,13 +27,13 @@ public sealed record TilbudSvar(IReadOnlyList<TilbudVisning> Tilbud, string? Fej
 /// <summary>Tilbud could not answer right now (down, slow, or the photoserver is waking up).</summary>
 public sealed class TilbudIkkeNu() : Exception("Tilbud svarer ikke lige nu. Prøv igen om lidt.");
 
-public sealed record SeddelGruppe(string Butik, string? Handler, IReadOnlyList<Vare> Varer);
+public sealed record SeddelGruppe(string Butik, string? Handler, IReadOnlyList<Vare> Varer, DateOnly? Dag = null);
 
 public sealed record KoebVisning(string Id, DateOnly Dato, decimal Beloeb, string Butik, string Hvem, string Type, bool OverGraense);
 
 public sealed record Overblik(string Navn, Maal Maal, UgeStatus Uge, IReadOnlyList<KoebVisning> DenneUge,
     IReadOnlyList<MaanedStatus> Maaneder, IReadOnlyList<string> Butikker, IReadOnlyList<SeddelGruppe> Seddel, string? Sted,
-    IReadOnlyList<string> Skjulte, bool Kvittering = false);
+    IReadOnlyList<string> Skjulte, IReadOnlyList<string> Apps, bool Kvittering = false);
 
 /// <summary>Everything the family page shows, plus adding/removing a purchase and changing the goal.</summary>
 public sealed class Indkoeb(IHusstandStore store, TimeProvider clock)
@@ -57,7 +60,7 @@ public sealed class Indkoeb(IHusstandStore store, TimeProvider clock)
         var maaneder = Enumerable.Range(0, 6).Select(i => first.AddMonths(-i))
             .Select(d => Regler.Maaned(h.Koeb, h.Maal, d.Year, d.Month, idag))
             .Where(ms => ms.Ture > 0 || (ms.Aar == idag.Year && ms.Maaned == idag.Month)).ToList();
-        return new Overblik(h.Navn, h.Maal, uge, denne, maaneder, Regler.Butikker, Grupper(h), h.Sted?.Navn, h.Skjulte);
+        return new Overblik(h.Navn, h.Maal, uge, denne, maaneder, Regler.Butikker, Grupper(h), h.Sted?.Navn, h.Skjulte, h.Apps);
     }
 
     /// <summary>Error text, or null = saved.</summary>
@@ -101,7 +104,7 @@ public sealed class Indkoeb(IHusstandStore store, TimeProvider clock)
         h.Seddel.GroupBy(v => SeddelRegler.Gruppe(v.Butik))
             .OrderBy(g => g.Key == SeddelRegler.HvorSomHelst).ThenBy(g => g.Key, StringComparer.CurrentCulture)
             .Select(g => new SeddelGruppe(g.Key, h.Handler.GetValueOrDefault(g.Key),
-                g.OrderBy(v => v.Koebt).ThenBy(v => v.Oprettet).ToList()))
+                g.OrderBy(v => v.Koebt).ThenBy(v => v.Oprettet).ToList(), h.TurDag.TryGetValue(g.Key, out var d) ? d : null))
             .ToList();
 
     public string? TilfoejVare(string noegle, string? tekst, string? hvem, string? butik, string? tilbud)
@@ -137,14 +140,18 @@ public sealed class Indkoeb(IHusstandStore store, TimeProvider clock)
         return n > 0;
     }
 
-    /// <summary>"Jeg handler her": someone takes the trip to a shop (one finds the offers, another buys); empty name = let it go.</summary>
-    public string? TagTur(string noegle, string? butik, string? hvem)
+    /// <summary>"Jeg handler her": someone takes the trip to a shop (one finds the offers, another buys); empty name = let it go.
+    /// Dag = when ("tirsdag"); a day can be planned before anyone takes the trip. Null day + no name = the plan is gone.</summary>
+    public string? TagTur(string noegle, string? butik, string? hvem, DateOnly? dag = null)
     {
         if (store.Hent(noegle) is not { } h) return "Siden findes ikke.";
         var g = SeddelRegler.Gruppe(butik);
         var navn = Husstand.RenTekst(hvem, 30);
+        if (dag is { } d && (d < Idag || d > Idag.AddDays(31))) return "Vælg en dag fra i dag og en måned frem.";
         if (navn.Length == 0) h.Handler.Remove(g);
         else h.Handler[g] = navn;
+        if (dag is { } dd) h.TurDag[g] = dd;
+        else if (navn.Length == 0) h.TurDag.Remove(g);
         store.Gem(h);
         return null;
     }
@@ -164,6 +171,18 @@ public sealed class Indkoeb(IHusstandStore store, TimeProvider clock)
     }
 
     public const int MaxTilbud = 30;
+
+    /// <summary>"Vi har Lidl Plus": the family has (or no longer has) a shop app / member card.</summary>
+    public string? SaetApp(string noegle, string? app, bool har)
+    {
+        if (store.Hent(noegle) is not { } h) return "Siden findes ikke.";
+        if (string.IsNullOrWhiteSpace(app)) return "Vælg en app.";
+        var n = AppPriser.Navn(Husstand.RenTekst(app, 40));
+        h.Apps.RemoveAll(x => string.Equals(x, n, StringComparison.CurrentCultureIgnoreCase));
+        if (har && h.Apps.Count < 20) h.Apps.Add(n);
+        store.Gem(h);
+        return null;
+    }
 
     /// <summary>"Vi handler aldrig i Bilka": hide (or show again) a shop's offers for the whole family.</summary>
     public string? SkjulButik(string noegle, string? butik, bool skjul)
@@ -186,7 +205,13 @@ public sealed class Indkoeb(IHusstandStore store, TimeProvider clock)
         try
         {
             var alle = await tilbud.SoegAsync(Husstand.RenTekst(t, 40), s.Lat, s.Lng, ct);
-            return new(alle.Where(o => !h.Skjult(o.Butik)).Take(MaxTilbud).ToList(), null);
+            // The price YOU pay; app-only offers you cannot use go after the others (still shown: maybe get the app).
+            var vist = alle.Where(o => !h.Skjult(o.Butik)).Select(o =>
+            {
+                var p = AppPriser.For(o.Pris, o.KunMedApp, o.AppNavn, o.AppPris, o.UdenAppPris, h.HarApp);
+                return o with { VoresPris = p.Pris, PrisNote = p.Note, ManglerApp = p.ManglerApp, App = p.App };
+            }).OrderBy(o => o.AndenVare).ThenBy(o => o.ManglerApp).Take(MaxTilbud).ToList();
+            return new(vist, null);
         }
         catch (TilbudIkkeNu e) { return new([], e.Message); }
     }

@@ -24,7 +24,7 @@ internal sealed class TilbudKlient(HttpClient http, IConfiguration cfg) : ITilbu
                 SeddelRegler.Gruppe(o.Chain), o.Title, o.Description, o.Price, o.NormalPrice,
                 o.UnitPrice is { } u && o.UnitLabel is { } l ? $"{u:0.##} {l}" : null,
                 o.ValidTo is { } t ? DateOnly.FromDateTime(t.ToLocalTime().DateTime) : null,
-                o.Image, o.NeedsApp, o.NearestStore, o.NearestKm, o.Variant)).ToList();
+                o.Image, o.NeedsApp, o.NearestStore, o.NearestKm, o.Variant, o.AppName, o.AppPrice, o.NoAppPrice)).ToList();
         }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
@@ -46,6 +46,7 @@ internal sealed class TilbudKlient(HttpClient http, IConfiguration cfg) : ITilbu
     }
 
     private sealed record Offer(string Chain, string Title, string? Description, decimal Price, decimal? NormalPrice, decimal? UnitPrice,
-        string? UnitLabel, DateTimeOffset? ValidTo, string? Image, string? NeedsApp, string? NearestStore, double? NearestKm, bool Matches = true, bool Variant = false);
+        string? UnitLabel, DateTimeOffset? ValidTo, string? Image, string? NeedsApp, string? NearestStore, double? NearestKm, bool Matches = true, bool Variant = false,
+        string? AppName = null, decimal? AppPrice = null, decimal? NoAppPrice = null);
     private sealed record StedSvar(string? Name, double Lat, double Lng);
 }
