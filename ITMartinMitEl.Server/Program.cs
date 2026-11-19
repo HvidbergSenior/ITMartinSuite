@@ -86,13 +86,15 @@ builder.Services.AddScoped<ITMartinElPriser.Application.IHouseholdHome, Househol
 builder.Services.AddScoped<ITMartinElPriser.Application.IRunBook, RunBook>();
 ITMartinElPriser.Application.DependencyInjection.AddMinElprisApplication(builder.Services);
 builder.Services.AddSingleton<PushService>();
-builder.Services.AddSingleton<RunLogService>();
+// Scoped (2026-11-19): it uses the signed-in household. As a singleton it got the empty throwaway household, so
+// "Jeg har startet" and "Jeg starter testen nu" never found the machine (user: the oven test "just red").
+builder.Services.AddScoped<RunLogService>();
 builder.Services.AddSingleton<ApplianceLookup>();
 builder.Services.AddSingleton<PhotoReader>();   // camera-only setup + start (2026-09-27)
 builder.Services.AddHostedService<NotificationScheduler>();
 builder.Services.AddSingleton(sp => new EloverblikService(new HttpClient { Timeout = TimeSpan.FromSeconds(60) }, sp.GetRequiredService<ILogger<EloverblikService>>()));
 builder.Services.AddSingleton<ConsumptionSync>();
-builder.Services.AddSingleton<PriceProfileService>();
+builder.Services.AddScoped<PriceProfileService>();   // same: it reads the signed-in household's settings
 builder.Services.AddHostedService(sp => sp.GetRequiredService<ConsumptionSync>());
 
 
