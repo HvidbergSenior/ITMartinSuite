@@ -32,7 +32,8 @@ COPY --from=build /app/publish .
 
 # 2026-11-19: the Tesseract package loads its native libraries from /app/x64 (only Windows .dll files ship there), so OCR
 # failed with "Failed to find library libleptonica-1.82.0.so" and every free read returned nothing. Link the Debian ones in.
-RUN mkdir -p /app/x64 \
+RUN ln -sf /usr/lib/x86_64-linux-gnu/libdl.so.2 /usr/lib/x86_64-linux-gnu/libdl.so \
+    && mkdir -p /app/x64 \
     && ln -sf "$(ls /usr/lib/x86_64-linux-gnu/liblept.so.5* | head -1)" /app/x64/libleptonica-1.82.0.so \
     && ln -sf "$(ls /usr/lib/x86_64-linux-gnu/libtesseract.so.5* | head -1)" /app/x64/libtesseract50.so \
     && ls -l /app/x64
