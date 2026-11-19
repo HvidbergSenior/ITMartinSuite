@@ -6,14 +6,21 @@ namespace ITMartinLager.Tests;
 public class ShopPriceTests
 {
     [TestCase(40, 30)]    // "found on DBA 40 kr. Our price 25 pct -> 30 kr"
-    [TestCase(99, 70)]    // 74.25 -> down to 70
-    [TestCase(11, 8)]     // 8.25 -> whole kroner
+    [TestCase(99, 60)]    // 74.25 -> down to the 60 step
+    [TestCase(19, 10)]    // 14.25 -> 10, not 14 (user 2026-11-19 "make all prices realistic")
+    [TestCase(11, 10)]    // 8.25 -> never under 10 kr on its own
+    [TestCase(3, 10)]     // a CD Discogs lists at 3 kr is 10 kr, not 2
+    [TestCase(100, 75)]   // bronze and up: 10 % under = 90 -> 75 step
+    [TestCase(557, 500)]  // 501.3 -> down to 500
+    [TestCase(1500, 1250)] // 1350 -> 250 steps from 1000
+    public void Ordinary_things_are_25_percent_under_and_interesting_ones_10_percent_under_on_shop_steps(int market, int shop) =>
+        ITMartinLager.Domain.Pricing.ShopPrice(market).Should().Be(shop);
+
     [TestCase(3, 2)]      // a cheap Magic card keeps whole kroner (2.25 -> 2)
     [TestCase(1, 1)]      // never under 1 kr
-    [TestCase(100, 90)]   // bronze and up: 10 % under
-    [TestCase(557, 500)]  // 501.3 -> down to 500
-    public void Ordinary_things_are_25_percent_under_and_interesting_ones_10_percent_under(int market, int shop) =>
-        ITMartinLager.Domain.Pricing.ShopPrice(market).Should().Be(shop);
+    [TestCase(40, 30)]
+    public void Magic_cards_keep_whole_kroner(int market, int shop) =>
+        ITMartinLager.Domain.Pricing.MagicPrice(market).Should().Be(shop);
 
     // "ja til priserne" (user 2026-11-16): a standard per kind first, the category's only for kinds without one.
     [TestCase(ITMartinVarer.Contracts.Kinds.Cd, ITMartinVarer.Contracts.ProductTypes.Musik, 15)]

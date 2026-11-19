@@ -15,11 +15,10 @@ public static class SalesCalibration
         return Math.Clamp(ratios[(ratios.Count - 1) / 2], MinFactor, MaxFactor);
     }
 
-    /// <summary>The suggestion moved by the factor, kept on the same 5-kr steps as Pricing.ShopPrice from 20 kr.</summary>
+    /// <summary>The suggestion moved by the factor, kept on the same shop steps as Pricing.ShopPrice (at least MinimumKr).</summary>
     public static int? Apply(int? hint, decimal factor)
     {
         if (hint is not > 0 || factor == 1m) return hint;
-        var p = hint.Value * factor;
-        return p < 20 ? (int)Math.Max(1, Math.Round(p)) : (int)(Math.Floor(p / 5) * 5);
+        return Pricing.OnStep(hint.Value * factor);
     }
 }

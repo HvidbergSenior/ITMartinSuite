@@ -37,8 +37,32 @@ public static partial class Pricing
     /// <summary>Under this the AI was unsure what the thing is - no suggested price until a person has looked (2026-10-21).</summary>
     public const double MinConfidence = 0.6;
 
-    // Under 20 kr: whole kroner (a Magic card for 3 kr stays 3 kr). From 20 kr: down to the nearest 5, so it stays under.
+    /// <summary>Real shop prices (user 2026-11-19 "Make all prices realistic. So look at how it is done"): secondhand shops and
+    /// dealers like Faraos price on round steps - 10, 15, 20, 25, 30, 40, 50, 60, 75, 100 ... - never 9, 13 or 14 kr. Steps from
+    /// 1000 kr go by 250.</summary>
+    public static readonly int[] Steps = [10, 15, 20, 25, 30, 40, 50, 60, 75, 100, 125, 150, 175, 200, 250, 300, 350, 400, 450, 500,
+        600, 700, 800, 900, 1000];
+
+    /// <summary>Down to the nearest shop step (so we stay under the market), never under MinimumKr - a thing cheaper than
+    /// that belongs in the 3 kr / 5 kr bins, not on its own.</summary>
+    public static int OnStep(decimal kr)
+    {
+        if (kr >= 1000) return (int)(Math.Floor(kr / 250) * 250);
+        var step = Steps.LastOrDefault(s => s <= kr);
+        return step == 0 ? MinimumKr : step;
+    }
+
+    // Our price: 25 % / 10 % under the market, then down to a shop step, at least MinimumKr. A CD that Discogs lists at 3 kr
+    // (1 EUR + shipping) is 10 kr here, not 2 kr.
     public static int? ShopPrice(decimal? market)
+    {
+        if (market is not { } m || m <= 0) return null;
+        return OnStep(m * (Ordinary(m) ? LoppeFactor : ShopFactor));
+    }
+
+    /// <summary>Magic singles are sold per card at Cardmarket level: under 20 kr whole kroner (a 3 kr card stays 3 kr, many
+    /// go in one bundle), from 20 kr down to the nearest 5.</summary>
+    public static int? MagicPrice(decimal? market)
     {
         if (market is not { } m || m <= 0) return null;
         var p = m * (Ordinary(m) ? LoppeFactor : ShopFactor);
