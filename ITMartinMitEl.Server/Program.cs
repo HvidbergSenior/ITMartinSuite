@@ -273,7 +273,7 @@ app.MapPost("/api/push/test", async (UnsubscribeRequest req, HouseholdStore stor
     var data = store.Get();
     var snap = PriceModel.Build(await prices.GetPricesAsync(data.Settings.PriceArea), data.Settings, data.Appliances, DkTime.Now);
     var body = snap.NowKrPerKwh is { } p ? $"Lige nu koster strømmen {p:0.00} kr/kWh. Beskeder virker ✓" : "Beskeder virker ✓";
-    var ok = await push.SendAsync(sub, new PushService.Message("MinElpris", body));
+    var ok = await push.SendAsync(store, sub, new PushService.Message("MinElpris", body));
     return ok ? Results.Ok() : Results.StatusCode(410);
 }).DisableAntiforgery();
 

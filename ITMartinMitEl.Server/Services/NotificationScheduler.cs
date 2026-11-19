@@ -106,7 +106,7 @@ public sealed class NotificationScheduler(
             var logKey = $"{sub.Id}|{key}";
             if (store.Get().SentPushes.Contains(logKey)) continue;
             store.Update(d => d.SentPushes.Add(logKey));
-            await push.SendAsync(sub, msg, ct);
+            await push.SendAsync(store, sub, msg, ct);
         }
         if (targets.Count > 0) logger.LogInformation("Sent {Kind} push for {Start} to {Count} subscriber(s)", kind, windowStart, targets.Count);
     }
