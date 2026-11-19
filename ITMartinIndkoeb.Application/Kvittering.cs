@@ -3,8 +3,9 @@ using ITMartinIndkoeb.Domain;
 
 namespace ITMartinIndkoeb.Application;
 
-/// <summary>What the receipt said, as a SUGGESTION: the family checks it and presses the shop to save (never automatic).</summary>
-public sealed record KvitteringForslag(decimal? Beloeb, string? Butik, DateOnly? Dato, string? Forretning, string? Fejl);
+/// <summary>What the receipt said. Gemt = it was saved as a purchase at once (user 2026-11-19: "a picture is enough";
+/// a wrong one is removed with Fjern). Not saved = no total found -> the family types the amount.</summary>
+public sealed record KvitteringForslag(decimal? Beloeb, string? Butik, DateOnly? Dato, string? Forretning, string? Fejl, bool Gemt = false);
 
 /// <summary>The Kvittering app (ITMartin.Receipt POST /api/scan). Klar = URL + key set.</summary>
 public interface IKvitteringLaeser
@@ -14,12 +15,21 @@ public interface IKvitteringLaeser
 }
 
 /// <summary>"Tag billede af kvitteringen": one press = one read in Kvittering. At most 10 reads per family per day (each read costs an AI call).</summary>
-public sealed class LaesKvittering(IHusstandStore store, IKvitteringLaeser laeser, TimeProvider clock)
+public sealed class LaesKvittering(IHusstandStore store, IKvitteringLaeser laeser, Indkoeb indkoeb, TimeProvider clock)
 {
     public const int MaxPrDag = 10;
     private static readonly ConcurrentDictionary<string, (DateOnly Dag, int Antal)> Brugt = new();
 
     public bool Klar => laeser.Klar;
+
+    /// <summary>Read the photo and, when the total is found, save it as the purchase straight away (anyone, any time).</summary>
+    public async Task<KvitteringForslag> LaesOgGemAsync(string noegle, Stream billede, string filnavn, string? hvem, CancellationToken ct = default)
+    {
+        var f = await UdfoerAsync(noegle, billede, filnavn, ct);
+        if (f.Fejl is not null || f.Beloeb is not > 0) return f;
+        var fejl = indkoeb.LaegInd(noegle, f.Beloeb.Value, f.Butik ?? "Andet", hvem, f.Dato);
+        return fejl is null ? f with { Gemt = true } : f with { Fejl = fejl };
+    }
 
     public async Task<KvitteringForslag> UdfoerAsync(string noegle, Stream billede, string filnavn, CancellationToken ct = default)
     {

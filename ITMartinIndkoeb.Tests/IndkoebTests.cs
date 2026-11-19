@@ -58,7 +58,7 @@ public class UgeTests
 
 public class KvitteringTests
 {
-    private sealed class Mem : IHusstandStore
+    internal sealed class Mem : IHusstandStore
     {
         public Dictionary<string, Husstand> H { get; } = [];
         public Husstand? Hent(string n) => H.GetValueOrDefault(n);
@@ -83,7 +83,7 @@ public class KvitteringTests
     {
         var store = new Mem(); var h = Husstand.Ny("X", DateTime.UtcNow); store.Gem(h);
         var fake = new FakeLaeser(new KvitteringForslag(312.45m, null, DateOnly.FromDateTime(DateTime.UtcNow), "LIDL DANMARK", null));
-        var uc = new LaesKvittering(store, fake, TimeProvider.System);
+        var uc = new LaesKvittering(store, fake, new Indkoeb(store, TimeProvider.System), TimeProvider.System);
         var f = await uc.UdfoerAsync(h.Noegle, new MemoryStream([1]), "k.jpg");
         f.Beloeb.Should().Be(312.45m);
         f.Butik.Should().Be("Lidl");

@@ -1,0 +1,47 @@
+@page "/h/{Key}/handlet"
+
+<PageTitle>Ugens indkøb – har handlet</PageTitle>
+
+@* Step 4: anyone, any time. A picture of the receipt is enough (user 2026-11-19) - it is saved at once; typing the amount
+   is the fallback. Saving clears what was ticked in that shop and frees the trip. *@
+<Trin Key="@Key" Current="4" />
+<div data-page="handlet" data-key="@Key">
+    <section class="k-card" data-fold-closed>
+        <h2 class="k-card-title">Om denne side</h2>
+        <p>Tag et billede af kvitteringen – så er købet gemt. Det kan alle gøre, når de vil.</p>
+        <p class="k-muted">Kan kvitteringen ikke læses, skriver du beløbet og trykker på butikken. Er noget forkert, trykker du Fjern under Denne uges indkøb.</p>
+    </section>
+
+    <section class="k-card">
+        <h2 class="k-card-title">Har du handlet?</h2>
+        <form id="koeb-form" class="ui-form" autocomplete="off">
+            <div id="kv-boks" class="ui-kv" hidden>
+                <label class="k-btn k-btn-primary ui-big ui-kv-btn" for="kv-fil">Tag billede af kvitteringen</label>
+                <input id="kv-fil" type="file" accept="image/*" capture="environment" class="ui-sr" />
+                <p id="kv-svar" class="ui-kv-svar" aria-live="polite"></p>
+                <p class="ui-eller">eller skriv beløbet</p>
+            </div>
+            <label for="k-beloeb">Beløb (kr)</label>
+            <input id="k-beloeb" class="ui-input ui-amount" inputmode="decimal" placeholder="fx 245" />
+            <span class="ui-label">Butik – tryk for at gemme</span>
+            <div id="k-butikker" class="ui-shops" role="group" aria-label="Butik"></div>
+            <label for="k-hvem">Hvem handlede?</label>
+            <input id="k-hvem" class="ui-input" maxlength="30" placeholder="dit fornavn" />
+            <details class="ui-more"><summary>Anden dag</summary>
+                <label for="k-dato">Dato</label>
+                <input id="k-dato" class="ui-input" type="date" />
+            </details>
+            <p id="k-svar" aria-live="polite"></p>
+        </form>
+    </section>
+
+    <section class="k-card">
+        <h2 class="k-card-title">Denne uges indkøb</h2>
+        <p class="k-muted" id="h-tilbage"></p>
+        <div id="liste" class="ui-list"></div>
+    </section>
+</div>
+
+@code {
+    [Parameter] public string Key { get; set; } = "";
+}

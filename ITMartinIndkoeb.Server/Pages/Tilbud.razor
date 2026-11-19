@@ -1,0 +1,39 @@
+@page "/h/{Key}/tilbud"
+
+<PageTitle>Ugens indkøb – find tilbud</PageTitle>
+
+@* Step 2: anyone in the family searches this week's offers (from the Tilbud app, near the family's postnummer) and puts
+   the good ones on the list with shop + price. Somebody else can then take the trip on step 3. *@
+<Trin Key="@Key" Current="2" />
+<div data-page="tilbud" data-key="@Key">
+    <section class="k-card" data-fold-closed>
+        <h2 class="k-card-title">Om denne side</h2>
+        <p>Søg i ugens tilbud i butikkerne nær jer. Tryk <b>Sæt på sedlen</b>, så står varen på indkøbssedlen under den butik – med pris.</p>
+        <p class="k-muted">Alle kan gøre det, når de har et par minutter. Tilbuddene kommer fra Kolibri Tilbud (tilbudsaviserne).</p>
+    </section>
+
+    <section class="k-card" id="sted-boks" hidden>
+        <h2 class="k-card-title">Hvor handler I?</h2>
+        <form class="ui-form" data-sted autocomplete="off">
+            <label for="t-postnr">Postnummer</label>
+            <div class="ui-row"><input id="t-postnr" class="ui-input ui-grow" inputmode="numeric" maxlength="4" placeholder="fx 8200" /><button class="k-btn k-btn-primary" type="submit">Gem</button></div>
+            <p class="k-muted" data-sted-svar aria-live="polite"></p>
+        </form>
+    </section>
+
+    <section class="k-card">
+        <h2 class="k-card-title">Hvad skal I bruge?</h2>
+        <p class="k-muted" id="t-sted"></p>
+        <form id="t-form" class="ui-form" autocomplete="off">
+            <label for="t-q">Vare</label>
+            <div class="ui-row"><input id="t-q" class="ui-input ui-grow" maxlength="40" placeholder="fx kaffe, kyllingebryst, mælk" enterkeyhint="search" /><button class="k-btn k-btn-primary ui-big" type="submit">Søg</button></div>
+            <div class="ui-chips" id="t-forslag" aria-label="Ofte købt"></div>
+        </form>
+        <p id="t-svar" aria-live="polite"></p>
+        <div id="t-liste" class="ui-offers"></div>
+    </section>
+</div>
+
+@code {
+    [Parameter] public string Key { get; set; } = "";
+}

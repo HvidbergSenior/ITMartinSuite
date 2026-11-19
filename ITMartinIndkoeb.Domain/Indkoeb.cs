@@ -39,6 +39,12 @@ public sealed class Husstand
     public Maal Maal { get; set; } = Maal.Standard;
     public List<Koeb> Koeb { get; set; } = [];
     public DateTime Oprettet { get; set; }
+    /// <summary>The shared shopping list (step 3). Ticked items leave the list when the next purchase is saved (step 4).</summary>
+    public List<Vare> Seddel { get; set; } = [];
+    /// <summary>Where the family shops - only for "Find tilbud" (nearest stores). Postnummer, never an address.</summary>
+    public Sted? Sted { get; set; }
+    /// <summary>Who has taken the trip to a shop ("Lidl" -> "Eigil"). One person finds offers, another buys them.</summary>
+    public Dictionary<string, string> Handler { get; set; } = [];
 
     public static Husstand Ny(string? navn, DateTime nowUtc) => new()
     {
@@ -52,6 +58,43 @@ public sealed class Husstand
     {
         var t = (s ?? "").Trim();
         return t.Length > max ? t[..max] : t;
+    }
+}
+
+/// <summary>One line on the shopping list. Butik = where to buy it (from the offer, or chosen), null = anywhere.
+/// Tilbud = the offer it came from ("30 kr, til fredag"), if any.</summary>
+public sealed record Vare(string Id, string Tekst, string Hvem, string? Butik, string? Tilbud, bool Koebt, DateTime Oprettet);
+
+public sealed record Sted(string Postnr, string Navn, double Lat, double Lng);
+
+public static class SeddelRegler
+{
+    public const int MaxVarer = 150;
+    public const int MaxTekst = 80;
+
+    /// <summary>Error text, or null.</summary>
+    public static string? Problem(string? tekst, int antal)
+    {
+        if (string.IsNullOrWhiteSpace(tekst)) return "Skriv hvad der skal købes, fx mælk.";
+        if (antal >= MaxVarer) return $"Sedlen er fuld ({MaxVarer} varer). Fjern de købte først.";
+        return null;
+    }
+
+    public static bool GyldigtPostnr(string? p) => p is { Length: 4 } && p.All(char.IsAsciiDigit) && p[0] != '0';
+
+    public const string HvorSomHelst = "Hvor som helst";
+
+    /// <summary>The list's group for an item: its shop (offer chains like "REMA 1000" -> "Rema 1000"), or "Hvor som helst".</summary>
+    public static string Gruppe(string? butik) => string.IsNullOrWhiteSpace(butik) ? HvorSomHelst
+        : Regler.ButikFra(butik) is var b && b != "Andet" ? b : butik.Trim();
+
+    /// <summary>A purchase in <paramref name="butik"/> is saved: what was ticked there (and ticked "anywhere" items) is bought
+    /// and leaves the list, and the trip is no longer taken.</summary>
+    public static int Handlet(Husstand h, string butik)
+    {
+        var g = Gruppe(butik);
+        h.Handler.Remove(g);
+        return h.Seddel.RemoveAll(v => v.Koebt && (Gruppe(v.Butik) == g || Gruppe(v.Butik) == HvorSomHelst || g == "Andet"));
     }
 }
 

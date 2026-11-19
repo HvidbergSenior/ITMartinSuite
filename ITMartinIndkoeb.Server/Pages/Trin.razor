@@ -1,0 +1,17 @@
+@* The family's process (user 2026-11-19: "process like vareinfo, salg"): the same row of steps on every family page.
+   Anyone can do any step - one finds the offers, another takes the trip, anyone snaps the receipt. *@
+<KolibriSteps Steps="Steps" Current="Current" Label="Ugens indkøb, trin for trin" />
+
+@code {
+    [Parameter, EditorRequired] public string Key { get; set; } = "";
+    /// <summary>1 Ugen, 2 Find tilbud, 3 Indkøbsseddel, 4 Har handlet.</summary>
+    [Parameter, EditorRequired] public int Current { get; set; }
+
+    private IReadOnlyList<KolibriSteps.KolibriStep> Steps =>
+    [
+        new("1 Ugen", $"/h/{Key}"),
+        new("2 Find tilbud", $"/h/{Key}/tilbud"),
+        new("3 Indkøbsseddel", $"/h/{Key}/seddel"),
+        new("4 Har handlet", $"/h/{Key}/handlet"),
+    ];
+}

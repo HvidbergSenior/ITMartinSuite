@@ -1,0 +1,31 @@
+@page "/h/{Key}/seddel"
+
+<PageTitle>Ugens indkøb – indkøbsseddel</PageTitle>
+
+@* Step 3: the shared list, grouped by shop (the offers decide the shop). "Jeg handler her" = someone takes that trip;
+   in the shop they tick what they put in the basket. Ticked lines leave the list when the purchase is saved (step 4). *@
+<Trin Key="@Key" Current="3" />
+<div data-page="seddel" data-key="@Key">
+    <section class="k-card" data-fold-closed>
+        <h2 class="k-card-title">Om denne side</h2>
+        <p>Familiens fælles indkøbsseddel, delt op efter butik. Alle kan skrive på den.</p>
+        <p class="k-muted">Tryk <b>Jeg handler her</b>, så kan de andre se, at turen er taget. I butikken sætter du flueben. Når købet er gemt (trin 4), forsvinder det, du har sat flueben ved.</p>
+    </section>
+
+    <section class="k-card">
+        <h2 class="k-card-title">Skriv på sedlen</h2>
+        <form id="s-form" class="ui-form" autocomplete="off">
+            <label for="s-tekst">Vare</label>
+            <div class="ui-row"><input id="s-tekst" class="ui-input ui-grow" maxlength="80" placeholder="fx mælk, rugbrød, 1 kg løg" enterkeyhint="done" /><button class="k-btn k-btn-primary ui-big" type="submit">Tilføj</button></div>
+            <label for="s-butik">Butik</label>
+            <select id="s-butik" class="ui-input"><option value="">Hvor som helst</option></select>
+            <p id="s-svar" aria-live="polite"></p>
+        </form>
+    </section>
+
+    <div id="s-grupper" class="ui-groups" aria-live="polite"></div>
+</div>
+
+@code {
+    [Parameter] public string Key { get; set; } = "";
+}
