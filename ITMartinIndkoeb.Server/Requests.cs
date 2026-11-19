@@ -7,3 +7,4 @@ public sealed record VareRequest(string? Tekst, string? Hvem, string? Butik, str
 public sealed record AfkrydsRequest(bool Koebt);
 public sealed record TurRequest(string? Butik, string? Hvem);
 public sealed record StedRequest(string? Postnr);
+public sealed record SkjulRequest(string? Butik, bool Skjul);

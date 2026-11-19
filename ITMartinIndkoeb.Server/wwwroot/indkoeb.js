@@ -149,6 +149,8 @@
     function drawTilbudSide() {
         $("sted-boks").hidden = !!data.sted;
         $("t-sted").textContent = data.sted ? "Butikker inden for 10 km af " + data.sted + "." : "";
+        $("skjult-boks").hidden = !data.skjulte.length;
+        $("skjulte").innerHTML = data.skjulte.map(function (b) { return '<button type="button" class="k-btn k-btn-secondary k-btn-sm" data-vis="' + esc(b) + '">Vis ' + esc(b) + " igen</button>"; }).join("");
         if (!$("t-forslag").children.length) {
             var paa = [];
             data.seddel.forEach(function (g) { if (g.butik === "Hvor som helst") g.varer.forEach(function (v) { if (!v.koebt) paa.push(v.tekst); }); });
@@ -161,21 +163,34 @@
         $("t-svar").textContent = "Søger i ugens tilbud …"; $("t-liste").innerHTML = "";
         api(base + "/tilbud?q=" + encodeURIComponent(q)).then(function (list) {
             sidste = list;
-            $("t-svar").textContent = list.length ? list.length + " tilbud på \"" + q + "\" – billigst først." : "Ingen tilbud på \"" + q + "\" i denne uge. Sæt den på sedlen alligevel?";
-            $("t-liste").innerHTML = list.map(function (o, i) {
+            var kort = function (o) {
+                var i = list.indexOf(o);
                 var til = o.til ? "til " + new Date(o.til).toLocaleDateString("da-DK", { weekday: "short", day: "numeric", month: "short" }) : "";
                 return '<article class="ui-offer">' + (o.billede ? '<img src="' + esc(o.billede) + '" alt="" loading="lazy" referrerpolicy="no-referrer" />' : '<span class="ui-offer-img"></span>')
                     + '<div class="ui-offer-txt"><b>' + esc(o.butik) + " · " + kr2(o.pris) + " kr</b><span>" + esc(o.titel) + "</span>"
                     + "<small>" + [o.enhedspris, o.foer ? "før " + kr2(o.foer) + " kr" : "", til, o.kunMedApp ? "kun med " + o.kunMedApp : "", o.naermesteButik ? o.naermesteButik + (o.km ? " (" + o.km.toFixed(1).replace(".", ",") + " km)" : "") : ""]
                         .filter(Boolean).map(esc).join(" · ") + "</small></div>"
-                    + '<button class="k-btn k-btn-primary k-btn-sm" type="button" data-paa="' + i + '">Sæt på sedlen</button></article>';
-            }).join("") + (list.length ? "" : '<button class="k-btn k-btn-secondary" type="button" data-paa="-1">Sæt "' + esc(q) + '" på sedlen</button>');
+                    + '<div class="ui-offer-btns"><button class="k-btn k-btn-primary k-btn-sm" type="button" data-paa="' + i + '">Sæt på sedlen</button>'
+                    + '<button class="k-btn k-btn-ghost k-btn-sm" type="button" data-skjul="' + esc(o.butik) + '" title="Vi handler aldrig i ' + esc(o.butik) + '">Skjul ' + esc(o.butik) + "</button></div></article>";
+            };
+            // Specific (user 2026-11-19): only the thing itself; kakaomælk, tykmælk, laktosefri … are folded away.
+            var main = list.filter(function (o) { return !o.andenVare; }), andre = list.filter(function (o) { return o.andenVare; });
+            $("t-svar").textContent = main.length ? main.length + " tilbud på \"" + q + "\" – billigst først."
+                : "Ingen tilbud på \"" + q + "\" i denne uge. Sæt den på sedlen alligevel?";
+            $("t-liste").innerHTML = main.map(kort).join("")
+                + (main.length ? "" : '<button class="k-btn k-btn-secondary" type="button" data-paa="-1">Sæt "' + esc(q) + '" på sedlen</button>')
+                + (andre.length ? '<details class="ui-andre"><summary>Andre varer med "' + esc(q) + '" (' + andre.length + ")</summary>" + andre.map(kort).join("") + "</details>" : "");
         }).catch(function (er) { $("t-svar").textContent = er.message; });
     }
     if (kind === "tilbud") {
         $("t-form").addEventListener("submit", function (e) { e.preventDefault(); var q = $("t-q").value.trim(); if (q) soeg(q); });
         $("t-forslag").addEventListener("click", function (e) { var b = e.target.closest("[data-q]"); if (b) soeg(b.getAttribute("data-q")); });
+        var skjul = function (butik, ja) {
+            return api(base + "/skjul", json("PUT", { butik: butik, skjul: ja })).then(load).then(function () { var q = $("t-q").value.trim(); if (q) soeg(q); });
+        };
+        $("skjulte").addEventListener("click", function (e) { var b = e.target.closest("[data-vis]"); if (b) skjul(b.getAttribute("data-vis"), false); });
         $("t-liste").addEventListener("click", function (e) {
+            var s = e.target.closest("[data-skjul]"); if (s) { skjul(s.getAttribute("data-skjul"), true); return; }
             var b = e.target.closest("[data-paa]"); if (!b) return;
             var i = +b.getAttribute("data-paa"), o = sidste[i];
             var vare = o ? { tekst: o.titel, butik: o.butik, tilbud: kr2(o.pris) + " kr" + (o.til ? ", til " + new Date(o.til).toLocaleDateString("da-DK", { weekday: "long" }) : "") + (o.kunMedApp ? ", kun med " + o.kunMedApp : "") }

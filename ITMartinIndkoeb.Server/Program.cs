@@ -94,6 +94,9 @@ h.MapGet("/tilbud", async (string key, string? q, Indkoeb uc, ITilbudKilde tilbu
 h.MapPut("/sted", async (string key, StedRequest r, Indkoeb uc, ITilbudKilde tilbud, CancellationToken ct) =>
     await uc.SaetStedAsync(key, r.Postnr, tilbud, ct) is { } fejl ? Results.BadRequest(new { fejl }) : Results.Ok());
 
+h.MapPut("/skjul", (string key, SkjulRequest r, Indkoeb uc) =>
+    uc.SkjulButik(key, r.Butik, r.Skjul) is { } fejl ? Results.BadRequest(new { fejl }) : Results.Ok());
+
 // Step 3: the shared list + who takes the trip.
 h.MapPost("/seddel", (string key, VareRequest r, Indkoeb uc) =>
     uc.TilfoejVare(key, r.Tekst, r.Hvem, r.Butik, r.Tilbud) is { } fejl ? Results.BadRequest(new { fejl }) : Results.Ok());

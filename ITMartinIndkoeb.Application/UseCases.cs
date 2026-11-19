@@ -16,7 +16,8 @@ public interface ITilbudKilde
 }
 
 public sealed record TilbudVisning(string Butik, string Titel, string? Beskrivelse, decimal Pris, decimal? Foer, string? Enhedspris,
-    DateOnly? Til, string? Billede, string? KunMedApp, string? NaermesteButik, double? Km);
+    DateOnly? Til, string? Billede, string? KunMedApp, string? NaermesteButik, double? Km, bool AndenVare = false);
+// AndenVare: another product than the one searched (kakaomælk, tykmælk, laktosefri for "mælk") - Tilbud decides, the page folds it away.
 
 public sealed record TilbudSvar(IReadOnlyList<TilbudVisning> Tilbud, string? Fejl);
 
@@ -29,7 +30,7 @@ public sealed record KoebVisning(string Id, DateOnly Dato, decimal Beloeb, strin
 
 public sealed record Overblik(string Navn, Maal Maal, UgeStatus Uge, IReadOnlyList<KoebVisning> DenneUge,
     IReadOnlyList<MaanedStatus> Maaneder, IReadOnlyList<string> Butikker, IReadOnlyList<SeddelGruppe> Seddel, string? Sted,
-    bool Kvittering = false);
+    IReadOnlyList<string> Skjulte, bool Kvittering = false);
 
 /// <summary>Everything the family page shows, plus adding/removing a purchase and changing the goal.</summary>
 public sealed class Indkoeb(IHusstandStore store, TimeProvider clock)
@@ -56,7 +57,7 @@ public sealed class Indkoeb(IHusstandStore store, TimeProvider clock)
         var maaneder = Enumerable.Range(0, 6).Select(i => first.AddMonths(-i))
             .Select(d => Regler.Maaned(h.Koeb, h.Maal, d.Year, d.Month, idag))
             .Where(ms => ms.Ture > 0 || (ms.Aar == idag.Year && ms.Maaned == idag.Month)).ToList();
-        return new Overblik(h.Navn, h.Maal, uge, denne, maaneder, Regler.Butikker, Grupper(h), h.Sted?.Navn);
+        return new Overblik(h.Navn, h.Maal, uge, denne, maaneder, Regler.Butikker, Grupper(h), h.Sted?.Navn, h.Skjulte);
     }
 
     /// <summary>Error text, or null = saved.</summary>
@@ -162,13 +163,31 @@ public sealed class Indkoeb(IHusstandStore store, TimeProvider clock)
         return null;
     }
 
+    public const int MaxTilbud = 30;
+
+    /// <summary>"Vi handler aldrig i Bilka": hide (or show again) a shop's offers for the whole family.</summary>
+    public string? SkjulButik(string noegle, string? butik, bool skjul)
+    {
+        if (store.Hent(noegle) is not { } h) return "Siden findes ikke.";
+        var g = SeddelRegler.Gruppe(butik);
+        if (g == SeddelRegler.HvorSomHelst) return "Vælg en butik.";
+        h.Skjulte.RemoveAll(x => string.Equals(x, g, StringComparison.CurrentCultureIgnoreCase));
+        if (skjul && h.Skjulte.Count < 40) h.Skjulte.Add(g);
+        store.Gem(h);
+        return null;
+    }
+
     public async Task<TilbudSvar> SoegTilbudAsync(string noegle, string? q, ITilbudKilde tilbud, CancellationToken ct = default)
     {
         if (store.Hent(noegle) is not { } h) return new([], "Siden findes ikke.");
         if (h.Sted is not { } s) return new([], "Skriv jeres postnummer først, så finder vi butikkerne nær jer.");
         var t = (q ?? "").Trim();
         if (t.Length < 2) return new([], "Skriv mindst 2 bogstaver, fx kaffe.");
-        try { return new(await tilbud.SoegAsync(Husstand.RenTekst(t, 40), s.Lat, s.Lng, ct), null); }
+        try
+        {
+            var alle = await tilbud.SoegAsync(Husstand.RenTekst(t, 40), s.Lat, s.Lng, ct);
+            return new(alle.Where(o => !h.Skjult(o.Butik)).Take(MaxTilbud).ToList(), null);
+        }
         catch (TilbudIkkeNu e) { return new([], e.Message); }
     }
 }

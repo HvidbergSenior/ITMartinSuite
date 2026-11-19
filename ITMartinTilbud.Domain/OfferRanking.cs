@@ -43,7 +43,7 @@ public static class OfferRanking
         if (hits.Count == 0) return food.Count > 0 ? food : list;
         var marked = hits.Select(o => o with
         {
-            Variant = IsVariant(o.Title, words),
+            Variant = IsVariant(o.Title, words, kinds),
             Matches = kinds.All(k => Synonyms(k).Any(v => (o.Title + " " + o.Description).Contains(v, StringComparison.OrdinalIgnoreCase))),
         }).ToList();
         return marked.OrderBy(o => o.Matches ? 0 : 1).ThenBy(o => o.Variant ? 1 : 0).ToList();   // stable: per-kg order kept within
@@ -69,20 +69,57 @@ public static class OfferRanking
     public static readonly string[] Flavours =
         ["kakao", "choko", "chokolade", "jordbær", "vanilje", "banan", "hindbær", "kaffe", "karamel", "mokka", "milkshake", "is "];
 
-    public static bool IsVariant(string title, string[] words)
+    // User 2026-11-19: "mælk gets kakaomælk and tykmælk... search needs to be specific", "also not laktosefri".
+    // A hit is the searched thing only when the word stands alone, or is glued to a known kind of the SAME thing
+    // (letmælk, sødmælk), with at most a Danish ending after it (mælk/mælken). Everything else is another product:
+    // tykmælk, kondenseret mælk, mælkechokolade, kyllingebryst for "kylling" - and special kinds nobody asked for.
+
+    /// <summary>Glued in front of the word, still the same thing.</summary>
+    public static readonly IReadOnlyDictionary<string, string[]> SameThing = new Dictionary<string, string[]>
+    {
+        ["mælk"] = ["let", "sød", "skummet", "mini", "hel"],
+        ["yoghurt"] = ["græsk", "skyr"],
+        ["ost"] = ["skære", "skive", "hushold", "gauda"],
+        ["brød"] = ["rug", "fuldkorns", "toast", "franske"],
+        ["kaffe"] = ["filter", "hele bønne"],
+    };
+
+    /// <summary>Words that make another product of the thing, glued on or in front ("tykmælk", "kondenseret mælk").</summary>
+    public static readonly string[] OtherProduct =
+        ["tyk", "kærne", "kondenseret", "havre", "soja", "mandel", "kokos", "ris", "ærte", "kakao", "choko", "chokolade",
+         "jordbær", "vanilje", "banan", "hindbær", "karamel", "mokka", "is"];
+
+    /// <summary>Special kinds - only main when searched for ("laktosefri mælk").</summary>
+    public static readonly string[] Special =
+        ["laktosefri", "lactofree", "laktosefrie", "uden laktose", "glutenfri", "vegansk", "plantebaseret", "proteinbar", "protein"];
+
+    private static readonly string[] Endings = ["", "e", "en", "er", "ene", "et", "s", "r"];
+
+    public static bool IsVariant(string title, string[] words, string[]? kinds = null)
     {
         var t = title.ToLowerInvariant();
+        var asked = (kinds ?? []).Concat(words).SelectMany(k => Synonyms(k.ToLowerInvariant()).Append(k.ToLowerInvariant())).ToList();
         if (words.Any(w => Flavours.Any(f => w.Contains(f.Trim())))) return false;   // searched for the flavour itself
+        if (Special.Any(sp => t.Contains(sp) && !asked.Any(a => a.Length > 3 && (sp.Contains(a) || a.Contains(sp))))) return true;
         foreach (var w in words)
         {
-            var hitPlain = false;
+            var same = SameThing.GetValueOrDefault(w) ?? [];
             for (var i = t.IndexOf(w, StringComparison.Ordinal); i >= 0; i = t.IndexOf(w, i + 1, StringComparison.Ordinal))
             {
                 var start = i;
                 while (start > 0 && (char.IsLetter(t[start - 1]) || t[start - 1] == '-')) start--;
-                if (!Flavours.Any(f => t[start..i].Contains(f.Trim()))) hitPlain = true;
+                var end = i + w.Length;
+                while (end < t.Length && char.IsLetter(t[end])) end++;
+                var prefix = t[start..i].Trim('-');
+                var suffix = t[(i + w.Length)..end];
+                var before = t[..start].TrimEnd(' ', '-');
+                var prevWord = before[(before.LastIndexOfAny([' ', ',', '-', '.']) + 1)..];
+
+                var prefixOk = prefix.Length == 0 || (same.Any(prefix.EndsWith) && !OtherProduct.Any(prefix.Contains));
+                var suffixOk = Endings.Contains(suffix);
+                var prevOk = !OtherProduct.Contains(prevWord);
+                if (prefixOk && suffixOk && prevOk) return false;
             }
-            if (hitPlain) return false;
         }
         return true;
     }

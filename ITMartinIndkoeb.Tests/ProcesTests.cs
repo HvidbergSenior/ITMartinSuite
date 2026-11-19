@@ -98,3 +98,27 @@ public class ProcesTests
         _store.Hent(_h.Noegle)!.Koeb.Should().BeEmpty();
     }
 }
+
+public class SkjulTests
+{
+    private sealed class Tilbud2 : ITilbudKilde
+    {
+        public Task<IReadOnlyList<TilbudVisning>> SoegAsync(string q, double lat, double lng, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<TilbudVisning>>([
+                new("Bilka", "Arla mælk", null, 9, null, null, null, null, null, null, null),
+                new("Netto", "Arla mælk", null, 10, null, null, null, null, null, null, null)]);
+        public Task<Sted?> StedAsync(string p, CancellationToken ct = default) => Task.FromResult<Sted?>(new Sted(p, p, 56, 10));
+    }
+
+    [Test]
+    public async Task A_hidden_shop_is_not_shown_and_can_come_back()
+    {
+        var store = new KvitteringTests.Mem(); var h = Husstand.Ny("X", DateTime.UtcNow); store.Gem(h);
+        var uc = new Indkoeb(store, TimeProvider.System); var t = new Tilbud2();
+        await uc.SaetStedAsync(h.Noegle, "8200", t);
+        uc.SkjulButik(h.Noegle, "Bilka", true).Should().BeNull();
+        (await uc.SoegTilbudAsync(h.Noegle, "mælk", t)).Tilbud.Select(o => o.Butik).Should().Equal("Netto");
+        uc.SkjulButik(h.Noegle, "bilka", false);
+        (await uc.SoegTilbudAsync(h.Noegle, "mælk", t)).Tilbud.Should().HaveCount(2);
+    }
+}

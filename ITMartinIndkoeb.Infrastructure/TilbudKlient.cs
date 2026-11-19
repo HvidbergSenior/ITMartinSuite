@@ -11,7 +11,7 @@ namespace ITMartinIndkoeb.Infrastructure;
 internal sealed class TilbudKlient(HttpClient http, IConfiguration cfg) : ITilbudKilde
 {
     private string Url => (cfg["Indkoeb:TilbudUrl"] ?? "http://10.0.0.200:9150").TrimEnd('/');
-    private const int Km = 10, MaxTilbud = 30;
+    private const int Km = 10, MaxTilbud = 80;   // hidden shops are taken out in Application, then 30 are shown
 
     public async Task<IReadOnlyList<TilbudVisning>> SoegAsync(string q, double lat, double lng, CancellationToken ct = default)
     {
@@ -19,11 +19,12 @@ internal sealed class TilbudKlient(HttpClient http, IConfiguration cfg) : ITilbu
         try
         {
             var list = await http.GetFromJsonAsync<List<Offer>>(url, ct) ?? [];
-            return list.Where(o => o.Matches).Take(MaxTilbud).Select(o => new TilbudVisning(
+            // Exact hits first (the list is already cheapest first within each), then the other products.
+            return list.Where(o => o.Matches).OrderBy(o => o.Variant).Take(MaxTilbud).Select(o => new TilbudVisning(
                 SeddelRegler.Gruppe(o.Chain), o.Title, o.Description, o.Price, o.NormalPrice,
                 o.UnitPrice is { } u && o.UnitLabel is { } l ? $"{u:0.##} {l}" : null,
                 o.ValidTo is { } t ? DateOnly.FromDateTime(t.ToLocalTime().DateTime) : null,
-                o.Image, o.NeedsApp, o.NearestStore, o.NearestKm)).ToList();
+                o.Image, o.NeedsApp, o.NearestStore, o.NearestKm, o.Variant)).ToList();
         }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
@@ -45,6 +46,6 @@ internal sealed class TilbudKlient(HttpClient http, IConfiguration cfg) : ITilbu
     }
 
     private sealed record Offer(string Chain, string Title, string? Description, decimal Price, decimal? NormalPrice, decimal? UnitPrice,
-        string? UnitLabel, DateTimeOffset? ValidTo, string? Image, string? NeedsApp, string? NearestStore, double? NearestKm, bool Matches = true);
+        string? UnitLabel, DateTimeOffset? ValidTo, string? Image, string? NeedsApp, string? NearestStore, double? NearestKm, bool Matches = true, bool Variant = false);
     private sealed record StedSvar(string? Name, double Lat, double Lng);
 }

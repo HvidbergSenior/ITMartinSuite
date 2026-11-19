@@ -60,7 +60,7 @@ public class OffersTests
     {
         Offer Of(string title, string? text = null) => new("Lidl", title, text, 10, null, null, null, null, null, null, null, null);
         var list = new List<Offer> { Of("Kartofler", "Gode med smør"), Of("Lurpak smør"), Of("Kærgården smørbar"), Of("Smør fra Arla") };
-        OfferRanking.Relevant(list, "smør").Select(o => o.Title).Should().Equal("Lurpak smør", "Kærgården smørbar", "Smør fra Arla");
+        OfferRanking.Relevant(list, "smør").Select(o => o.Title).Should().Equal("Lurpak smør", "Smør fra Arla", "Kærgården smørbar");   // smørbar = another product, last
         OfferRanking.Relevant(list, "æbler").Should().HaveCount(4);   // no word match at all: show what was found
     }
 
@@ -74,10 +74,30 @@ public class OffersTests
             Of("Matilde kakao-skummetmælk"), Of("Gram Slot Mini- eller skummetmælk"), Of("Arla frisk dansk mælk"),
         };
         var r = OfferRanking.Relevant(list, "mælk");
-        r.Where(o => !o.Variant).Select(o => o.Title).Should().Equal("Arla Lactofree mælk", "Gram Slot Mini- eller skummetmælk", "Arla frisk dansk mælk");
-        r.Where(o => o.Variant).Select(o => o.Title).Should().Equal("MILBONA Kakaomælk", "Matilde kakao-skummetmælk");
+        r.Where(o => !o.Variant).Select(o => o.Title).Should().Equal("Gram Slot Mini- eller skummetmælk", "Arla frisk dansk mælk");
+        r.Where(o => o.Variant).Select(o => o.Title).Should().Equal("MILBONA Kakaomælk", "Arla Lactofree mælk", "Matilde kakao-skummetmælk");
         OfferRanking.Relevant(list, "kakaomælk").Should().OnlyContain(o => !o.Variant);   // searched for the flavour itself
     }
+
+    [TestCase("Arla økologisk yoghurt, ymer el. tykmælk")]
+    [TestCase("Tørsleffs kondenseret mælk eller vaniljesukker")]
+    [TestCase("Matilde kakao skummetmælk")]
+    [TestCase("Yoggi yoghurt eller Arla laktosefri mælk")]
+    [TestCase("Oatly havremælk")]
+    [TestCase("Marabou mælkechokolade")]
+    public void Milk_search_is_specific_other_products_are_variants(string title) =>
+        OfferRanking.IsVariant(title, ["mælk"]).Should().BeTrue();
+
+    [TestCase("Tjele Gods økologisk sødmælk")]
+    [TestCase("Arla letmælk")]
+    [TestCase("REMA 1000 Arla mælk")]
+    [TestCase("Grøn Balance Øllingegaard Økologisk Mælk")]
+    public void Milk_itself_and_its_own_kinds_stay_main(string title) =>
+        OfferRanking.IsVariant(title, ["mælk"]).Should().BeFalse();
+
+    [Test]
+    public void Laktosefri_is_main_only_when_asked_for() =>
+        OfferRanking.IsVariant("Arla Lactofree mælk", ["mælk"], ["laktosefri"]).Should().BeFalse();
 
     [Test]
     public void App_only_offers_are_recognised_as_the_leaflets_word_them()

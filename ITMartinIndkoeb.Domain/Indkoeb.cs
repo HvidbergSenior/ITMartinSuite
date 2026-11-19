@@ -45,6 +45,10 @@ public sealed class Husstand
     public Sted? Sted { get; set; }
     /// <summary>Who has taken the trip to a shop ("Lidl" -> "Eigil"). One person finds offers, another buys them.</summary>
     public Dictionary<string, string> Handler { get; set; } = [];
+    /// <summary>Shops the family never goes to ("we never go to Bilka") - their offers are not shown in Find tilbud.</summary>
+    public List<string> Skjulte { get; set; } = [];
+
+    public bool Skjult(string butik) => Skjulte.Contains(SeddelRegler.Gruppe(butik), StringComparer.CurrentCultureIgnoreCase);
 
     public static Husstand Ny(string? navn, DateTime nowUtc) => new()
     {
