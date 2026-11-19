@@ -72,3 +72,19 @@ details:not([open]) > .mb-sum::after { transform: rotate(-90deg); }
 
 /* Header: four tabs + Lys/mørk fit at 390 px (Sortér added 2026-11-18). */
 @media (max-width: 420px) { .k-header .k-btn-sm { padding-inline: 6px; } }
+
+/* Ugemål (2026-11-19): a bar per goal, this week against the goal. */
+.mb-goals { display: grid; gap: var(--k-space-3); }
+.mb-goals .mb-h2 { margin: 0; }
+.mb-goals p { margin: 0; }
+.mb-goal { display: grid; gap: var(--k-space-1); padding: var(--k-space-2) var(--k-space-3); background: var(--k-bg); border-radius: var(--k-radius-sm); border-left: 4px solid var(--k-success); }
+.mb-goal.bad { border-left-color: var(--k-danger); }
+.mb-goal-top { display: flex; justify-content: space-between; gap: var(--k-space-2); flex-wrap: wrap; font-weight: 600; }
+.mb-goal-top .mb-amount { font-variant-numeric: tabular-nums; }
+.mb-goal-bar { height: 8px; border-radius: 999px; background: var(--k-border); overflow: hidden; }
+.mb-goal-bar i { display: block; height: 100%; border-radius: 999px; background: var(--k-success); }
+.mb-goal.bad .mb-goal-bar i { background: var(--k-danger); }
+.mb-goal-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-space-1) var(--k-space-3); color: var(--k-muted); font-size: var(--k-fs-small); font-variant-numeric: tabular-nums; }
+.mb-goal-meta span:first-child { color: var(--k-text); font-weight: 600; }
+.mb-goal-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--k-space-2); }
+.mb-goal-form > div { display: grid; gap: var(--k-space-1); flex: 1 1 180px; min-width: 0; }

@@ -6,6 +6,7 @@
 @using ITMartinBudget.Application.Services
 @using ITMartinBudget.Application.Models
 @inject CategoryOverviewService Overview
+@inject WeeklyGoalService Goals
 @inject IConfiguration Config
 
 <PageTitle>Kategorier – MitBudget</PageTitle>
@@ -44,6 +45,44 @@ else
         <div class="k-card mb-tile"><span>Indtægter i alt</span><b>@Kr(_data.Income.Sum(g => g.Sum)) kr</b></div>
         <div class="k-card mb-tile"><span>Kategorier</span><b>@(_data.Spending.Sum(g => g.Lines.Count) + _data.Income.Sum(g => g.Lines.Count))</b></div>
     </div>
+
+    <section class="k-card mb-goals" aria-labelledby="goalsTitle">
+        <h2 class="mb-h2" id="goalsTitle">Ugemål</h2>
+        <p class="k-muted">Hvor meget må en kategori koste om ugen (mandag-søndag)? "Normal uge" er snittet siden @_halfStart.ToString("d. MMMM", Da). Penge, en ven betaler tilbage, trækkes fra.</p>
+        @if (_goals.Count == 0)
+        {
+            <p>Der er ingen ugemål endnu. Vælg en kategori nedenfor, fx Sport, Café og bar eller Take away, og skriv hvor mange kr. den må koste om ugen.</p>
+        }
+        @foreach (var s in _goals)
+        {
+            <div class="mb-goal @(s.Over ? "bad" : "good")">
+                <div class="mb-goal-top">
+                    <span class="mb-name">@s.Category</span>
+                    <span class="mb-amount">@Kr(s.ThisWeek) / @Kr(s.Goal) kr</span>
+                </div>
+                <div class="mb-goal-bar" role="progressbar" aria-valuenow="@s.Percent" aria-valuemin="0" aria-valuemax="100" aria-label="@s.Category denne uge"><i style="width:@(s.Percent)%"></i></div>
+                <div class="mb-goal-meta">
+                    <span>@(s.Over ? $"{Kr(-s.Left)} kr over målet" : $"{Kr(s.Left)} kr tilbage denne uge")</span>
+                    <span>Sidste uge @Kr(s.LastWeek) kr</span>
+                    <span>Normal uge @Kr(s.AverageWeek) kr</span>
+                    <button type="button" class="k-btn k-btn-ghost k-btn-sm" @onclick="() => EditGoal(s)">Ret</button>
+                    <button type="button" class="k-btn k-btn-ghost k-btn-sm" @onclick="() => RemoveGoal(s.Category)">Fjern</button>
+                </div>
+            </div>
+        }
+        <div class="mb-goal-form">
+            <div>
+                <label class="k-label" for="goalCat">Kategori</label>
+                <input id="goalCat" class="k-input" list="mbCategories" @bind="_goalCat" @bind:event="oninput" placeholder="fx Take away og fast food" />
+            </div>
+            <div>
+                <label class="k-label" for="goalKr">Kr. om ugen</label>
+                <input id="goalKr" class="k-input" type="number" min="1" step="10" inputmode="numeric" @bind="_goalKr" />
+            </div>
+            <button type="button" class="k-btn k-btn-primary" @onclick="SaveGoal">Gem mål</button>
+        </div>
+        @if (_goalError is not null) { <div class="k-alert k-alert-danger">@_goalError</div> }
+    </section>
 
     <h2 class="mb-h2">Forbrug</h2>
     @foreach (var g in _data.Spending) { @GroupBox(g, -1) }
@@ -93,6 +132,44 @@ else
         _data = await Overview.GetOverviewAsync(_ledger, _filter);
         _answers = await Overview.GetSavedAnswersAsync(_ledger);
         _names = await Overview.GetCategoryNamesAsync(_ledger);
+        _goals = await Goals.GetStatusAsync(_ledger, DateTime.Today);
+    }
+
+    private IReadOnlyList<GoalStatus> _goals = [];
+    private readonly DateTime _halfStart = WeeklyGoalService.HalfStart(DateTime.Today);
+    private string _goalCat = "";
+    private decimal? _goalKr;
+    private string? _goalError;
+
+    private void EditGoal(GoalStatus s)
+    {
+        _goalCat = s.Category; _goalKr = s.Goal; _goalError = null;
+    }
+
+    private async Task SaveGoal()
+    {
+        _goalError = null;
+        if (!_names.Any(n => string.Equals(n, _goalCat.Trim(), StringComparison.OrdinalIgnoreCase)))
+        {
+            _goalError = "Vælg en kategori fra listen, så målet kan finde dine betalinger.";
+            return;
+        }
+        try
+        {
+            await Goals.SetAsync(_ledger, _goalCat, _goalKr ?? 0);
+            _saved = $"Ugemål gemt: {_goalCat.Trim()} {Kr(_goalKr ?? 0)} kr om ugen.";
+            _goalCat = ""; _goalKr = null;
+            _goals = await Goals.GetStatusAsync(_ledger, DateTime.Today);
+        }
+        catch (ArgumentException ex) { _goalError = ex.Message; }
+        catch { _goalError = "Det lykkedes ikke at gemme. Prøv igen."; }
+    }
+
+    private async Task RemoveGoal(string category)
+    {
+        await Goals.RemoveAsync(_ledger, category);
+        _saved = $"Ugemålet for {category} er fjernet.";
+        _goals = await Goals.GetStatusAsync(_ledger, DateTime.Today);
     }
 
     private void StartMove(CategoryTransaction tx)
@@ -115,6 +192,7 @@ else
             _txs.Clear();
             _data = await Overview.GetOverviewAsync(_ledger, _filter);
             _names = await Overview.GetCategoryNamesAsync(_ledger);
+            _goals = await Goals.GetStatusAsync(_ledger, DateTime.Today);
         }
         catch (ArgumentException ex) { _moveError = ex.Message; }
         catch { _moveError = "Det lykkedes ikke at gemme. Prøv igen."; }

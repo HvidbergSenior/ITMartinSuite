@@ -62,6 +62,14 @@ builder.Services.AddDbContext<BudgetDbContext>(options =>
     options.UseSqlite(connectionString);
 });
 
+// Ugemål live in ugemaal.json next to budget.db (same mounted data folder, so they survive a redeploy).
+var goalFile = Path.Combine(
+    Path.GetDirectoryName(Path.GetFullPath(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(connectionString).DataSource)) ?? ".",
+    "ugemaal.json");
+builder.Services.AddSingleton<ITMartinBudget.Application.Interfaces.IWeeklyGoalStore>(
+    new ITMartinBudget.Infrastructure.Services.JsonWeeklyGoalStore(goalFile));
+builder.Services.AddScoped<ITMartinBudget.Application.Services.WeeklyGoalService>();
+
 // =========================
 // APPLICATION SERVICES
 // =========================
