@@ -189,7 +189,11 @@ else
     {
         <section class="k-card" data-fold-closed>
             <h2 class="k-card-title">Billedet af bunken den blev læst fra</h2>
-            <img class="lg-photo" src="@Vareinfo.Photo(pid)" alt="Registreringsbillede" loading="lazy" />
+            @* Full card width + tap = full size (user 2026-11-19 "i cannot see the picture from the bottom? It is not large enough") *@
+            <a href="@Vareinfo.Photo(pid)" target="_blank" rel="noopener" title="Åbn billedet i fuld størrelse">
+                <img class="lg-photo lg-pile" src="@Vareinfo.Photo(pid)" alt="Registreringsbillede" loading="lazy" />
+            </a>
+            <a class="k-btn k-btn-sm" href="@Vareinfo.Photo(pid)" target="_blank" rel="noopener">Åbn i fuld størrelse</a>
         </section>
     }
 }
