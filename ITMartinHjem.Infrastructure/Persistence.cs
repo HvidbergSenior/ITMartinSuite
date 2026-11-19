@@ -14,12 +14,16 @@ public sealed class HjemQuestionsDb(DbContextOptions<HjemQuestionsDb> options) :
     public DbSet<CollabFile> CollabFiles => Set<CollabFile>();   // Samarbejde (2026-10-30)
     public DbSet<CollabNote> CollabNotes => Set<CollabNote>();
     public DbSet<CollabMessage> CollabMessages => Set<CollabMessage>();
+    public DbSet<CustomerWish> Wishes => Set<CustomerWish>();   // Mine ønsker (2026-11-19)
+    public DbSet<WishSeen> WishSeen => Set<WishSeen>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<CollabFile>().ToTable("CollabFiles").HasKey(x => x.Id);
         b.Entity<CollabNote>().ToTable("CollabNotes").HasKey(x => x.Id);
         b.Entity<CollabMessage>().ToTable("CollabMessages").HasKey(x => x.Id);
+        b.Entity<CustomerWish>().ToTable("CustomerWishes").HasKey(x => x.Id);
+        b.Entity<WishSeen>().ToTable("WishSeen").HasKey(x => x.Id);
 
         var q = b.Entity<PublicQuestion>();
         q.ToTable("PublicQuestions");
@@ -72,6 +76,17 @@ public sealed class HjemQuestionsDb(DbContextOptions<HjemQuestionsDb> options) :
             CREATE TABLE IF NOT EXISTS "CollabMessages" (
                 "Id" INTEGER NOT NULL CONSTRAINT "PK_CollabMessages" PRIMARY KEY AUTOINCREMENT,
                 "Space" TEXT NOT NULL, "By" TEXT NOT NULL, "Text" TEXT NOT NULL, "CreatedAt" TEXT NOT NULL)
+            """);
+        // Mine ønsker (2026-11-19).
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS "CustomerWishes" (
+                "Id" INTEGER NOT NULL CONSTRAINT "PK_CustomerWishes" PRIMARY KEY AUTOINCREMENT,
+                "Customer" TEXT NOT NULL, "Text" TEXT NOT NULL, "CreatedAt" TEXT NOT NULL)
+            """);
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS "WishSeen" (
+                "Id" INTEGER NOT NULL CONSTRAINT "PK_WishSeen" PRIMARY KEY AUTOINCREMENT,
+                "Customer" TEXT NOT NULL, "ItemId" INTEGER NOT NULL, "At" TEXT NOT NULL)
             """);
     }
 }
@@ -266,6 +281,7 @@ public static class DependencyInjection
         services.AddSingleton<IFeedbackStore, FeedbackStore>();
         services.AddSingleton<ICollabStore, CollabStore>();
         services.AddSingleton<ICollabDisk, CollabDisk>();
+        services.AddSingleton<ICustomerWishStore, CustomerWishStore>();
         return services;
     }
 
@@ -276,5 +292,49 @@ public static class DependencyInjection
             await Schema.EnsureAsync(site);
         await using var db = await services.GetRequiredService<IDbContextFactory<HjemQuestionsDb>>().CreateDbContextAsync();
         await HjemQuestionsDb.EnsureTablesAsync(db);
+    }
+}
+
+// Mine ønsker (2026-11-19): the wishes per kundenummer and the found things already told about.
+public sealed class CustomerWishStore(IDbContextFactory<HjemQuestionsDb> dbf) : ICustomerWishStore
+{
+    public async Task<List<CustomerWish>> OfAsync(string customer, CancellationToken ct = default)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.Wishes.AsNoTracking().Where(w => w.Customer == customer).OrderBy(w => w.Id).ToListAsync(ct);
+    }
+
+    public async Task<List<string>> AllTextsAsync(CancellationToken ct = default)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.Wishes.AsNoTracking().OrderBy(w => w.Id).Select(w => w.Text).ToListAsync(ct);
+    }
+
+    public async Task AddAsync(CustomerWish wish, CancellationToken ct = default)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        db.Wishes.Add(wish);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task RemoveAsync(string customer, int id, CancellationToken ct = default)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        await db.Wishes.Where(w => w.Customer == customer && w.Id == id).ExecuteDeleteAsync(ct);
+    }
+
+    public async Task<HashSet<int>> SeenAsync(string customer, CancellationToken ct = default)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return (await db.WishSeen.AsNoTracking().Where(s => s.Customer == customer).Select(s => s.ItemId).ToListAsync(ct)).ToHashSet();
+    }
+
+    public async Task MarkSeenAsync(string customer, IEnumerable<int> itemIds, CancellationToken ct = default)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        var have = (await db.WishSeen.Where(s => s.Customer == customer).Select(s => s.ItemId).ToListAsync(ct)).ToHashSet();
+        foreach (var id in itemIds.Distinct().Where(i => !have.Contains(i)))
+            db.WishSeen.Add(new WishSeen { Customer = customer, ItemId = id, At = DateTime.UtcNow });
+        await db.SaveChangesAsync(ct);
     }
 }

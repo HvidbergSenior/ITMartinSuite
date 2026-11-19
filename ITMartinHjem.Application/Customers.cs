@@ -40,17 +40,21 @@ public sealed class Customers(ICustomerGateway kartotek, IOwnerInbox inbox, IMai
     /// <summary>The apps a sign-up gives (the ones Martin has switched on in Kunder).</summary>
     public Task<IReadOnlyList<FreeAppView>> FreeAppsAsync(CancellationToken ct = default) => kartotek.FreeAppsAsync(ct);
 
-    private static BogshoppenWishes.Summary? _wishes;
+    private static IReadOnlyList<string>? _wishes;
     private static DateTime _wishesAt = DateTime.MinValue;
 
     /// <summary>"Det leder folk efter" on bogshoppen.dk. Asked at most every 10 minutes; while Kunder does not answer,
     /// the last answer is shown (null until the first one - the box then only shows the status text).</summary>
-    public async Task<BogshoppenWishes.Summary?> BogshoppenWishesAsync(CancellationToken ct = default)
+    public async Task<BogshoppenWishes.Summary?> BogshoppenWishesAsync(IEnumerable<string>? alsoWishes = null, CancellationToken ct = default)
     {
-        if (DateTime.UtcNow - _wishesAt < TimeSpan.FromMinutes(10)) return _wishes;
-        if (await kartotek.BogshoppenWishesAsync(ct) is { } raw) { _wishes = BogshoppenWishes.Summarize(raw); _wishesAt = DateTime.UtcNow; }
-        else _wishesAt = DateTime.UtcNow - TimeSpan.FromMinutes(9);   // try again in a minute
-        return _wishes;
+        if (DateTime.UtcNow - _wishesAt >= TimeSpan.FromMinutes(10))
+        {
+            if (await kartotek.BogshoppenWishesAsync(ct) is { } raw) { _wishes = raw; _wishesAt = DateTime.UtcNow; }
+            else _wishesAt = DateTime.UtcNow - TimeSpan.FromMinutes(9);   // try again in a minute
+        }
+        // "Mine ønsker" count too (2026-11-19) - read fresh, they are in our own database.
+        var all = (_wishes ?? []).Concat(alsoWishes ?? []).ToList();
+        return all.Count == 0 && _wishes is null ? null : BogshoppenWishes.Summarize(all);
     }
 
     /// <summary>"Prøv gratis": customer in the Kundekartotek, the kundenummer by mail at once, a note in Martin's inbox.

@@ -1,0 +1,48 @@
+@inject WishUseCases Wishes
+
+@* The pop-up (user 2026-11-19: "if some of the wishes is found a notification will pop up ... and the customer number will
+   show"). Only things not shown before; "Ok" marks them seen, so it does not come back for the same thing. *@
+@if (_new.Count > 0)
+{
+    <div class="bs-notice" role="status" aria-live="polite">
+        <div class="bs-notice-head">
+            <b>Vi har fundet noget, du ønsker</b>
+            <span>Dit nummer: @ITMartinHjem.Domain.SignUpRules.Show(WishCustomer)</span>
+        </div>
+        <ul>
+            @foreach (var f in _new.Take(3))
+            {
+                <li>
+                    @if (f.Item.HasPhoto) { <img src="/varer/foto/@f.Item.Id" alt="" /> }
+                    <span><b>@f.Item.Title</b><br /><span class="k-muted">@f.Item.Kind · dit ønske: @f.Wish.Text</span></span>
+                </li>
+            }
+        </ul>
+        @if (_new.Count > 3) { <p class="k-muted">… og @(_new.Count - 3) mere.</p> }
+        <div class="bs-notice-btns">
+            <a class="k-btn k-btn-primary k-btn-sm" href="/produkter#oensker" @onclick="SeenAsync">Se mine ønsker</a>
+            <button type="button" class="k-btn k-btn-ghost k-btn-sm" @onclick="SeenAsync">Ok</button>
+        </div>
+    </div>
+}
+
+@code {
+    [CascadingParameter(Name = "WishCustomer")] private string WishCustomer { get; set; } = "";
+    private List<WishFound> _new = [];
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // After the first render, so the page itself never waits for the shop searches.
+        if (!firstRender || WishCustomer == "") return;
+        try { _new = (await Wishes.FoundAsync(WishCustomer)).Where(f => f.New).ToList(); }
+        catch { _new = []; }
+        if (_new.Count > 0) StateHasChanged();
+    }
+
+    private async Task SeenAsync()
+    {
+        var ids = _new.Select(f => f.Item.Id).ToList();
+        _new = [];
+        try { await Wishes.MarkSeenAsync(WishCustomer, ids); } catch { }
+    }
+}

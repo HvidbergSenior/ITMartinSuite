@@ -107,6 +107,7 @@ public static class MarketRegistration
     public static IServiceCollection AddHjemMarket(this IServiceCollection services)
     {
         services.AddScoped<MarketUseCases>();
+        services.AddScoped<WishUseCases>();   // Mine ønsker (2026-11-19)
         return services;
     }
 }

@@ -43,7 +43,7 @@
     <HeadOutlet @rendermode="InteractiveServer" />
 </head>
 <body>
-    <Routes @rendermode="InteractiveServer" ShopVisible="@ShopVisible" ShopCustomer="@ShopCustomer" />
+    <Routes @rendermode="InteractiveServer" ShopVisible="@ShopVisible" ShopCustomer="@ShopCustomer" WishCustomer="@WishCustomer" />
     <script src="_framework/blazor.server.js"></script>
     @* sw.js = the Kolibri installability worker plus push handling for the owner's chat alerts. *@
     <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("/sw.js").catch(function(){});}</script>
@@ -84,5 +84,7 @@
     // The kundenummer of a customer logged into the marketplace ("" = none) - read here for the same reason.
     [Inject] private MarketCookie Market { get; set; } = null!;
     private string ShopCustomer => Market.Read(HttpContext);
+    // The same number for "Mine ønsker", which works while the marketplace is closed too (2026-11-19).
+    private string WishCustomer => Market.ReadAny(HttpContext);
     private static readonly long CacheBuster = DateTime.UtcNow.Ticks;
 }

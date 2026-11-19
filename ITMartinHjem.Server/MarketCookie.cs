@@ -17,6 +17,14 @@ public sealed class MarketCookie(IDataProtectionProvider dp, ITMartinHjem.Applic
         catch (System.Security.Cryptography.CryptographicException) { return ""; }
     }
 
+    /// <summary>The kundenummer whether or not the marketplace is open - "Mine ønsker" works for every customer (2026-11-19).</summary>
+    public string ReadAny(HttpContext? ctx)
+    {
+        if (ctx?.Request.Cookies[Name] is not { Length: > 0 } raw) return "";
+        try { return Protector.Unprotect(raw); }
+        catch (System.Security.Cryptography.CryptographicException) { return ""; }
+    }
+
     public void Write(HttpContext ctx, string customer) =>
         ctx.Response.Cookies.Append(Name, Protector.Protect(customer), new CookieOptions
         {

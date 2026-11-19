@@ -1,0 +1,109 @@
+@inject WishUseCases Wishes
+@inject NavigationManager Nav
+
+@* "Mine ønsker" (user 2026-11-19): with the kundenummer from the mail a customer writes what they look for. When a product
+   that fits comes into the shop, it shows here and a notice pops up (WishNotice). Log in = the same /marked/ind as the
+   marketplace; the number is kept in the protected bs_kunde cookie. *@
+<div class="bs-mywishes" id="oensker">
+    <h3 class="bs-status-h">Mine ønsker</h3>
+    @if (WishCustomer == "")
+    {
+        <form method="post" action="/marked/ind" class="bs-market-login">
+            <span>Har du et nummer fra os? Log ind og skriv, hvad du leder efter – fx <i>Anders And</i> eller <i>Bones DVD</i>. Når vi finder det, får du besked her på siden.</span>
+            <input type="hidden" name="tilbage" value="@Back" />
+            <span class="bs-market-row">
+                <input class="k-input" id="wishCode" name="kode" inputmode="numeric" placeholder="Dit nummer (8 cifre)" aria-label="Dit nummer" required />
+                <button class="k-btn k-btn-primary" type="submit">Log ind</button>
+            </span>
+            @if (!string.IsNullOrEmpty(MarkedFejl)) { <span class="bs-market-err" role="alert">@MarkedFejl</span> }
+            <span class="k-help">Har du ikke et nummer? Skriv dig op længere nede på siden – det er gratis.</span>
+        </form>
+    }
+    else
+    {
+        <p class="bs-wish-who">Dit nummer: <b>@ITMartinHjem.Domain.SignUpRules.Show(WishCustomer)</b>
+            <form method="post" action="/marked/ud" class="bs-inline"><input type="hidden" name="tilbage" value="@Back" /><button class="k-btn k-btn-ghost k-btn-sm" type="submit">Log ud</button></form></p>
+        <div class="bs-market-row">
+            <input class="k-input" id="wishText" @bind="_text" @bind:event="oninput" @onkeydown="Enter" maxlength="@ITMartinHjem.Domain.WishRules.MaxText"
+                   placeholder="Hvad leder du efter? Fx Bones DVD" aria-label="Hvad leder du efter?" />
+            <button type="button" class="k-btn k-btn-primary" disabled="@_busy" @onclick="AddAsync">Tilføj</button>
+        </div>
+        @if (_error is not null) { <span class="bs-market-err" role="alert">@_error</span> }
+        @if (_mine.Count == 0)
+        {
+            <p class="k-muted">Du har ingen ønsker endnu.</p>
+        }
+        else
+        {
+            <ul class="bs-wish-list">
+                @foreach (var w in _mine)
+                {
+                    var hits = _found.Where(f => f.Wish.Id == w.Id).ToList();
+                    <li>
+                        <span class="bs-wish-text">@w.Text</span>
+                        <span class="bs-wish-state @(hits.Count > 0 ? "found" : "")">@(hits.Count > 0 ? $"Fundet: {hits.Count}" : "Vi leder")</span>
+                        <button type="button" class="k-btn k-btn-ghost k-btn-sm" @onclick="() => RemoveAsync(w.Id)" aria-label="Fjern @w.Text">Fjern</button>
+                        @if (hits.Count > 0)
+                        {
+                            <ul class="bs-wish-hits">
+                                @foreach (var h in hits)
+                                {
+                                    <li>
+                                        @if (h.Item.HasPhoto) { <img src="/varer/foto/@h.Item.Id" alt="" loading="lazy" /> }
+                                        <span><b>@h.Item.Title</b><br /><span class="k-muted">@h.Item.Kind@(h.Item.Year is { } y ? $" · {y}" : "")@(h.Item.Condition != "" ? $" · {h.Item.Condition} stand" : "")</span></span>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </li>
+                }
+            </ul>
+            <p class="k-help">Vil du have en af dem? Skriv til os på <a href="@BogshoppenHome.AskUrl">itmartin.dk</a> og nævn dit nummer.</p>
+        }
+    }
+</div>
+
+@code {
+    [CascadingParameter(Name = "WishCustomer")] private string WishCustomer { get; set; } = "";
+    [SupplyParameterFromQuery(Name = "markedfejl")] public string? MarkedFejl { get; set; }
+
+    private List<ITMartinHjem.Domain.CustomerWish> _mine = [];
+    private List<WishFound> _found = [];
+    private string _text = "";
+    private string? _error;
+    private bool _busy;
+
+    private string Back => "/" + Nav.ToBaseRelativePath(Nav.Uri).Split('?', '#')[0] + "#oensker";
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        if (WishCustomer == "") return;
+        _mine = await Wishes.MineAsync(WishCustomer);
+        _found = await Wishes.FoundAsync(WishCustomer);
+    }
+
+    private async Task Enter(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await AddAsync();
+    }
+
+    private async Task AddAsync()
+    {
+        _busy = true; _error = null;
+        try
+        {
+            _error = await Wishes.AddAsync(WishCustomer, _text);
+            if (_error is null) { _text = ""; await LoadAsync(); }
+        }
+        catch { _error = "Det kunne ikke gemmes lige nu. Prøv igen om lidt."; }
+        finally { _busy = false; }
+    }
+
+    private async Task RemoveAsync(int id)
+    {
+        await Wishes.RemoveAsync(WishCustomer, id);
+        await LoadAsync();
+    }
+}
