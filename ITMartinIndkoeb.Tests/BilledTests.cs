@@ -53,7 +53,7 @@ public class BilledTests
         await uc.UploadAsync(h.Noegle, new MemoryStream([1]), "skaermbillede.png", 1, "Martin");
         await uc.LaesVentendeAsync();
         var v = store.Hent(h.Noegle)!.Seddel.Single();
-        v.Tekst.Should().Be("BKI Kaffe formalet"); v.Butik.Should().Be("Lidl"); v.Tilbud.Should().Contain("kun med Lidl Plus");
+        v.Tekst.Should().Be("BKI Kaffe formalet"); v.Butik.Should().Be("Lidl"); v.Tilbud.Should().Contain("kun med Lidl Plus").And.StartWith("24,95 kr");
     }
 
     [Test]

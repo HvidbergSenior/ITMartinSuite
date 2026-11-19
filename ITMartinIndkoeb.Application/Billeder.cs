@@ -67,7 +67,7 @@ public sealed class Billeder(IHusstandStore store, IBilledLager lager, IBilledLa
         {
             var butik = Regler.ButikFra(r.Butik);
             var fejl = indkoeb.LaegInd(noegle, r.Total.Value, butik, b.Hvem, r.Dato is { } d && d <= Idag && d >= Idag.AddDays(-62) ? d : null);
-            var tekst = $"Kvittering: {Regler.Kr(r.Total.Value)} kr i {butik}" + (r.Dato is { } dd ? $", {dd:d. MMM}" : "") + (fejl is null ? " – gemt." : $" – ikke gemt: {fejl}");
+            var tekst = $"Kvittering: {Kr(r.Total.Value)} kr i {butik}" + (r.Dato is { } dd ? $", {dd:d. MMM}" : "") + (fejl is null ? " – gemt." : $" – ikke gemt: {fejl}");
             if (r.Tjek.Count == 0 && fejl is null) tekst += " Rabatterne ser rigtige ud.";
             Opdater(noegle, b.Id, x => x with { Status = BilledStatus.Laest, Slags = "kvittering", Svar = tekst, Tjek = r.Tjek });
             return;
@@ -75,10 +75,10 @@ public sealed class Billeder(IHusstandStore store, IBilledLager lager, IBilledLa
         if (r.Slags == "tilbud" && r.TilbudVare is { } vare && r.TilbudPris is { } pris)
         {
             var butik = r.TilbudButik is { } tb ? Regler.ButikFra(tb) is var g && g != "Andet" ? g : tb : null;
-            var note = $"{Regler.Kr(pris)} kr" + (r.KunMedApp && r.App is { } app ? $", kun med {app}" : "") + ", fra et billede";
+            var note = $"{Kr(pris)} kr" + (r.KunMedApp && r.App is { } app ? $", kun med {app}" : "") + ", fra et billede";
             var fejl = indkoeb.TilfoejVare(noegle, vare, b.Hvem, butik, note);
             Opdater(noegle, b.Id, x => x with { Status = BilledStatus.Laest, Slags = "tilbud",
-                Svar = fejl is null ? $"Tilbud: {vare}, {Regler.Kr(pris)} kr{(butik is null ? "" : " i " + butik)} – sat på sedlen." : $"Tilbud: {vare} – ikke sat på sedlen: {fejl}" });
+                Svar = fejl is null ? $"Tilbud: {vare}, {Kr(pris)} kr{(butik is null ? "" : " i " + butik)} – sat på sedlen." : $"Tilbud: {vare} – ikke sat på sedlen: {fejl}" });
             return;
         }
         Opdater(noegle, b.Id, x => x with { Status = BilledStatus.Laest, Slags = "ukendt",
@@ -93,6 +93,9 @@ public sealed class Billeder(IHusstandStore store, IBilledLager lager, IBilledLa
         store.Gem(h);
         return true;
     }
+
+    /// <summary>Prices keep their øre (9,95 kr, not 10 kr) - an offer price is the point.</summary>
+    private static string Kr(decimal v) => v.ToString(v % 1 == 0 ? "#,##0" : "#,##0.00", System.Globalization.CultureInfo.GetCultureInfo("da-DK"));
 
     private DateOnly Idag => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(clock.GetUtcNow().UtcDateTime, TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen")));
 
