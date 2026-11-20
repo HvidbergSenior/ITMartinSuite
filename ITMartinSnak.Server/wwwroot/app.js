@@ -381,6 +381,21 @@
             bar.append(f);
             bar.hidden = false;
         }
+        if (alleRum && room) {   // Martin: delete the room now - everything in it goes (2026-11-20, user: "remove this Loppemarked")
+            const d = document.createElement('button'); d.type = 'button'; d.className = 'k-btn k-btn-sm k-btn-ghost'; d.textContent = 'Slet rummet';
+            d.onclick = async () => {
+                if (!d.dataset.sure) {
+                    d.dataset.sure = '1'; d.textContent = 'Ja, slet rummet og alt i det nu'; d.className = 'k-btn k-btn-sm k-btn-danger';
+                    setTimeout(() => { delete d.dataset.sure; d.textContent = 'Slet rummet'; d.className = 'k-btn k-btn-sm k-btn-ghost'; }, 4000);
+                    return;
+                }
+                d.disabled = true;
+                try { await api('DELETE', '/api/rum/' + room.id); location.href = '/'; }
+                catch (err) { if (err.message !== 'login') flash('Rummet kunne ikke slettes.'); d.disabled = false; }
+            };
+            bar.append(d);
+            bar.hidden = false;
+        }
         if (alleRum && room && !room.gruppe) {   // Martin: only the chat, or the chat with Opgaver and Filer
             const t = document.createElement('button'); t.type = 'button'; t.className = 'k-btn k-btn-sm k-btn-ghost';
             t.textContent = room.kunChat ? 'Slå Opgaver og Filer til' : 'Kun chat';
