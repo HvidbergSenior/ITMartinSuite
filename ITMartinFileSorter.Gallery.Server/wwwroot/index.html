@@ -417,6 +417,16 @@ body[data-theme="aarbog"] .file-card{width:min(200px,44vw);aspect-ratio:1;border
 @media (prefers-reduced-motion:reduce){.w-fb::before,.w-fb-title span{animation:none}.w-fb-pic{animation:none;opacity:1;transform:translate(var(--x),var(--y)) rotate(var(--r))}
   .w-ab-pol{animation:none;opacity:1;transform:translate(calc(-50% + var(--x)),calc(-50% + var(--y))) rotate(var(--r))}}
 
+/* Photo wall like KoncertKlanen (2026-11-20, user: "thumbnails need to be centered ... like the koncertklanen looks"):
+   columns at the photo's own shape - nothing cut, so no head is ever cropped off - centred, fading in. */
+body[data-theme="fbhjem"] .file-grid,body[data-theme="aarbog"] .file-grid{display:block;columns:3 240px;column-gap:12px;max-width:1100px;margin:0 auto}
+body[data-theme="fbhjem"] .file-card,body[data-theme="aarbog"] .file-card{display:block;width:100%;aspect-ratio:auto;margin:0 0 12px;break-inside:avoid;border-radius:12px;animation:wIn .6s ease both}
+body[data-theme="aarbog"] .file-card{border-radius:4px}
+body[data-theme="fbhjem"] .file-thumb,body[data-theme="aarbog"] .file-thumb{display:block;width:100%;height:auto;object-fit:initial;transition:transform .4s,filter .4s}
+body[data-theme="fbhjem"] .file-card:hover .file-thumb,body[data-theme="aarbog"] .file-card:hover .file-thumb{transform:scale(1.04);filter:brightness(1.08) saturate(1.1)}
+@keyframes wIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@media (max-width:520px){body[data-theme="fbhjem"] .file-grid,body[data-theme="aarbog"] .file-grid{columns:2 140px;column-gap:8px}body[data-theme="fbhjem"] .file-card,body[data-theme="aarbog"] .file-card{margin-bottom:8px}}
+@media (prefers-reduced-motion:reduce){body[data-theme="fbhjem"] .file-card,body[data-theme="aarbog"] .file-card{animation:none}}
 /* ── Theme "koncert": a stage for the audience songs ─────────────────────── */
 
 /* ── Theme "bedstemor" (HvidbergFamily): "Hej allesammen – det her er Bedstemors billeder".
