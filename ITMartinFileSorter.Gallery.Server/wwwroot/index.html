@@ -385,6 +385,7 @@ body[data-theme="aarbog"]{--accent:#b5542e;--accent-hover:#93401f;--bg:#f4ecdc;-
   --text:#2a2118;--text-muted:#4d3f30;--text-dim:#4d3f30;--text-dimmer:#5f4f3d;--hdr-bg:rgba(244,236,220,.97);
   background:repeating-linear-gradient(0deg,rgba(120,90,50,.035) 0 2px,transparent 2px 28px),radial-gradient(ellipse at 50% 0%,#fbf5e8,#efe3cb 70%);color:#2a2118}
 body[data-theme="aarbog"] #btnGalleries{display:none!important}
+body[data-theme="aarbog"] .itm-k-brand,body[data-theme="aarbog"] .hdr{color:#2a2118}
 body[data-theme="aarbog"] .folder-card{width:min(240px,44vw);border-radius:6px;background:#fffdf7;padding:10px 10px 4px;border:none;box-shadow:0 10px 24px rgba(80,55,25,.22);transform:rotate(-1.2deg);transition:transform .25s}
 body[data-theme="aarbog"] .folder-card:nth-child(even){transform:rotate(1.4deg)}
 body[data-theme="aarbog"] .folder-card:hover{transform:rotate(0) scale(1.03)}
@@ -940,12 +941,14 @@ async function renderWowHero(el, theme, data) {
       + `</div><div class="w-fb-stage" aria-hidden="true"><div class="w-fb-phone"></div></div></div>`;
     el.querySelectorAll('[data-to]').forEach(wowCount);
     const { pics } = await wowPhotos(7);
-    const spots = [[150, -170, -8], [300, -120, 6], [190, -10, 4], [330, 20, -5], [90, -260, 3], [250, -250, -4], [380, -210, 9]];
+    const spots = [[130, -170, -8], [250, -110, 6], [170, -10, 4], [280, 15, -5], [70, -250, 3], [200, -240, -4], [290, -200, 9]];
     const stage = el.querySelector('.w-fb-stage');
+    // Keep every photo inside the stage on any width (user's screenshot: the right ones were cut off).
+    const k = Math.max(0.45, Math.min(1, (stage.clientWidth - 190) / 300));
     pics.forEach((u, i) => {
       const [x, y, r] = spots[i % spots.length];
       const img = document.createElement('img'); img.className = 'w-fb-pic'; img.src = u; img.alt = ''; img.loading = 'eager';
-      img.style.setProperty('--x', x + 'px'); img.style.setProperty('--y', y + 'px'); img.style.setProperty('--r', r + 'deg');
+      img.style.setProperty('--x', Math.round(x * k) + 'px'); img.style.setProperty('--y', y + 'px'); img.style.setProperty('--r', r + 'deg');
       img.style.animationDelay = (0.25 + i * 0.22) + 's, ' + (1.4 + i * 0.22) + 's';
       stage.appendChild(img);
     });
