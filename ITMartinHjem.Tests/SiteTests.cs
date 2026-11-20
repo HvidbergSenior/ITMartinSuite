@@ -74,7 +74,7 @@ public class SiteTests
     [Test]
     public void The_price_list_has_the_users_prices()
     {
-        PriceList.Offers.Select(o => o.Price).Should().Contain(["300 kr. pr. gang", "500 kr. i alt pr. tjeneste", "Første side gratis – så det halve"]);
+        PriceList.Offers.Select(o => o.Price).Should().OnlyContain(p => p.Length == 0);   // user 2026-11-20: no prices on itmartin.dk
         PriceList.FreeSnebolde.Select(s => s.Name).Should().Equal("ElPriser", "Snak", "Husk");
     }
 
