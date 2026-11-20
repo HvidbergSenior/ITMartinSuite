@@ -362,4 +362,16 @@ body { background: var(--k-bg); color: var(--k-text); }
 .ide-kort .k-row { margin-top: .6rem; flex-wrap: wrap; gap: .5rem; }
 .ide-kort .ide-opg { color: var(--k-muted); font-size: .9em; }
 
-.adresse-form { align-items: center; gap: .4rem; flex-wrap: wrap; }
+
+/* Martin's room settings, folded (2026-11-20) */
+.bar:has(.rum-ops) { flex-wrap: wrap; gap: 8px 12px; }
+.rum-ops { flex: 1 1 100%; }
+.rum-ops > summary { cursor: pointer; font-weight: 600; font-size: 14px; color: var(--k-muted); padding: 2px 0; }
+.rum-ops[open] > summary { margin-bottom: 8px; }
+.adresse-form { display: flex; flex-direction: column; gap: 4px; max-width: 32rem; }
+.adresse-form .k-help { margin: 0; }
+.adresse-row { display: flex; align-items: center; gap: 6px; }
+.adresse-row .k-input { flex: 1; min-width: 0; }
+.adresse-pre { color: var(--k-muted); font-size: 14px; white-space: nowrap; }
+.rum-ops-knapper { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.rum-ops-knapper .slet-rum { margin-left: auto; }

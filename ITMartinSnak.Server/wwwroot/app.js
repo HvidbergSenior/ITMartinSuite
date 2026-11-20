@@ -363,47 +363,57 @@
             bar.append(b);
             bar.hidden = false;
         } else bar.hidden = true;
-        if (alleRum && room) {   // Martin: the short address, set or changed later (2026-11-20)
-            const f = document.createElement('form'); f.className = 'k-row adresse-form';
-            const pre = document.createElement('span'); pre.className = 'k-help'; pre.textContent = 'snak.itmartin.dk/';
-            const inp = document.createElement('input'); inp.className = 'k-input'; inp.value = room.adresse || ''; inp.placeholder = 'fx loppemarked';
-            inp.setAttribute('aria-label', 'Nem adresse'); inp.maxLength = 30; inp.style.maxWidth = '14rem';
-            const save = document.createElement('button'); save.type = 'submit'; save.className = 'k-btn k-btn-sm'; save.textContent = 'Gem adresse';
+        // Martin's settings for the room, folded away (2026-11-20, user screenshot: the bar was messy): short address,
+        // only chat or chat + Opgaver/Filer, delete. Closed by default - the room itself comes first.
+        if (alleRum && room) {
+            const ops = document.createElement('details'); ops.className = 'rum-ops';
+            const sm = document.createElement('summary'); sm.textContent = 'Rummets indstillinger'; ops.appendChild(sm);
+
+            const f = document.createElement('form'); f.className = 'adresse-form';
+            const lbl = document.createElement('label'); lbl.className = 'k-label'; lbl.textContent = 'Nem adresse'; lbl.htmlFor = 'rumAdresseRet';
+            const row = document.createElement('div'); row.className = 'adresse-row';
+            const pre = document.createElement('span'); pre.className = 'adresse-pre'; pre.textContent = 'snak.itmartin.dk/';
+            const inp = document.createElement('input'); inp.className = 'k-input'; inp.id = 'rumAdresseRet'; inp.value = room.adresse || '';
+            inp.placeholder = 'fx loppemarked'; inp.maxLength = 30; inp.autocapitalize = 'off'; inp.spellcheck = false;
+            const save = document.createElement('button'); save.type = 'submit'; save.className = 'k-btn k-btn-sm'; save.textContent = 'Gem';
             f.onsubmit = async e => {
                 e.preventDefault(); save.disabled = true;
                 try {
                     const d = await api('PUT', '/api/rum/' + room.id + '/adresse', { adresse: inp.value });
-                    room.adresse = d.adresse; flash(d.adresse ? 'Adressen er nu snak.itmartin.dk/' + d.adresse : 'Adressen er fjernet.');
+                    room.adresse = d.adresse; inp.value = d.adresse;
+                    flash(d.adresse ? 'Adressen er nu snak.itmartin.dk/' + d.adresse : 'Adressen er fjernet.');
                 } catch (err) { if (err.message !== 'login') flash(err.message); }
                 finally { save.disabled = false; }
             };
-            f.append(pre, inp, save);
-            bar.append(f);
-            bar.hidden = false;
-        }
-        if (alleRum && room) {   // Martin: delete the room now - everything in it goes (2026-11-20, user: "remove this Loppemarked")
-            const d = document.createElement('button'); d.type = 'button'; d.className = 'k-btn k-btn-sm k-btn-ghost'; d.textContent = 'Slet rummet';
+            row.append(pre, inp, save);
+            const hint = document.createElement('p'); hint.className = 'k-help'; hint.textContent = 'Alle, der gætter adressen, kan komme ind. Tom = kun det lange link.';
+            f.append(lbl, row, hint);
+            ops.appendChild(f);
+
+            const btns = document.createElement('div'); btns.className = 'rum-ops-knapper';
+            if (!room.gruppe) {   // only the chat, or the chat with Opgaver and Filer
+                const t = document.createElement('button'); t.type = 'button'; t.className = 'k-btn k-btn-sm';
+                t.textContent = room.kunChat ? 'Slå Opgaver og Filer til' : 'Kun chat';
+                t.onclick = async () => {
+                    t.disabled = true;
+                    try { await api('PUT', '/api/rum/' + room.id + '/kunchat', { kunChat: !room.kunChat }); room = await api('GET', base); klaretBar(); calTabs(); } catch { t.disabled = false; }
+                };
+                btns.appendChild(t);
+            }
+            const d = document.createElement('button'); d.type = 'button'; d.className = 'k-btn k-btn-sm k-btn-ghost slet-rum'; d.textContent = 'Slet rummet';
             d.onclick = async () => {
                 if (!d.dataset.sure) {
-                    d.dataset.sure = '1'; d.textContent = 'Ja, slet rummet og alt i det nu'; d.className = 'k-btn k-btn-sm k-btn-danger';
-                    setTimeout(() => { delete d.dataset.sure; d.textContent = 'Slet rummet'; d.className = 'k-btn k-btn-sm k-btn-ghost'; }, 4000);
+                    d.dataset.sure = '1'; d.textContent = 'Ja, slet rummet og alt i det nu'; d.className = 'k-btn k-btn-sm k-btn-danger slet-rum';
+                    setTimeout(() => { delete d.dataset.sure; d.textContent = 'Slet rummet'; d.className = 'k-btn k-btn-sm k-btn-ghost slet-rum'; }, 4000);
                     return;
                 }
                 d.disabled = true;
                 try { await api('DELETE', '/api/rum/' + room.id); location.href = '/'; }
                 catch (err) { if (err.message !== 'login') flash('Rummet kunne ikke slettes.'); d.disabled = false; }
             };
-            bar.append(d);
-            bar.hidden = false;
-        }
-        if (alleRum && room && !room.gruppe) {   // Martin: only the chat, or the chat with Opgaver and Filer
-            const t = document.createElement('button'); t.type = 'button'; t.className = 'k-btn k-btn-sm k-btn-ghost';
-            t.textContent = room.kunChat ? 'Slå Opgaver og Filer til' : 'Kun chat';
-            t.onclick = async () => {
-                t.disabled = true;
-                try { await api('PUT', '/api/rum/' + room.id + '/kunchat', { kunChat: !room.kunChat }); room = await api('GET', base); klaretBar(); calTabs(); } catch { t.disabled = false; }
-            };
-            bar.append(t);
+            btns.appendChild(d);
+            ops.appendChild(btns);
+            bar.appendChild(ops);
             bar.hidden = false;
         }
     }
