@@ -3,7 +3,7 @@
 <head>
     <script>
         (function () {
-            var theme = localStorage.getItem('mitel_theme') || 'dark';
+            var theme = localStorage.getItem('mitel_theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');   // follow the phone, like ElPriser (one colour theme)
             document.documentElement.setAttribute('data-theme', theme);
         })();
     </script>
@@ -32,7 +32,7 @@
     // document and the label is kept in step whenever the page changes (the same as the free ElPriser).
     (function () {
         function sync() {
-            var current = document.documentElement.getAttribute('data-theme') || 'dark';
+            var current = document.documentElement.getAttribute('data-theme') || 'light';
             var btn = document.getElementById('themeToggleBtn');
             var label = current === 'light' ? 'Mørk' : 'Lys';
             if (btn && btn.textContent !== label) btn.textContent = label;   // only when it differs - else the observer loops
@@ -41,7 +41,7 @@
         }
         document.addEventListener('click', function (e) {
             if (!e.target.closest || !e.target.closest('#themeToggleBtn')) return;
-            var current = document.documentElement.getAttribute('data-theme') || 'dark';
+            var current = document.documentElement.getAttribute('data-theme') || 'light';
             var next = current === 'light' ? 'dark' : 'light';
             document.documentElement.setAttribute('data-theme', next);
             localStorage.setItem('mitel_theme', next);

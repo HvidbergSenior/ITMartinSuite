@@ -380,10 +380,11 @@ details.opt > summary::-webkit-details-marker { display: none; }
     letter-spacing: .12em; text-align: center; margin: 12px 0 4px; color: var(--accent);
 }
 .advisor-bar {
-    background: var(--bg3); border: 1px solid var(--accent); border-radius: 10px;
-    padding: 9px 12px; font-size: .85rem; margin-bottom: 12px;
-    display: flex; justify-content: space-between; gap: 10px; align-items: center;
+    background: var(--bg3); border: 1px solid var(--accent); border-radius: 14px;
+    padding: 10px 14px; font-size: .95rem; margin-bottom: 12px;
+    display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; align-items: center;
 }
+.advisor-bar a { font-weight: 700; white-space: nowrap; }
 .day-nav { display: flex; gap: 8px; align-items: center; justify-content: center; margin-bottom: 12px; }
 .day-nav input[type=date] { font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg3); color: var(--text); }
 .qbars { gap: 0; height: 120px; }
