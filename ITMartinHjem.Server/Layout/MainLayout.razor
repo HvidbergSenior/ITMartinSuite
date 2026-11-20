@@ -16,7 +16,7 @@
     <a class="hj-nav-logo" href="/" aria-label="ITMartin – forsiden"><img class="k-logo-brand" src="/_content/ITMartin.Shared.UI/itmartin-logo.png" alt="ITMartin" /></a>
     @* Only Forside in sight; the rest behind "Mere" (2026-11-12 super simple - SiteMenu.More). *@
     <a href="/">Forside</a>
-    <details class="hj-nav-more">
+    <details class="hj-nav-more" data-noremember>
         <summary>Mere ⋯</summary>
         <div class="hj-nav-more-list">
             @foreach (var i in SiteMenu.More(_menu, DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen")))) { <a class="@(i.Pilot ? "hj-nav-pilot" : "")" href="@i.Href" onclick="this.closest('details').open=false">@i.Title</a> }

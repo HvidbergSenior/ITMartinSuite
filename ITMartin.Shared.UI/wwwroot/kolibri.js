@@ -66,7 +66,8 @@
     function restoreDetails() {
         if (ownDetails) return;
         document.querySelectorAll('details:not([data-k-restored])').forEach(function (d) {
-            if (d.closest('#k-install')) return;
+            // data-noremember: menus (itmartin.dk "Mere") always start closed (2026-11-20, user: "the mere is opened when i enter the adress").
+            if (d.closest('#k-install') || d.hasAttribute('data-noremember')) return;
             var key = detailsKey(d);
             if (!key) return;
             d.dataset.kRestored = '1';

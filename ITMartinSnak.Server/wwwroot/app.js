@@ -395,10 +395,10 @@
             const names = { opgaver: 'Opgaver', ideer: 'Idéer', filer: 'Filer', personer: 'Personer', kalender: 'Kalender' };
             for (const p of Object.keys(names)) {
                 const l = document.createElement('label'); l.className = 'rum-del';
-                const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !((room.fra || []).includes(p));
+                const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !((room.fra || []).includes(p)) && !(room.kunChat && ['opgaver', 'filer', 'kalender'].includes(p));   // old "Kun chat" rooms show those as off; the ticks decide alone now
                 cb.onchange = async () => {
                     const off = Object.keys(names).filter(k => !dele.querySelector('input[data-p="' + k + '"]').checked);
-                    try { await api('PUT', '/api/rum/' + room.id + '/dele', { fra: off }); room.fra = off; calTabs(); renderRoster(); }
+                    try { await api('PUT', '/api/rum/' + room.id + '/dele', { fra: off }); room.fra = off; room.kunChat = false; calTabs(); renderRoster(); }
                     catch (err) { if (err.message !== 'login') flash(err.message); cb.checked = !cb.checked; }
                 };
                 cb.dataset.p = p;
@@ -407,15 +407,6 @@
             ops.appendChild(dele);
 
             const btns = document.createElement('div'); btns.className = 'rum-ops-knapper';
-            if (!room.gruppe) {   // only the chat, or the chat with Opgaver and Filer
-                const t = document.createElement('button'); t.type = 'button'; t.className = 'k-btn k-btn-sm';
-                t.textContent = room.kunChat ? 'Slå Opgaver og Filer til' : 'Kun chat';
-                t.onclick = async () => {
-                    t.disabled = true;
-                    try { await api('PUT', '/api/rum/' + room.id + '/kunchat', { kunChat: !room.kunChat }); room = await api('GET', base); klaretBar(); calTabs(); } catch { t.disabled = false; }
-                };
-                btns.appendChild(t);
-            }
             const d = document.createElement('button'); d.type = 'button'; d.className = 'k-btn k-btn-sm k-btn-ghost slet-rum'; d.textContent = 'Slet rummet';
             d.onclick = async () => {
                 if (!d.dataset.sure) {
