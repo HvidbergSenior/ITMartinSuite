@@ -128,6 +128,7 @@
                 <button role="tab" id="tabNg" aria-selected="false" hidden>Til næste gang <span class="badge" id="ngBadge" hidden></span></button>
                 <button role="tab" id="tabOpg" aria-selected="false">Opgaver <span class="badge" id="opgBadge" hidden></span></button>
                 <button role="tab" id="tabChat" aria-selected="true">Chat</button>
+                <button role="tab" id="tabIde" aria-selected="false">Idéer <span class="badge" id="ideBadge" hidden></span></button>
                 <button role="tab" id="tabFil" aria-selected="false">Filer <span class="badge" id="filBadge" hidden></span></button>
                 <button role="tab" id="tabHold" aria-selected="false" hidden>Holdet</button>
                 <button role="tab" id="tabDato" aria-selected="false" hidden>Kalender</button>
@@ -284,6 +285,23 @@
         </main>
 
         <!-- Documents (2026-11-09): everyone adds, everyone downloads. -->
+        <!-- 2026-11-20 Idéer: paste a link or a text from a mail or a web page - it becomes a card. -->
+        <main id="viewIde" class="view ide" hidden>
+            <p class="opg-intro">Her samler I idéer. Kopiér et link eller en tekst – fx fra en mail eller en hjemmeside – og sæt det ind her.</p>
+            <form id="nyIde" class="k-card ny">
+                <h2 class="k-card-title">Ny idé</h2>
+                <label class="k-label" for="ideTekst">Link eller tekst</label>
+                <textarea class="k-input" id="ideTekst" rows="3" maxlength="6000" placeholder="Sæt et link eller en tekst ind her"></textarea>
+                <p class="k-help">Første linje bliver overskriften. Er det kun et link, henter vi sidens egen titel.</p>
+                <div class="k-row">
+                    <button type="submit" class="k-btn k-btn-primary" id="ideGem">Gem idé</button>
+                    <button type="button" class="k-btn" id="ideIndsaet" hidden>Indsæt det, jeg har kopieret</button>
+                </div>
+                <p id="ideStatus" class="k-help" aria-live="polite" hidden></p>
+            </form>
+            <div id="ideer" class="opgaver"></div>
+        </main>
+
         <main id="viewFil" class="view fil" hidden>
             <p class="opg-intro">Her ligger rummets dokumenter. Alle i rummet kan se og hente dem. Tryk på en fil for at åbne den.</p>
             <section class="k-card kursus-links" hidden><h2 class="k-card-title">Kursets sider</h2><p class="k-help">Undervisningen og materialet ligger på kursets egen side. Her i Snak taler vi sammen på holdet.</p><div class="k-row link-knapper"></div></section>

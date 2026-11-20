@@ -13,6 +13,7 @@ public static class DependencyInjection
         services.AddSingleton(sp => new Calendars(sp.GetRequiredService<ICalendarSource>(), sp.GetRequiredService<TimeProvider>()));
         services.AddSingleton(sp => new RoomMails(sp.GetRequiredService<Rooms>(), sp.GetRequiredService<IRoomMailer>(),
             sp.GetRequiredService<IPushSender>(), sp.GetRequiredService<TimeProvider>(), "Martin"));
+        services.AddSingleton(sp => new IdeaIntake(sp.GetRequiredService<IPageTitles>()));
         services.AddSingleton(sp => new Access(adminCode, apiKey, sp.GetRequiredService<TimeProvider>()));
         return services;
     }

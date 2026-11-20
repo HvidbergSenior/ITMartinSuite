@@ -12,6 +12,8 @@ public interface IGroupStore
     void SaveTasks(IReadOnlyList<TaskItem> tasks);
     List<SharedFile> LoadFiles();
     void SaveFiles(IReadOnlyList<SharedFile> files);
+    List<Idea> LoadIdeas();
+    void SaveIdeas(IReadOnlyList<Idea> ideas);
     List<Seen> LoadSeen();
     Dictionary<string, List<long>> LoadMine();
     List<Profile> LoadProfiles();
@@ -52,6 +54,13 @@ public interface IPushSender
     void ForgetRoom(string room);
     /// <summary>Per name: how many phones get beskeder from this room (for the setup view).</summary>
     IReadOnlyDictionary<string, int> PhonesPerName(string room);
+}
+
+// The title of a web page (Idéer: a pasted link gets the page's own title). Null when it cannot be fetched - never throws.
+// Only public addresses are fetched, so a pasted link can never make the server look inside the home network.
+public interface IPageTitles
+{
+    Task<string?> TitleAsync(string url, CancellationToken ct = default);
 }
 
 // Plain-text mail to a customer (SMTP in Infrastructure). False = not sent (no password set, or the mail server said no).

@@ -490,6 +490,34 @@ room.MapDelete("/filer/{id:long}", (HttpContext c, string key, long id, string? 
     return rooms.GroupOf(r).DeleteFile(id, Who(c, navn), IsRoomAdmin(c, access, r)) ? Results.Ok() : Results.StatusCode(403);
 });
 
+// Idéer (2026-11-20): paste a link or a text (from a mail, a web page) - it becomes a card everyone in the room sees.
+room.MapGet("/ideer", (string key, Rooms rooms) =>
+    rooms.ByKey(key) is { } r ? Results.Json(rooms.GroupOf(r).Ideas(), web) : Results.NotFound());
+
+room.MapPost("/ideer", async (HttpContext c, string key, IdeaBody b, Rooms rooms, Access access, IdeaIntake intake) =>
+{
+    if (rooms.ByKey(key) is not { } r) return Results.NotFound();
+    var (who, _) = Writer(r, IsRoomAdmin(c, access, r), Who(c, b.Navn), b.Rolle);
+    var (idea, err) = await intake.AddAsync(rooms.GroupOf(r), who, b.Tekst, b.Endpoint, c.RequestAborted);
+    return idea is null ? Results.BadRequest(new { fejl = err }) : Results.Json(idea, web);
+});
+
+room.MapDelete("/ideer/{id:long}", (HttpContext c, string key, long id, string? navn, Rooms rooms, Access access) =>
+{
+    if (rooms.ByKey(key) is not { } r) return Results.NotFound();
+    return rooms.GroupOf(r).DeleteIdea(id, Who(c, navn), IsRoomAdmin(c, access, r)) ? Results.Ok() : Results.StatusCode(403);
+});
+
+// Same rule as adding an Opgave: the host, or a named person in a shared room.
+room.MapPost("/ideer/{id:long}/opgave", (HttpContext c, string key, long id, IdeaBody b, Rooms rooms, Access access) =>
+{
+    if (rooms.ByKey(key) is not { } r) return Results.NotFound();
+    var host = IsRoomAdmin(c, access, r);
+    if (!host && !SharedMember(r, Who(c, b.Navn))) return Results.StatusCode(403);
+    var t = rooms.GroupOf(r).IdeaToTask(id, host ? null : Who(c, b.Navn), b.Endpoint);
+    return t is null ? Results.BadRequest(new { fejl = "Idéen findes ikke, eller den er allerede en opgave." }) : Results.Json(t, web);
+});
+
 room.MapGet("/live",async (HttpContext c, string key, Rooms rooms, ILiveFeed live) =>
 {
     if (rooms.ByKey(key) is not { } r) { c.Response.StatusCode = 404; return; }
@@ -547,6 +575,7 @@ static string? DeviceHash(HttpContext c) =>
 static object FileView(SharedFile f) => new { f.Id, f.Name, f.Size, f.ContentType, f.By, f.At, f.Topic };
 
 public sealed record LoginBody(string? Kode);
+public sealed record IdeaBody(string? Navn, string? Tekst, string? Endpoint, string? Rolle = null);
 public sealed record RoomBody(string? Titel, string? Kunde, string? Navn, string? Besked, string? Medlemmer = null, string? Kode = null, string? Adresse = null,
     bool Gruppe = false, List<PlannedTaskBody>? Opgaver = null, string? SlutDag = null);
 public sealed record PlannedTaskBody(string? Titel, string? Note, string? Dag, string? Hvornaar);

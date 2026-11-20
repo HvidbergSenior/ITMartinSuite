@@ -333,9 +333,9 @@
         // A course room opens on its calendar (the "front page"); a family room on its tasks; a customer on the chat.
         const tab = store.get('snak_tab') || (hasCal() ? 'kal' : shared() && !isGroup() ? 'opg' : 'chat');
         const ok = t => !$('tab' + t[0].toUpperCase() + t.slice(1)).hidden;
-        show(['kal', 'ng', 'opg', 'fil', 'hold', 'dato'].includes(tab) && ok(tab) ? tab : hasCal() ? 'kal' : 'chat');
+        show(['kal', 'ng', 'opg', 'ide', 'fil', 'hold', 'dato'].includes(tab) && ok(tab) ? tab : hasCal() ? 'kal' : 'chat');
         $('opsBoks').hidden = !admin;
-        loadMessages(); loadTasks(); loadFiles(); loadReads(); loadCalendar(); loadProfiles(); connect();
+        loadMessages(); loadTasks(); loadFiles(); loadIdeas(); loadReads(); loadCalendar(); loadProfiles(); connect();
         setupPush(false).finally(reportSeen);
     }
 
@@ -378,7 +378,7 @@
     // ---------- tabs ----------
 
     function show(which) {
-        for (const [v, t] of [['chat', 'tabChat'], ['kal', 'tabKal'], ['ng', 'tabNg'], ['opg', 'tabOpg'], ['fil', 'tabFil'], ['hold', 'tabHold'], ['dato', 'tabDato'], ['mig', 'tabMig']]) {
+        for (const [v, t] of [['chat', 'tabChat'], ['ide', 'tabIde'], ['kal', 'tabKal'], ['ng', 'tabNg'], ['opg', 'tabOpg'], ['fil', 'tabFil'], ['hold', 'tabHold'], ['dato', 'tabDato'], ['mig', 'tabMig']]) {
             $('view' + v[0].toUpperCase() + v.slice(1)).hidden = v !== which;
             $(t).setAttribute('aria-selected', String(v === which));
         }
@@ -387,12 +387,14 @@
         if (which === 'mig') { pushStatus(); openHomeGuide(); if (admin) loadSetup(); }
         if (which === 'chat') reportSeen();
         if (which === 'fil') { store.set('snak_filer_set_' + roomKey, String(maxFileId())); renderFiles(); }
+        if (which === 'ide') { store.set('snak_ide_set_' + roomKey, String(maxIdeaId())); renderIdeas(); }
     }
     $('tabChat').onclick = () => show('chat');
     $('tabOpg').onclick = () => show('opg');
     $('tabKal').onclick = () => show('kal');
     $('tabNg').onclick = () => show('ng');
     $('tabFil').onclick = () => show('fil');
+    $('tabIde').onclick = () => show('ide');
     $('tabHold').onclick = () => show('hold');
     $('tabDato').onclick = () => show('dato');
     $('tabMig').onclick = () => show('mig');
@@ -403,7 +405,7 @@
         if (live) live.close();
         live = new EventSource(base + '/live');
         // "hej" comes on every (re)connect: fetch whatever was missed while the line was down.
-        live.addEventListener('hej', () => { loadMessages(true); loadTasks(); loadFiles(); loadReads(); loadCalendar(); });
+        live.addEventListener('hej', () => { loadMessages(true); loadTasks(); loadFiles(); loadIdeas(); loadReads(); loadCalendar(); });
         live.addEventListener('besked-ret', e => {
             const m = JSON.parse(e.data), i = msgs.findIndex(x => x.id === m.id);
             if (i >= 0) { msgs[i] = m; keepPlace(renderMessages); }
@@ -412,6 +414,7 @@
         live.addEventListener('profiler', e => { profiles = JSON.parse(e.data); if (!document.querySelector('.profil-form')) renderRoster(); });
         live.addEventListener('besked', e => addMessages([JSON.parse(e.data)]));
         live.addEventListener('opgaver', e => { tasks = JSON.parse(e.data); renderTasks(); });
+        live.addEventListener('ideer', e => { ideas = JSON.parse(e.data); renderIdeas(); });
         live.addEventListener('filer', e => { files = JSON.parse(e.data); renderFiles(); if (msgs.some(m => m.fileId)) keepPlace(renderMessages); });
         live.addEventListener('holdet', e => {
             const d = JSON.parse(e.data);
@@ -1433,6 +1436,99 @@
             return c;
         }
     }
+
+    // ---------- idéer (2026-11-20) ----------
+    // Paste a link or a text (from a mail, a web page) - it becomes a card. Martin, or a named person in a shared room,
+    // can turn it into an Opgave; the one who added it (or Martin) deletes it.
+
+    let ideas = [];
+    function maxIdeaId() { return ideas.reduce((m, i) => Math.max(m, i.id), 0); }
+    async function loadIdeas() {
+        try { ideas = await api('GET', base + '/ideer'); renderIdeas(); } catch { }
+    }
+    function mayMakeTask() {
+        return !$('tabOpg').hidden && (admin || (closesOwn() && (room.medlemmer || []).some(n => n.toLowerCase() === navn.toLowerCase())));
+    }
+
+    function renderIdeas() {
+        const seen = Number(store.get('snak_ide_set_' + roomKey) || 0);
+        const fresh = ideas.filter(i => i.id > seen && i.by.toLowerCase() !== navn.toLowerCase()).length;
+        const onTab = !$('viewIde').hidden;
+        if (onTab) store.set('snak_ide_set_' + roomKey, String(maxIdeaId()));
+        $('ideBadge').textContent = String(fresh);
+        $('ideBadge').hidden = onTab || fresh === 0;
+        const box = $('ideer');
+        box.textContent = '';
+        if (!ideas.length) {
+            const e = document.createElement('div'); e.className = 'tom';
+            e.innerHTML = '<strong>Ingen idéer endnu</strong>Kopiér et link eller en tekst fra en mail eller en hjemmeside, og sæt det ind ovenfor.';
+            box.appendChild(e);
+            return;
+        }
+        for (const i of ideas) box.appendChild(ideaCard(i));
+    }
+
+    function ideaCard(i) {
+        const c = document.createElement('article'); c.className = 'k-card ide-kort';
+        const h = document.createElement('p'); h.className = 'ide-titel'; h.textContent = i.title; c.appendChild(h);
+        if (i.text) { const t = document.createElement('p'); t.className = 'ide-tekst'; t.textContent = i.text; c.appendChild(t); }
+        if (i.url) {
+            const a = document.createElement('a'); a.className = 'ide-link'; a.href = i.url; a.target = '_blank'; a.rel = 'noopener noreferrer nofollow';
+            try { a.textContent = 'Åbn ' + new URL(i.url).host; } catch { a.textContent = i.url; }
+            c.appendChild(a);
+        }
+        const who = document.createElement('p'); who.className = 'hvem';
+        who.textContent = (i.by.toLowerCase() === navn.toLowerCase() ? 'Dig' : i.by) + ' · ' + shortFmt.format(new Date(i.at));
+        c.appendChild(who);
+        const row = document.createElement('div'); row.className = 'k-row';
+        if (i.taskId) { const s = document.createElement('span'); s.className = 'ide-opg'; s.textContent = '✓ Er blevet en opgave'; row.appendChild(s); }
+        else if (mayMakeTask()) {
+            const b = document.createElement('button'); b.type = 'button'; b.className = 'k-btn k-btn-sm'; b.textContent = 'Gør til opgave';
+            b.onclick = async () => {
+                b.disabled = true;
+                try { await api('POST', base + '/ideer/' + i.id + '/opgave', { navn, endpoint }); flash('Idéen er nu en opgave.'); }
+                catch (err) { if (err.message !== 'login') flash(err.message); b.disabled = false; }
+            };
+            row.appendChild(b);
+        }
+        if (admin || i.by.toLowerCase() === navn.toLowerCase()) {
+            const del = document.createElement('button'); del.type = 'button'; del.className = 'k-btn k-btn-sm k-btn-ghost'; del.textContent = 'Slet';
+            del.onclick = async () => {
+                if (!del.dataset.sure) {
+                    del.dataset.sure = '1'; del.textContent = 'Ja, slet'; del.className = 'k-btn k-btn-sm k-btn-danger';
+                    setTimeout(() => { delete del.dataset.sure; del.textContent = 'Slet'; del.className = 'k-btn k-btn-sm k-btn-ghost'; }, 4000);
+                    return;
+                }
+                del.disabled = true;
+                try { await api('DELETE', base + '/ideer/' + i.id + '?navn=' + encodeURIComponent(navn)); await loadIdeas(); }
+                catch (err) { if (err.message !== 'login') flash('Idéen kunne ikke slettes.'); del.disabled = false; }
+            };
+            row.appendChild(del);
+        }
+        if (row.childElementCount) c.appendChild(row);
+        return c;
+    }
+
+    // Paste from the clipboard in one tap where the browser allows it (the button stays hidden where it does not).
+    if (navigator.clipboard && navigator.clipboard.readText) {
+        $('ideIndsaet').hidden = false;
+        $('ideIndsaet').onclick = async () => {
+            try { const t = await navigator.clipboard.readText(); if (t) { $('ideTekst').value = t; $('ideTekst').focus(); } }
+            catch { flash('Tryk og hold i feltet, og vælg Sæt ind.'); }
+        };
+    }
+    $('nyIde').onsubmit = async e => {
+        e.preventDefault();
+        const t = $('ideTekst').value.trim();
+        const st = $('ideStatus');
+        if (!t) { st.textContent = 'Sæt et link eller en tekst ind først.'; st.hidden = false; return; }
+        $('ideGem').disabled = true; st.textContent = 'Gemmer …'; st.hidden = false;
+        try {
+            await api('POST', base + '/ideer', { navn, tekst: t, endpoint, rolle });
+            $('ideTekst').value = ''; st.hidden = true; await loadIdeas();
+        } catch (err) { if (err.message !== 'login') { st.textContent = err.message; st.hidden = false; } }
+        finally { $('ideGem').disabled = false; }
+    };
 
     // ---------- the group's people (2026-11-09) ----------
 

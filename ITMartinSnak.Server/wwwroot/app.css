@@ -354,3 +354,10 @@ body { background: var(--k-bg); color: var(--k-text); }
 .billede-visning img { max-width: 100%; max-height: calc(100vh - 140px); object-fit: contain; border-radius: 8px; }
 .billede-tilbage { position: absolute; top: max(12px, env(safe-area-inset-top)); left: 12px; min-height: 48px; font-size: 1.1rem; }
 .billede-hent { color: #fff; border-color: rgba(255, 255, 255, .5); }
+
+/* Idéer (2026-11-20) */
+.ide-kort .ide-titel { font-weight: 700; word-break: break-word; margin: 0; }
+.ide-kort .ide-tekst { white-space: pre-wrap; word-break: break-word; margin: .4rem 0 0; }
+.ide-kort .ide-link { display: inline-block; margin-top: .4rem; word-break: break-all; }
+.ide-kort .k-row { margin-top: .6rem; flex-wrap: wrap; gap: .5rem; }
+.ide-kort .ide-opg { color: var(--k-muted); font-size: .9em; }

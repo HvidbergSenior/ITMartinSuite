@@ -18,6 +18,7 @@ public sealed class Group
     private readonly List<Message> _messages;
     private readonly List<TaskItem> _tasks;
     private readonly List<SharedFile> _files;
+    private readonly List<Idea> _ideas;
     private readonly List<Seen> _seen;
     private readonly Dictionary<string, List<long>> _mine;
     private readonly List<Profile> _profiles;
@@ -28,6 +29,7 @@ public sealed class Group
         _messages = store.LoadMessages();
         _tasks = store.LoadTasks();
         _files = store.LoadFiles();
+        _ideas = store.LoadIdeas();
         _seen = store.LoadSeen();
         _mine = new(store.LoadMine(), StringComparer.OrdinalIgnoreCase);
         _profiles = store.LoadProfiles();
@@ -336,6 +338,66 @@ public sealed class Group
     }
 
     private void FilesChanged() => _live.Send(_room.Id, "filer", Files());
+
+    // ---- idéer (2026-11-20): a pasted link or text becomes a card; it can become an Opgave ----
+
+    public IReadOnlyList<Idea> Ideas()
+    {
+        lock (_gate) return _ideas.OrderByDescending(i => i.Id).ToList();
+    }
+
+    /// <param name="pageTitle">The linked page's own title (fetched by IdeaIntake), or null.</param>
+    /// <returns>The new idea, or the Danish reason it was not added.</returns>
+    public (Idea? Idea, string? Error) AddIdea(string? by, string? pasted, string? pageTitle = null, string? fromEndpoint = null)
+    {
+        var who = GroupRules.CleanName(by);
+        if (IdeaRules.Parse(pasted, pageTitle) is not { } parsed) return (null, "Sæt et link eller en tekst ind først.");
+        Idea idea;
+        lock (_gate)
+        {
+            if (IdeaRules.Check(who, _ideas.Count) is { } err) return (null, err);
+            idea = IdeaRules.New(_ideas, parsed, who, _clock.GetUtcNow().UtcDateTime);
+            _ideas.Add(idea);
+            _store.SaveIdeas(_ideas);
+        }
+        IdeasChanged();
+        _push.SendToOthers(_room.Id, fromEndpoint, "Ny idé · " + _room.Title, $"{who}: {idea.Title}", "snak-ide-" + _room.Id, _room.Url);
+        _room.Activity(false);
+        return (idea, null);
+    }
+
+    public bool DeleteIdea(long id, string? name, bool host)
+    {
+        lock (_gate)
+        {
+            var i = _ideas.FindIndex(x => x.Id == id);
+            if (i < 0 || !IdeaRules.MayDelete(_ideas[i], name, host)) return false;
+            _ideas.RemoveAt(i);
+            _store.SaveIdeas(_ideas);
+        }
+        IdeasChanged();
+        return true;
+    }
+
+    /// <summary>The idea becomes an Opgave (title = the idea's title, note = its text + link); the card keeps a mark.</summary>
+    /// <param name="by">The named person who made it (shared room), or null for the host.</param>
+    public TaskItem? IdeaToTask(long id, string? by = null, string? fromEndpoint = null)
+    {
+        Idea? idea;
+        lock (_gate) idea = _ideas.FirstOrDefault(x => x.Id == id);
+        if (idea is null || idea.TaskId is not null) return null;
+        var t = AddTask(idea.Title, IdeaRules.TaskNote(idea), null, fromEndpoint, by: by);
+        if (t is null) return null;
+        lock (_gate)
+        {
+            var i = _ideas.FindIndex(x => x.Id == id);
+            if (i >= 0) { _ideas[i] = _ideas[i] with { TaskId = t.Id }; _store.SaveIdeas(_ideas); }
+        }
+        IdeasChanged();
+        return t;
+    }
+
+    private void IdeasChanged() => _live.Send(_room.Id, "ideer", Ideas());
 
     // Reminders already sent: "taskId|date|minutes". In memory - after a restart at most one repeat inside the 10-minute window.
     private readonly HashSet<string> _reminded = [];
