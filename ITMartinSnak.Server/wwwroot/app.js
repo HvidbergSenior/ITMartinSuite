@@ -1632,6 +1632,10 @@
     const partTabs = { opgaver: ['tabOpg', 'opg'], ideer: ['tabIde', 'ide'], filer: ['tabFil', 'fil'], personer: ['tabHold', 'hold'], kalender: ['tabDato', 'dato'] };
     function applyOff() {
         const off = (room && room.fra) || [];
+        // Turned back on: show the tab again (Idéer always, Filer unless the room is only chat, Personer if it has people).
+        if (!off.includes('ideer')) $('tabIde').hidden = false;
+        if (!off.includes('filer')) $('tabFil').hidden = kunChat();
+        if (!off.includes('personer')) $('tabHold').hidden = !((shared() && room.medlemmer) || []).length;
         let gone = false;
         for (const p of off) {
             const pt = partTabs[p]; if (!pt) continue;
