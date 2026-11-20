@@ -338,6 +338,85 @@ body[data-theme="facebook"] #hdrTitle{visibility:hidden}
 .f-locked .folder-cover{display:flex;align-items:center;justify-content:center;font-size:56px;background:#ebe7de;filter:grayscale(1)}
 .f-locked-note{margin-top:4px;font:600 .9rem system-ui,sans-serif;color:#4b5563}
 
+/* ── WOW demo themes (2026-11-20, user: "all demo galleries need to be Wauv effects on each but different feels") ──
+   "fbhjem" (facebook-demo): dark and warm - "Mine billeder. Hjemme igen." - photos fly out of a phone, counters run up.
+   "aarbog" (demo): cream paper scrapbook - polaroids with tape drop in, a timeline of years you can tap.
+   No blue text (user is a bit colour-blind). Motion is off for prefers-reduced-motion. */
+body[data-theme="fbhjem"]{--accent:#f2a65a;--accent-hover:#ffbf7a;--bg:#14110f;--bg-card:#201b17;--bg-btn:#2b241e;--border:#3a3029;
+  --text:#fbf3ea;--text-muted:#d9c9b8;--text-dim:#cbb8a4;--text-dimmer:#b8a38e;--hdr-bg:rgba(20,17,15,.96);
+  background:radial-gradient(ellipse at 70% -10%,rgba(242,166,90,.22),transparent 55%),radial-gradient(ellipse at 0% 100%,rgba(190,90,60,.18),transparent 50%),#14110f;color:#fbf3ea}
+body[data-theme="fbhjem"] #btnGalleries{display:none!important}
+body.at-root[data-theme="fbhjem"] #hdrTitle,body.at-root[data-theme="aarbog"] #hdrTitle{visibility:hidden}
+body[data-theme="fbhjem"] .folder-grid,body[data-theme="fbhjem"] .file-grid,body[data-theme="aarbog"] .folder-grid,body[data-theme="aarbog"] .file-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
+body[data-theme="fbhjem"] .section-title,body[data-theme="fbhjem"] .grid-title,body[data-theme="fbhjem"] .section-label,
+body[data-theme="aarbog"] .section-title,body[data-theme="aarbog"] .grid-title,body[data-theme="aarbog"] .section-label{text-align:center}
+body.at-root[data-theme="fbhjem"] #folderSection .section-label,body.at-root[data-theme="aarbog"] #folderSection .section-label{display:none}
+body[data-theme="fbhjem"] .folder-card{width:min(260px,44vw);border-radius:18px;border:1px solid #3a3029;background:#201b17;box-shadow:0 16px 40px rgba(0,0,0,.45);transition:transform .25s,box-shadow .25s}
+body[data-theme="fbhjem"] .folder-card:hover{transform:translateY(-4px) rotate(-.6deg);box-shadow:0 22px 50px rgba(242,166,90,.25)}
+body[data-theme="fbhjem"] .file-card{width:min(200px,44vw);aspect-ratio:1;border-radius:14px;box-shadow:0 8px 22px rgba(0,0,0,.45)}
+
+.w-fb{position:relative;margin:18px auto 22px;max-width:1040px;display:grid;grid-template-columns:1.1fr 1fr;gap:24px;align-items:center;padding:34px 28px;border-radius:28px;
+  background:linear-gradient(150deg,#211a15,#16120f 60%);border:1px solid #3a3029;box-shadow:0 30px 80px rgba(0,0,0,.5);overflow:hidden}
+.w-fb::before{content:"";position:absolute;inset:-40%;background:conic-gradient(from 0deg,transparent,rgba(242,166,90,.10),transparent 30%);animation:wSpin 18s linear infinite;pointer-events:none}
+.w-fb-in{position:relative;z-index:1}
+.w-fb-kicker{font:800 .9rem/1 system-ui,sans-serif;letter-spacing:.3em;text-transform:uppercase;color:#f2a65a}
+.w-fb-title{margin:14px 0 10px;font:800 clamp(2.2rem,6vw,3.8rem)/1.02 Georgia,"Times New Roman",serif;color:#fbf3ea}
+.w-fb-title span{background:linear-gradient(90deg,#f2a65a,#ffd8a8,#f2a65a);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:wShine 4s ease-in-out infinite}
+.w-fb-line{margin:0;max-width:44ch;font:1.1rem/1.5 Georgia,serif;color:#e8d9c8}
+.w-fb-stats{display:flex;flex-wrap:wrap;gap:18px 28px;margin:22px 0 4px}
+.w-fb-stats b{display:block;font:800 clamp(1.8rem,4.5vw,2.6rem)/1 system-ui,sans-serif;color:#fbf3ea;font-variant-numeric:tabular-nums}
+.w-fb-stats span{display:block;margin-top:4px;font:600 .9rem system-ui,sans-serif;color:#cbb8a4}
+.w-fb-solo{margin-top:18px;padding:12px 16px;border-radius:14px;border:1px dashed #6b5646;background:rgba(242,166,90,.06);font:600 1rem/1.45 system-ui,sans-serif;color:#f1e4d5;max-width:46ch}
+.w-fb .f-btns{justify-content:flex-start}
+.w-fb .f-btn{background:#f2a65a;border-color:#f2a65a;color:#1b140f}
+.w-fb .f-btn.alt{background:transparent;color:#fbf3ea;border-color:#6b5646}
+.w-fb-stage{position:relative;z-index:1;height:360px}
+.w-fb-phone{position:absolute;left:4%;bottom:6%;width:120px;height:220px;border-radius:24px;border:3px solid #6b5646;background:linear-gradient(180deg,#2b241e,#1b1612);box-shadow:0 18px 40px rgba(0,0,0,.5)}
+.w-fb-phone::after{content:"f";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:900 64px/1 system-ui,sans-serif;color:#3a3029}
+.w-fb-pic{position:absolute;left:12%;bottom:22%;width:118px;height:118px;border-radius:12px;object-fit:cover;object-position:50% 20%;border:4px solid #fbf3ea;box-shadow:0 14px 30px rgba(0,0,0,.5);
+  opacity:0;transform:translate(0,0) scale(.3) rotate(0);animation:wFly 1.1s cubic-bezier(.2,.8,.2,1.2) forwards,wFloat 6s ease-in-out infinite}
+@keyframes wFly{to{opacity:1;transform:translate(var(--x),var(--y)) scale(1) rotate(var(--r))}}
+@keyframes wFloat{0%,100%{translate:0 0}50%{translate:0 -8px}}
+@keyframes wSpin{to{transform:rotate(360deg)}}
+@keyframes wShine{0%,100%{background-position:0 0}50%{background-position:100% 0}}
+@media (max-width:760px){.w-fb{grid-template-columns:1fr;padding:26px 18px}.w-fb-stage{height:300px;order:-1}.w-fb .f-btns{justify-content:center}.w-fb-in{text-align:center}.w-fb-stats{justify-content:center}.w-fb-solo{margin-left:auto;margin-right:auto}}
+
+body[data-theme="aarbog"]{--accent:#b5542e;--accent-hover:#93401f;--bg:#f4ecdc;--bg-card:#fffaf0;--bg-btn:#eadfca;--border:#dccdb0;
+  --text:#2a2118;--text-muted:#4d3f30;--text-dim:#4d3f30;--text-dimmer:#5f4f3d;--hdr-bg:rgba(244,236,220,.97);
+  background:repeating-linear-gradient(0deg,rgba(120,90,50,.035) 0 2px,transparent 2px 28px),radial-gradient(ellipse at 50% 0%,#fbf5e8,#efe3cb 70%);color:#2a2118}
+body[data-theme="aarbog"] #btnGalleries{display:none!important}
+body[data-theme="aarbog"] .folder-card{width:min(240px,44vw);border-radius:6px;background:#fffdf7;padding:10px 10px 4px;border:none;box-shadow:0 10px 24px rgba(80,55,25,.22);transform:rotate(-1.2deg);transition:transform .25s}
+body[data-theme="aarbog"] .folder-card:nth-child(even){transform:rotate(1.4deg)}
+body[data-theme="aarbog"] .folder-card:hover{transform:rotate(0) scale(1.03)}
+body[data-theme="aarbog"] .folder-name{font:italic 700 1.15rem Georgia,serif}
+body[data-theme="aarbog"] .file-card{width:min(200px,44vw);aspect-ratio:1;border-radius:4px;border:6px solid #fffdf7;box-shadow:0 8px 18px rgba(80,55,25,.22)}
+
+.w-ab{margin:18px auto 22px;max-width:1040px;padding:34px 24px 26px;border-radius:24px;background:#fffaf0;box-shadow:0 30px 70px rgba(80,55,25,.22),inset 0 0 0 1px #e8dcc3;text-align:center;position:relative;overflow:hidden}
+.w-ab::before{content:"";position:absolute;left:0;right:0;top:0;height:10px;background:repeating-linear-gradient(90deg,#b5542e 0 24px,#d9a441 24px 48px,#6f8f5a 48px 72px)}
+.w-ab-kicker{font:800 .9rem/1 system-ui,sans-serif;letter-spacing:.32em;text-transform:uppercase;color:#93401f}
+.w-ab-title{margin:12px auto 8px;max-width:20ch;font:italic 700 clamp(2.1rem,6vw,3.6rem)/1.05 Georgia,"Times New Roman",serif;color:#2a2118}
+.w-ab-line{margin:0 auto;max-width:52ch;font:1.1rem/1.5 Georgia,serif;color:#4d3f30}
+.w-ab-collage{position:relative;height:300px;margin:26px auto 8px;max-width:900px}
+.w-ab-pol{position:absolute;top:50%;left:50%;width:170px;padding:9px 9px 30px;background:#fffdf7;box-shadow:0 14px 28px rgba(80,55,25,.28);
+  opacity:0;transform:translate(-50%,-160%) rotate(0);animation:wDrop .8s cubic-bezier(.2,.9,.25,1.15) forwards}
+.w-ab-pol img{display:block;width:100%;aspect-ratio:1;object-fit:cover;object-position:50% 20%}
+.w-ab-pol::before{content:"";position:absolute;top:-10px;left:50%;width:64px;height:20px;margin-left:-32px;background:rgba(217,164,65,.55);transform:rotate(-4deg)}
+.w-ab-pol span{position:absolute;left:0;right:0;bottom:7px;font:italic 700 .95rem Georgia,serif;color:#4d3f30}
+@keyframes wDrop{to{opacity:1;transform:translate(calc(-50% + var(--x)),calc(-50% + var(--y))) rotate(var(--r))}}
+.w-ab-years{display:flex;justify-content:center;align-items:flex-start;flex-wrap:wrap;gap:0;margin:22px auto 6px;max-width:900px;position:relative}
+.w-ab-year{position:relative;border:none;background:none;cursor:pointer;padding:22px 14px 4px;font:800 1rem system-ui,sans-serif;color:#2a2118}
+.w-ab-year::before{content:"";position:absolute;top:6px;left:50%;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:#b5542e;box-shadow:0 0 0 4px #f4dcc9}
+.w-ab-year::after{content:"";position:absolute;top:12px;left:0;right:0;height:2px;background:#dccdb0;z-index:-1}
+.w-ab-year:hover{color:#93401f}
+.w-ab-people{margin-top:14px;font:700 .95rem system-ui,sans-serif;color:#4d3f30}
+.w-ab .b-chips{justify-content:center}
+.w-ab-btns{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin-top:16px}
+.w-ab-btn{border:2px solid #2a2118;background:#2a2118;color:#fffaf0;border-radius:999px;padding:11px 20px;font:800 1rem system-ui,sans-serif;cursor:pointer;text-decoration:none}
+.w-ab-btn.alt{background:transparent;color:#2a2118}
+@media (max-width:760px){.w-ab-collage{height:250px}.w-ab-pol{width:120px;padding:7px 7px 24px}}
+@media (prefers-reduced-motion:reduce){.w-fb::before,.w-fb-title span{animation:none}.w-fb-pic{animation:none;opacity:1;transform:translate(var(--x),var(--y)) rotate(var(--r))}
+  .w-ab-pol{animation:none;opacity:1;transform:translate(calc(-50% + var(--x)),calc(-50% + var(--y))) rotate(var(--r))}}
+
 /* ── Theme "koncert": a stage for the audience songs ─────────────────────── */
 
 /* ── Theme "bedstemor" (HvidbergFamily): "Hej allesammen – det her er Bedstemors billeder".
@@ -805,6 +884,88 @@ function vaersgoCards(folders) {
   return n.length === 0 ? 'Billeder' : n.length === 1 ? n[0] : n.slice(0, -1).join(', ') + ' eller ' + n[n.length - 1];
 }
 
+// ── WOW demo fronts (2026-11-20) ────────────────────────────────────────────
+// Up to `max` photo thumbnails from Billeder (year -> month), in date order, plus the year names.
+async function wowPhotos(max) {
+  const pics = [], seen = new Set();
+  let years = [];
+  const get = async p => {
+    const r = await fetch(`/api/browse?gallery=${encodeURIComponent(currentGallery)}&path=${encodeURIComponent(p)}`);
+    return r.ok ? r.json() : null;
+  };
+  const root = await get('Billeder');
+  if (!root) return { pics, years };
+  years = (root.folders || []).map(f => ({ name: f.name, rel: f.relPath, cover: f.cover }));
+  const take = f => { const u = f.thumb || f.webPath; if (u && !f.isVideo && !f.isAudio && !f.isDoc && !seen.has(u) && pics.length < max) { seen.add(u); pics.push(u); } };
+  for (const y of years) {
+    if (pics.length >= max) break;
+    const yd = await get(y.rel);
+    if (!yd) continue;
+    (yd.files || []).forEach(take);
+    for (const m of (yd.folders || [])) {
+      if (pics.length >= max) break;
+      if (m.cover && !seen.has(m.cover)) { seen.add(m.cover); pics.push(m.cover); }
+    }
+  }
+  return { pics, years };
+}
+
+function wowCount(el) {
+  const to = Number(el.dataset.to || 0), t0 = performance.now(), dur = 1600;
+  const fmt = n => n.toLocaleString('da-DK');
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = fmt(to); return; }
+  const step = t => { const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3); el.textContent = fmt(Math.round(to * e)); if (k < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+
+async function renderWowHero(el, theme, data) {
+  const headline = data.headline || galleryDisplayName || '', tagline = data.tagline || '';
+  if (theme === 'fbhjem') {
+    el.innerHTML = `<div class="w-fb"><div class="w-fb-in"><div class="w-fb-kicker">Hentet hjem fra Facebook</div>`
+      + `<h1 class="w-fb-title">Mine billeder.<br><span>Hjemme igen.</span></h1>`
+      + (tagline ? `<p class="w-fb-line">${esc(tagline)}</p>` : '')
+      + `<div class="w-fb-stats"><div><b data-to="12020">0</b><span>billeder fundet</span></div><div><b data-to="1593">0</b><span>videoer</span></div><div><b>2009–2026</b><span>med rigtig dato igen</span></div></div>`
+      + `<div class="w-fb-solo">Her ser du kun de billeder, hvor jeg er alene på. Resten – med familie og venner – ligger i mit private galleri.</div>`
+      + `<div class="f-btns"><a class="f-btn" href="https://itmartin.dk/billeder-fra-skyen">Få dine egne billeder hjem</a><button type="button" class="f-btn alt" id="wPhone">Læg galleriet på telefonen</button></div>`
+      + `</div><div class="w-fb-stage" aria-hidden="true"><div class="w-fb-phone"></div></div></div>`;
+    el.querySelectorAll('[data-to]').forEach(wowCount);
+    const { pics } = await wowPhotos(7);
+    const spots = [[150, -170, -8], [300, -120, 6], [190, -10, 4], [330, 20, -5], [90, -260, 3], [250, -250, -4], [380, -210, 9]];
+    const stage = el.querySelector('.w-fb-stage');
+    pics.forEach((u, i) => {
+      const [x, y, r] = spots[i % spots.length];
+      const img = document.createElement('img'); img.className = 'w-fb-pic'; img.src = u; img.alt = ''; img.loading = 'eager';
+      img.style.setProperty('--x', x + 'px'); img.style.setProperty('--y', y + 'px'); img.style.setProperty('--r', r + 'deg');
+      img.style.animationDelay = (0.25 + i * 0.22) + 's, ' + (1.4 + i * 0.22) + 's';
+      stage.appendChild(img);
+    });
+  } else {
+    const people = data.people || [];
+    el.innerHTML = `<div class="w-ab"><div class="w-ab-kicker">Årbog</div><h1 class="w-ab-title">${esc(headline || 'Sådan ser dine billeder ud bagefter')}</h1>`
+      + (tagline ? `<p class="w-ab-line">${esc(tagline)}</p>` : '')
+      + `<div class="w-ab-collage" aria-hidden="true"></div><div class="w-ab-years"></div>`
+      + (people.length ? `<div class="w-ab-people">Hvem er med?</div><div class="b-chips">${people.map(p => `<button type="button" class="b-chip" data-rel="${esc(p.relPath)}" data-name="${esc(p.name)}">${esc(p.name)}</button>`).join('')}</div>` : '')
+      + `<div class="w-ab-btns"><a class="w-ab-btn" href="https://itmartin.dk/billeder-fra-skyen">Få dine egne billeder sorteret</a><button type="button" class="w-ab-btn alt" id="wPhone">Læg galleriet på telefonen</button></div></div>`;
+    el.querySelectorAll('.b-chip').forEach(b => b.onclick = () => loadBrowse(b.dataset.rel, b.dataset.name));
+    const { pics, years } = await wowPhotos(6);
+    const col = el.querySelector('.w-ab-collage');
+    const spots = [[-300, -10, -7], [-150, 20, 4], [0, -15, -2], [150, 18, 5], [300, -8, -6], [0, 40, 8]];
+    pics.forEach((u, i) => {
+      const [x, y, r] = spots[i % spots.length];
+      const p = document.createElement('div'); p.className = 'w-ab-pol';
+      p.style.setProperty('--x', x + 'px'); p.style.setProperty('--y', y + 'px'); p.style.setProperty('--r', r + 'deg');
+      p.style.animationDelay = (0.15 + i * 0.18) + 's';
+      p.innerHTML = `<img src="${esc(u)}" alt=""><span>${esc(years[i % Math.max(1, years.length)]?.name || '')}</span>`;
+      col.appendChild(p);
+    });
+    if (matchMedia('(max-width:760px)').matches) col.querySelectorAll('.w-ab-pol').forEach(p => p.style.setProperty('--x', (parseFloat(p.style.getPropertyValue('--x')) * 0.42) + 'px'));
+    const yl = el.querySelector('.w-ab-years');
+    years.forEach(y => { const b = document.createElement('button'); b.type = 'button'; b.className = 'w-ab-year'; b.textContent = y.name; b.onclick = () => loadBrowse(y.rel, y.name); yl.appendChild(b); });
+  }
+  const ph = el.querySelector('#wPhone');
+  if (ph) ph.onclick = () => window.kolibri ? window.kolibri.openInstall() : alertPhoneSteps();
+}
+
 function renderBrowse(data, titleOverride) {
   const { atRoot, folders, hideAddons, viewOnly, theme, headline, tagline } = data;
   let files = data.files || [];
@@ -872,6 +1033,15 @@ function renderBrowse(data, titleOverride) {
       + `<div class="f-btns"><a class="f-btn" href="https://itmartin.dk/dine-data">Få styr på dine egne billeder</a><button type="button" class="f-btn alt" id="fPhone">Læg galleriet på telefonen</button></div></div>`;
     document.getElementById('fPhone').onclick = () => window.kolibri ? window.kolibri.openInstall() : alertPhoneSteps();
   } else if (fh) fh.style.display = 'none';
+  // WOW demo themes (2026-11-20, user: "all demo galleries need to be Wauv effects on each but different feels").
+  // "fbhjem" (facebook-demo) and "aarbog" (demo) build their front from the gallery's own photos (month covers under Billeder).
+  let wh = document.getElementById('wowHero');
+  if (theme === 'fbhjem' || theme === 'aarbog') {
+    const fsec = document.getElementById('folderSection');
+    if (!wh) { wh = document.createElement('div'); wh.id = 'wowHero'; fsec.parentNode.insertBefore(wh, fsec); }
+    wh.style.display = atRoot ? '' : 'none';
+    if (atRoot) renderWowHero(wh, theme, data);
+  } else if (wh) wh.style.display = 'none';
   // Theme "vaersgo" (Annette og Kent 2026-10-16): a warm welcome, the two cards centred below, and an info box
   // about what the finished collection can also hold - information only, nothing to pick or buy.
   let vh = document.getElementById('vaersgoHero'), vm = document.getElementById('vaersgoMore');

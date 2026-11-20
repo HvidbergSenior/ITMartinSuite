@@ -40,5 +40,5 @@ public static class PeopleNames
 
     public static string DisplayName(string folder) => Display.GetValueOrDefault(folder, folder);
 
-    public static bool WithPeople(Gallery g) => string.Equals(g.Theme, "bedstemor", StringComparison.OrdinalIgnoreCase);
+    public static bool WithPeople(Gallery g) => g.Theme is { } t && (t.Equals("bedstemor", StringComparison.OrdinalIgnoreCase) || t.Equals("aarbog", StringComparison.OrdinalIgnoreCase));   // aarbog = the demo (2026-11-20)
 }
