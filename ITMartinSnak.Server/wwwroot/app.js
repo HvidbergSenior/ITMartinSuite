@@ -1072,7 +1072,7 @@
         const h = document.createElement('h3'); h.textContent = (clock(t) ? 'Kl. ' + clock(t) + ' · ' : '') + t.title;
         c.appendChild(h);
         const st = document.createElement('p'); st.className = 'status';
-        st.textContent = (done ? '✓ Gjort' : t.takers.length ? '● Taget' : '○ Mangler nogen') + (t.daily ? ' · hver dag' : t.yearly ? ' · hvert år' : '');
+        st.textContent = (done ? '✓ Gjort' : t.takers.length ? '● ' + t.takers.join(' og ') + ' er på' : '○ Mangler nogen') + (t.daily ? ' · hver dag' : t.yearly ? ' · hvert år' : '');
         c.appendChild(st);
         const nd = nextDay(t);
         const dayText = t.endDay ? spanText(t) : nd && nd !== today() ? dayFmt.format(new Date(nd + 'T12:00')) : '';
@@ -1103,7 +1103,8 @@
         if (!done) {
             const take = document.createElement('button'); take.type = 'button';
             take.className = 'k-btn ' + (isMine(t) ? '' : 'k-btn-primary');
-            take.textContent = isMine(t) ? 'Jeg kan alligevel ikke' : 'Jeg tager den';
+            // Several people can take the same task (2026-11-20, user: "i can select the same tasks as another").
+            take.textContent = isMine(t) ? 'Jeg kan alligevel ikke' : t.takers.length ? 'Jeg er også med' : 'Jeg tager den';
             take.onclick = () => act(take, () => api('POST', `${base}/opgaver/${t.id}/tag`, { navn, endpoint }));
             row.appendChild(take);
         }
