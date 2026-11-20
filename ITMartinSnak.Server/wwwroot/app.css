@@ -363,17 +363,22 @@ body { background: var(--k-bg); color: var(--k-text); }
 .ide-kort .ide-opg { color: var(--k-muted); font-size: .9em; }
 
 
-/* Martin's room settings, folded (2026-11-20) */
-.bar:has(.rum-ops) { flex-wrap: wrap; gap: 8px 12px; }
-.rum-ops { flex: 1 1 100%; }
-.rum-ops > summary { cursor: pointer; font-weight: 600; font-size: 14px; color: var(--k-muted); padding: 2px 0; }
-.rum-ops[open] > summary { margin-bottom: 8px; }
-.adresse-form { display: flex; flex-direction: column; gap: 4px; max-width: 32rem; }
+/* Martin's room settings, folded (2026-11-20) - a white Kolibri show/hide card like "Hvad viser siden?" (user screenshot). */
+.bar:has(.rum-ops) { flex-wrap: wrap; gap: 8px 12px; background: transparent; padding: 8px 16px 0; }
+.rum-ops { flex: 1 1 100%; background: var(--k-card); border: 1px solid var(--k-border); border-radius: 16px; padding: 10px 14px; }
+.rum-ops > summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center;
+    font-weight: 700; font-size: 15px; color: var(--k-text); }
+.rum-ops > summary::-webkit-details-marker { display: none; }
+.rum-ops > summary::after { content: "▸"; color: var(--k-muted); font-size: 12px; transition: transform .2s; }
+.rum-ops[open] > summary::after { transform: rotate(90deg); }
+.rum-ops[open] > summary { margin-bottom: 10px; }
+.adresse-form { display: flex; flex-direction: column; gap: 4px; }
 .adresse-form .k-help { margin: 0; }
-.adresse-row { display: flex; align-items: center; gap: 6px; }
+.adresse-row { display: flex; align-items: stretch; gap: 6px; max-width: 26rem; }
 .adresse-row .k-input { flex: 1; min-width: 0; }
-.adresse-pre { color: var(--k-muted); font-size: 14px; white-space: nowrap; }
-.rum-ops-knapper { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.adresse-row .k-btn { min-height: 0; }
+.adresse-pre { align-self: center; color: var(--k-muted); font-size: 14px; white-space: nowrap; }
+.rum-ops-knapper { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--k-border); }
 .rum-ops-knapper .slet-rum { margin-left: auto; }
 
 .rum-dele { border: 0; padding: 0; margin: 12px 0 0; display: flex; flex-wrap: wrap; gap: 6px 14px; }
