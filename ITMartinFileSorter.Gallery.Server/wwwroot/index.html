@@ -79,6 +79,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .folder-card:active{border-color:#3b82f6}
 .folder-cover{width:100%;aspect-ratio:1;object-fit:cover;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:32px;color:var(--icon-placeholder)}
 .folder-cover img{width:100%;height:100%;object-fit:cover}
+/* Faces sit in the top part of most photos - crop covers from there, so a tall picture never shows a body without a head (user 2026-11-20). */
+.gallery-card-cover img,.folder-cover img,.collection-cover img,img.file-thumb,video.file-thumb{object-position:50% 20%}
 .folder-info{padding:8px 10px}
 .folder-name{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
@@ -1067,7 +1069,7 @@ function realAddonCover(addonId) {
 function addonCoverHtml(a, enabled) {
   const cover = realAddonCover(a.id);
   if (cover) {
-    return `<img src="${esc(cover)}" loading="lazy" onerror="this.style.display='none'" alt="" style="width:100%;height:100%;object-fit:cover">`;
+    return `<img src="${esc(cover)}" loading="lazy" onerror="this.style.display='none'" alt="" style="width:100%;height:100%;object-fit:cover;object-position:50% 20%">`;
   }
   return enabled ? (ADDON_ILLUSTRATIONS[a.id] || a.icon) : '🔒';
 }
