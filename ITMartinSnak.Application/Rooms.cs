@@ -104,6 +104,18 @@ public sealed class Rooms
 
     public bool Rename(string id, string? title) => Update(id, x => x with { Title = RoomRules.CleanTitle(title) });
 
+    /// <summary>The short address, set or changed later (2026-11-20, user: "i want short names"); "" removes it.</summary>
+    /// <returns>A Danish error, or null when it was saved.</returns>
+    public string? SetSlug(string id, string? slug)
+    {
+        var s = RoomRules.CleanSlug(slug);
+        if ((slug ?? "").Trim().Length > 0 && s.Length == 0)
+            return "Den nemme adresse må kun have små bogstaver, tal og bindestreg (2-30 tegn), fx loppemarked.";
+        lock (_gate)
+            if (s.Length > 0 && _rooms.Any(x => x.Slug == s && x.Id != id)) return $"Adressen /{s} er allerede brugt.";
+        return Update(id, x => x with { Slug = s }) ? null : "Rummet findes ikke.";
+    }
+
     /// <summary>Only the chat (the new-room template), or the chat with Opgaver and Filer.</summary>
     public bool SetKunChat(string id, bool kunChat) => Update(id, x => x with { KunChat = kunChat });
 

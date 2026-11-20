@@ -363,6 +363,24 @@
             bar.append(b);
             bar.hidden = false;
         } else bar.hidden = true;
+        if (alleRum && room) {   // Martin: the short address, set or changed later (2026-11-20)
+            const f = document.createElement('form'); f.className = 'k-row adresse-form';
+            const pre = document.createElement('span'); pre.className = 'k-help'; pre.textContent = 'snak.itmartin.dk/';
+            const inp = document.createElement('input'); inp.className = 'k-input'; inp.value = room.adresse || ''; inp.placeholder = 'fx loppemarked';
+            inp.setAttribute('aria-label', 'Nem adresse'); inp.maxLength = 30; inp.style.maxWidth = '14rem';
+            const save = document.createElement('button'); save.type = 'submit'; save.className = 'k-btn k-btn-sm'; save.textContent = 'Gem adresse';
+            f.onsubmit = async e => {
+                e.preventDefault(); save.disabled = true;
+                try {
+                    const d = await api('PUT', '/api/rum/' + room.id + '/adresse', { adresse: inp.value });
+                    room.adresse = d.adresse; flash(d.adresse ? 'Adressen er nu snak.itmartin.dk/' + d.adresse : 'Adressen er fjernet.');
+                } catch (err) { if (err.message !== 'login') flash(err.message); }
+                finally { save.disabled = false; }
+            };
+            f.append(pre, inp, save);
+            bar.append(f);
+            bar.hidden = false;
+        }
         if (alleRum && room && !room.gruppe) {   // Martin: only the chat, or the chat with Opgaver and Filer
             const t = document.createElement('button'); t.type = 'button'; t.className = 'k-btn k-btn-sm k-btn-ghost';
             t.textContent = room.kunChat ? 'Slå Opgaver og Filer til' : 'Kun chat';

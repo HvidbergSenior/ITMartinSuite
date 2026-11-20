@@ -114,6 +114,23 @@ public class GroupTests
         new Access("abc", "", TimeProvider.System).Login("abc", "x").Should().Be(LoginResult.Wrong);   // a code shorter than 6 never opens
     }
 
+    // 2026-11-20 (user: "i want short names"): a room made without a short address gets one later; taken or odd ones are refused.
+    [Test]
+    public void A_short_address_can_be_set_later_changed_and_removed()
+    {
+        var rooms = NewRooms();
+        var a = rooms.Create("Loppemarked", members: "Martin, Lukas");
+        var b = rooms.Create("Andet", slug: "andet");
+        rooms.SetSlug(a.Id, "Loppemarked").Should().BeNull();
+        rooms.BySlug("loppemarked")!.Id.Should().Be(a.Id);
+        rooms.SetSlug(a.Id, "andet").Should().Be("Adressen /andet er allerede brugt.");
+        rooms.SetSlug(a.Id, "æ/ø").Should().StartWith("Den nemme adresse");
+        rooms.SetSlug(b.Id, "andet").Should().BeNull();   // its own address again is fine
+        rooms.SetSlug(a.Id, "").Should().BeNull();
+        rooms.BySlug("loppemarked").Should().BeNull();
+        rooms.SetSlug("nope", "x1").Should().Be("Rummet findes ikke.");
+    }
+
     // ---- rooms (2026-11-04) ----
 
     private Rooms NewRooms(TimeProvider? clock = null)

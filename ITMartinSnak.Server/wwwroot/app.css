@@ -361,3 +361,5 @@ body { background: var(--k-bg); color: var(--k-text); }
 .ide-kort .ide-link { display: inline-block; margin-top: .4rem; word-break: break-all; }
 .ide-kort .k-row { margin-top: .6rem; flex-wrap: wrap; gap: .5rem; }
 .ide-kort .ide-opg { color: var(--k-muted); font-size: .9em; }
+
+.adresse-form { align-items: center; gap: .4rem; flex-wrap: wrap; }

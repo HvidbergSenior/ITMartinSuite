@@ -198,6 +198,15 @@ app.MapPost("/api/rum/{id}/genaabn", (HttpContext c, string id, Access access, R
 app.MapPut("/api/rum/{id}", (HttpContext c, string id, RoomBody b, Access access, Rooms rooms) =>
     !IsAdmin(c, access) ? Results.StatusCode(403) : rooms.Rename(id, b.Titel) ? Results.Ok() : Results.NotFound());
 
+// The short address, set later (2026-11-20). Martin only.
+app.MapPut("/api/rum/{id}/adresse", (HttpContext c, string id, SlugBody b, Access access, Rooms rooms) =>
+{
+    if (!IsAdmin(c, access)) return Results.StatusCode(403);
+    if (rooms.SetSlug(id, b.Adresse) is { } err) return Results.BadRequest(new { fejl = err });
+    var r = rooms.Overview().FirstOrDefault(x => x.Id == id);
+    return Results.Json(new { adresse = r?.Slug ?? "" }, web);
+});
+
 // Only the chat, or the chat with Opgaver and Filer (2026-11-17). Martin only.
 app.MapPut("/api/rum/{id}/kunchat", (HttpContext c, string id, KunChatBody b, Access access, Rooms rooms) =>
     !IsAdmin(c, access) ? Results.StatusCode(403) : rooms.SetKunChat(id, b.KunChat) ? Results.Ok() : Results.NotFound());
@@ -575,6 +584,7 @@ static string? DeviceHash(HttpContext c) =>
 static object FileView(SharedFile f) => new { f.Id, f.Name, f.Size, f.ContentType, f.By, f.At, f.Topic };
 
 public sealed record LoginBody(string? Kode);
+public sealed record SlugBody(string? Adresse);
 public sealed record IdeaBody(string? Navn, string? Tekst, string? Endpoint, string? Rolle = null);
 public sealed record RoomBody(string? Titel, string? Kunde, string? Navn, string? Besked, string? Medlemmer = null, string? Kode = null, string? Adresse = null,
     bool Gruppe = false, List<PlannedTaskBody>? Opgaver = null, string? SlutDag = null);
