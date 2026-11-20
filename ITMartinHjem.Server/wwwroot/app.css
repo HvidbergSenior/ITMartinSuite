@@ -1114,6 +1114,11 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .bs-status .k-card-title { margin: 0; }
 .bs-status p { margin: 0; }
 .bs-status .bs-tag { justify-self: start; }
+/* Status is a show/hide box, closed by default (2026-11-20). */
+.bs-status > summary { display: grid; gap: 6px; cursor: pointer; list-style: none; }
+.bs-status > summary::-webkit-details-marker { display: none; }
+.bs-status > summary .k-card-title::after { content: " BE"; color: var(--k-muted); font-size: .8em; }
+.bs-status[open] > summary .k-card-title::after { content: " B4"; }
 .bs-status-h { margin: 6px 0 0; font-size: 1.05rem; color: var(--k-text); }
 .bs-wish-groups { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .bs-wish-groups li { display: inline-flex; align-items: center; gap: 8px; padding: 4px 6px 4px 12px; border: 1px solid var(--k-border); border-radius: 999px; background: var(--k-bg); }

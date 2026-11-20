@@ -4,9 +4,10 @@
 @* Status on bogshoppen.dk (user 2026-11-19): many customers look for things; finding them in the boxes takes time, but every
    wish is noted. Under it, what people look for - the groups they ticked (counted) and their own words, never who wrote them.
    Data: Kunder (/api/kunder/oensker), only those who still said yes to Bogshoppen. *@
-<section class="k-card bs-card bs-status" id="status">
-    <span class="bs-tag">Status</span>
-    <h2 class="k-card-title">Mange leder efter noget bestemt</h2>
+@* 2026-11-20 (user): "the status should be hidden default. So open if you want" - closed, remembered per device (kolibri.js). *@
+<details class="k-card bs-card bs-status" id="status" data-remember="bs-status">
+    <summary><span class="bs-tag">Status</span>
+    <h2 class="k-card-title">Mange leder efter noget bestemt</h2></summary>
     <p>
         Mange kunder har skrevet, hvad de leder efter. Det tager tid at finde det i kasserne – vi har mange tusind bøger, blade,
         film og cd'er at gå igennem. <b>Dit ønske er noteret.</b> Når vi finder noget, du leder efter, skriver vi til dig.
@@ -31,7 +32,7 @@
     }
     <MyWishes />
     <a class="k-btn k-btn-secondary bs-btn" href="#foelg">Har du ikke et nummer? Skriv dig op</a>
-</section>
+</details>
 
 @code {
     private ITMartinHjem.Domain.BogshoppenWishes.Summary? _w;
