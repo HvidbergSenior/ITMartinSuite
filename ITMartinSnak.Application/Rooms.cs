@@ -119,6 +119,9 @@ public sealed class Rooms
     /// <summary>Only the chat (the new-room template), or the chat with Opgaver and Filer.</summary>
     public bool SetKunChat(string id, bool kunChat) => Update(id, x => x with { KunChat = kunChat });
 
+    /// <summary>The parts this room hides (RoomRules.Parts); the chat always stays.</summary>
+    public bool SetOff(string id, IEnumerable<string>? off) => Update(id, x => x with { Off = RoomRules.CleanParts(off) });
+
     /// <summary>A group's people and topics (Martin pastes them, one per line). Everyone in the room sees the change at once.</summary>
     public bool SetRoster(string id, string? membersText, string? topicsText, string? linksText = null, string? calendarUrl = null)
     {

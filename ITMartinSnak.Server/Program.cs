@@ -208,6 +208,10 @@ app.MapPut("/api/rum/{id}/adresse", (HttpContext c, string id, SlugBody b, Acces
 });
 
 // Only the chat, or the chat with Opgaver and Filer (2026-11-17). Martin only.
+// Single parts on/off (2026-11-20). Martin only.
+app.MapPut("/api/rum/{id}/dele", (HttpContext c, string id, PartsBody b, Access access, Rooms rooms) =>
+    !IsAdmin(c, access) ? Results.StatusCode(403) : rooms.SetOff(id, b.Fra) ? Results.Ok() : Results.NotFound());
+
 app.MapPut("/api/rum/{id}/kunchat", (HttpContext c, string id, KunChatBody b, Access access, Rooms rooms) =>
     !IsAdmin(c, access) ? Results.StatusCode(403) : rooms.SetKunChat(id, b.KunChat) ? Results.Ok() : Results.NotFound());
 
@@ -265,7 +269,7 @@ room.MapGet("", (HttpContext c, string key, Rooms rooms, Access access, IPushSen
             pushKey = push.PublicKey, vaert = HostName, firma = CompanyName, medlemmer = r.Members ?? [], harKode = r.HasCode,
             gruppe = r.Gruppe, om = r.About ?? [], emner = r.Topics ?? [], links = r.Links ?? [],
             harKalender = !string.IsNullOrEmpty(r.CalendarUrl), kalender = IsAdmin(c, access) ? r.CalendarUrl ?? "" : "", adresse = r.Slug,
-            laast = DoorRules.Locked(r), mitNavn = DoorRules.NameOf(r, DeviceHash(c)), kunChat = r.KunChat,
+            laast = DoorRules.Locked(r), mitNavn = DoorRules.NameOf(r, DeviceHash(c)), kunChat = r.KunChat, fra = r.Off ?? [],
         }, web)
         : Results.Json(new { fejl = "Rummet findes ikke (mere)." }, statusCode: 404));
 
@@ -590,6 +594,7 @@ public sealed record RoomBody(string? Titel, string? Kunde, string? Navn, string
     bool Gruppe = false, List<PlannedTaskBody>? Opgaver = null, string? SlutDag = null);
 public sealed record PlannedTaskBody(string? Titel, string? Note, string? Dag, string? Hvornaar);
 public sealed record KunChatBody(bool KunChat);
+public sealed record PartsBody(List<string>? Fra);
 public sealed record InviteBody(string? Link, string? Mail, string? Navn);
 public sealed record RosterBody(string? Medlemmer, string? Emner, string? Links = null, string? Kalender = null);
 public sealed record MessageBody(string? Navn, string? Tekst, string? Endpoint, long? SvarPaa = null, long? Fil = null, string? Rolle = null);

@@ -20,7 +20,8 @@ namespace ITMartinSnak.Domain;
 public sealed record Room(string Id, string Key, string Title, DateTime CreatedAt, DateTime LastAt, DateTime? DoneAt, string CustomerRef,
     List<string>? Members = null, string CodeHash = "", string Slug = "", bool Gruppe = false, Dictionary<string, string>? About = null,
     List<string>? Topics = null, List<RoomLink>? Links = null, string? CalendarUrl = null, string Mail = "", DateTime? MailedAt = null,
-    Dictionary<string, List<Device>>? Claims = null, List<PendingDevice>? Pending = null, bool KunChat = false, string MeltOn = "")
+    Dictionary<string, List<Device>>? Claims = null, List<PendingDevice>? Pending = null, bool KunChat = false, string MeltOn = "",
+    List<string>? Off = null)
 {
     public bool IsDone => DoneAt is not null;
     public bool HasCode => CodeHash.Length > 0;
@@ -55,6 +56,17 @@ public static partial class RoomRules
     }
 
     public const int MaxMembers = 20, MinCode = 6;
+
+    // 2026-11-20 (user: "remove filer and kalender from sparring rummet"): Martin turns single parts of a room off.
+    // The chat is always there. Off = the parts hidden in this room; older rooms read as none.
+    public static readonly string[] Parts = ["opgaver", "ideer", "filer", "personer", "kalender"];
+
+    /// <summary>Only known parts, each once, in the fixed order.</summary>
+    public static List<string> CleanParts(IEnumerable<string>? off)
+    {
+        var set = new HashSet<string>((off ?? []).Select(p => (p ?? "").Trim().ToLowerInvariant()));
+        return Parts.Where(set.Contains).ToList();
+    }
 
     public static Room New(string? title, string? customerRef, DateTime nowUtc, string? members = null, string? code = null, string? slug = null,
         bool group = false)

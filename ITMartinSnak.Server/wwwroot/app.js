@@ -390,6 +390,22 @@
             f.append(lbl, row, hint);
             ops.appendChild(f);
 
+            const dele = document.createElement('fieldset'); dele.className = 'rum-dele';
+            const lg = document.createElement('legend'); lg.className = 'k-label'; lg.textContent = 'Det viser rummet (chatten er der altid)'; dele.appendChild(lg);
+            const names = { opgaver: 'Opgaver', ideer: 'Idéer', filer: 'Filer', personer: 'Personer', kalender: 'Kalender' };
+            for (const p of Object.keys(names)) {
+                const l = document.createElement('label'); l.className = 'rum-del';
+                const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !((room.fra || []).includes(p));
+                cb.onchange = async () => {
+                    const off = Object.keys(names).filter(k => !dele.querySelector('input[data-p="' + k + '"]').checked);
+                    try { await api('PUT', '/api/rum/' + room.id + '/dele', { fra: off }); room.fra = off; calTabs(); renderRoster(); }
+                    catch (err) { if (err.message !== 'login') flash(err.message); cb.checked = !cb.checked; }
+                };
+                cb.dataset.p = p;
+                l.append(cb, ' ' + names[p]); dele.appendChild(l);
+            }
+            ops.appendChild(dele);
+
             const btns = document.createElement('div'); btns.className = 'rum-ops-knapper';
             if (!room.gruppe) {   // only the chat, or the chat with Opgaver and Filer
                 const t = document.createElement('button'); t.type = 'button'; t.className = 'k-btn k-btn-sm';
@@ -1609,6 +1625,21 @@
         }
         if (($('tabKal').hidden && !$('viewKal').hidden) || ($('tabOpg').hidden && !$('viewOpg').hidden)) show(hasCal() ? 'kal' : 'chat');
         if (!hasCal()) $('naesteBar').hidden = true;
+        applyOff();
+    }
+
+    // 2026-11-20: single parts turned off in this room (Rummets indstillinger). The chat always stays.
+    const partTabs = { opgaver: ['tabOpg', 'opg'], ideer: ['tabIde', 'ide'], filer: ['tabFil', 'fil'], personer: ['tabHold', 'hold'], kalender: ['tabDato', 'dato'] };
+    function applyOff() {
+        const off = (room && room.fra) || [];
+        let gone = false;
+        for (const p of off) {
+            const pt = partTabs[p]; if (!pt) continue;
+            $(pt[0]).hidden = true;
+            if (!$('view' + pt[1][0].toUpperCase() + pt[1].slice(1)).hidden) gone = true;
+        }
+        if (off.includes('kalender')) $('tabKal').hidden = true;
+        if (gone) show('chat');
     }
 
     const kalDag = new Intl.DateTimeFormat('da-DK', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -1777,6 +1808,7 @@
         const om = (room && room.om) || {};
         $('tabHold').hidden = people.length === 0;
         $('tabHold').textContent = isGroup() ? 'Holdet' : 'Personer';
+        applyOff();
         if (!people.length && !$('viewHold').hidden) show('chat');
         $('holdIntro').textContent = isGroup() ? people.length + ' på holdet. Skriv til dem i chatten, eller del en fil under Filer.'
             : people.length + ' i rummet. Tryk på dit eget kort og skriv, hvad du vil dele – telefon, mail eller lidt om dig. Kun dem i rummet kan se det.';

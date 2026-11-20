@@ -375,3 +375,7 @@ body { background: var(--k-bg); color: var(--k-text); }
 .adresse-pre { color: var(--k-muted); font-size: 14px; white-space: nowrap; }
 .rum-ops-knapper { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .rum-ops-knapper .slet-rum { margin-left: auto; }
+
+.rum-dele { border: 0; padding: 0; margin: 12px 0 0; display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.rum-dele legend { padding: 0; margin-bottom: 4px; width: 100%; }
+.rum-del { display: inline-flex; align-items: center; gap: 6px; font-size: 15px; cursor: pointer; }

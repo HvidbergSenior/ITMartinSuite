@@ -131,6 +131,19 @@ public class GroupTests
         rooms.SetSlug("nope", "x1").Should().Be("Rummet findes ikke.");
     }
 
+    // 2026-11-20 (user: "remove filer and kalender from sparring rummet"): single parts off; unknown names are dropped.
+    [Test]
+    public void Single_parts_of_a_room_can_be_turned_off_and_on_again()
+    {
+        var rooms = NewRooms();
+        var r = rooms.Create("Sparring", members: "Michael, Martin");
+        rooms.SetOff(r.Id, ["Kalender", "filer", "filer", "chat", "nope"]).Should().BeTrue();
+        rooms.ByKey(r.Key)!.Off.Should().Equal("filer", "kalender");
+        rooms.SetOff(r.Id, []).Should().BeTrue();
+        rooms.ByKey(r.Key)!.Off.Should().BeEmpty();
+        rooms.SetOff("nope", ["filer"]).Should().BeFalse();
+    }
+
     // ---- rooms (2026-11-04) ----
 
     private Rooms NewRooms(TimeProvider? clock = null)
