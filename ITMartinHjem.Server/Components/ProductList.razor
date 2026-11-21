@@ -54,7 +54,8 @@
         <h2 class="bs-family-name">@Family.Name</h2>
         <p class="k-help">@Family.About Tryk på et billede for at se det stort. Under <b>Mere om den</b> står @(Prices.On ? "stand og hvad lignende koster andre steder" : "mere om standen").</p>
         @* The free helpers for this shop (2026-11-03): a button when it is public, else the same button disabled with "Kommer snart" (user: "Let the be diabled but visible now"). *@
-        @if (Family.Helpers is { Length: > 0 } helpers)
+        @* HIDDEN 2026-11-21 (user: "On bogshoppen remove gratis snebold part... kommer snart"). Set ShowHelpers = true to show again. *@
+        @if (ShowHelpers && Family.Helpers is { Length: > 0 } helpers)
         {
             <div class="bs-helpers">
                 <h3>Gratis snebold</h3>
@@ -286,6 +287,7 @@
         </div>
     };
 
+    private const bool ShowHelpers = false;   // the "Gratis snebold" box in each shop (hidden 2026-11-21)
     private static readonly System.Globalization.CultureInfo Da = new("da-DK");
     /// <summary>The shop this list is (bogshoppen.dk/film); null = /produkter, the boxes for all shops.</summary>
     [Parameter] public ShopFamily? Family { get; set; }
