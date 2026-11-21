@@ -1,0 +1,118 @@
+@page "/hurtig"
+@inject ItemUseCases Items
+@inject ItemPhotoUseCases ItemPhotos
+@inject VareinfoLinks Vareinfo
+
+@* Hurtig gennemgang (user 2026-11-21: "rotate pictures and correct the difficult ones... I need an easy way... 500 svære one by
+   one will take a while"): 20 difficult ones at once - picture with Drej, the name in the card, OK / Kassér each, and "Alle på
+   siden er OK". OK = saved as it stands (sure from now on, like Gem). Tingshoppen and Strikkeshoppen are left out (user). *@
+<PageTitle>Hurtig gennemgang – Lager</PageTitle>
+
+<section class="k-card">
+    <h1 class="k-card-title">Hurtig gennemgang</h1>
+    <p><b>Gør dette:</b> se på billederne. Ret navnet, hvor det er forkert, drej billedet, hvis det ligger skævt, og tryk <b>OK</b> – eller <b>Kassér</b>, hvis det ikke er en rigtig ting. Er resten rigtige, så tryk <b>Alle på siden er OK</b>.
+       <b>Du får:</b> @PerPage ad gangen i stedet for én.</p>
+    <p class="k-help">@(_left is null ? "Henter …" : $"{_left} svære tilbage (uden Tingshoppen og Strikkeshoppen).") Kassér gemmes som Ikke købt – intet slettes.</p>
+    @if (_msg is not null) { <p class="lg-ok" role="status">@_msg</p> }
+    @if (_err is not null) { <p class="lg-warn" role="alert">⚠ @_err</p> }
+</section>
+
+@if (_page.Count > 0)
+{
+    <div class="lg-quick">
+        @foreach (var i in _page)
+        {
+            <article class="k-card lg-quick-card @(_done.Contains(i.Id) ? "lg-quick-done" : "")">
+                <a href="@PhotoUrl(i)" target="_blank" rel="noopener"><img class="lg-quick-photo" src="@PhotoUrl(i)" alt="" loading="lazy" /></a>
+                <span class="k-small">@i.Kind · nr. @i.Id · @((int)Math.Round(i.Confidence * 100)) % sikker</span>
+                <input class="k-input" @bind="i.Title" aria-label="Titel på @i.Id" />
+                @if (WithPerson(i.Kind)) { <input class="k-input" @bind="i.Artist" placeholder="Forfatter / kunstner" aria-label="Forfatter eller kunstner på @i.Id" /> }
+                @if (WithSeries(i.Kind)) { <span class="lg-quick-row"><input class="k-input" @bind="i.Series" placeholder="Serie" aria-label="Serie på @i.Id" /><input class="k-input lg-quick-nr" @bind="i.Number" placeholder="Nr." aria-label="Nummer på @i.Id" /></span> }
+                <span class="lg-quick-row">
+                    @if (i.ItemPhoto != "") { <button class="k-btn k-btn-sm k-btn-secondary" @onclick="() => Rotate(i)" title="Drej en kvart omgang med uret">Drej ↻</button> }
+                    <button class="k-btn k-btn-sm k-btn-primary" @onclick="() => Ok(i)">OK</button>
+                    @if (Admin) { <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => Discard(i)">Kassér</button> }
+                    <a class="k-btn k-btn-sm k-btn-ghost" href="/vare/@i.Id?ret=1" title="Alle felter og AI-hjælp">Mere</a>
+                </span>
+            </article>
+        }
+    </div>
+    <section class="k-card">
+        <button class="k-btn k-btn-primary lg-big" disabled="@_busy" @onclick="AllOk">Alle på siden er OK – næste @PerPage</button>
+    </section>
+}
+else if (_left == 0)
+{
+    <section class="k-card"><p class="lg-ok">Færdig – der er ingen svære tilbage.</p></section>
+}
+
+@code {
+    [CascadingParameter] public LagerUser? Me { get; set; }
+    private bool Admin => Me is { IsAdmin: true };
+
+    public const int PerPage = 20;
+    private static readonly HashSet<string> LeftOut = [Kinds.Ting, Kinds.Strik];
+    private List<Item> _page = [];
+    private readonly HashSet<int> _done = [];
+    private readonly Dictionary<int, int> _photoVer = [];
+    private int? _left;
+    private bool _busy;
+    private string? _msg, _err;
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    private async Task Load()
+    {
+        var ids = await Items.UnsureAsync();
+        var all = (await Items.ByIdsAsync(ids)).Where(i => !LeftOut.Contains(i.Kind)).ToList();
+        _left = all.Count;
+        _done.Clear();
+        // The order of UnsureAsync (the worst first).
+        var order = ids.Select((id, n) => (id, n)).ToDictionary(x => x.id, x => x.n);
+        _page = all.OrderBy(i => order.GetValueOrDefault(i.Id)).Take(PerPage).ToList();
+    }
+
+    private string PhotoUrl(Item i) => i.ItemPhoto != "" ? $"/varefoto/{i.Id}?v={_photoVer.GetValueOrDefault(i.Id)}"
+        : i.PhotoId is { } pid ? Vareinfo.Photo(pid) : "";
+
+    private static bool WithPerson(string kind) => kind is Kinds.Bog or Kinds.Cd or Kinds.Vinyl or Kinds.Kassette;
+    private static bool WithSeries(string kind) => kind is Kinds.Tegneserie or Kinds.Superhelte or Kinds.AndersAnd or Kinds.Jumbobog;
+
+    private async Task Rotate(Item i)
+    {
+        _err = await ItemPhotos.RotateAsync(i.Id, 90);
+        if (_err is null) _photoVer[i.Id] = _photoVer.GetValueOrDefault(i.Id) + 1;
+    }
+
+    private async Task Ok(Item i)
+    {
+        _err = null;
+        try { await Items.SaveAsync(i); _done.Add(i.Id); _msg = $"Gemt: {i.Title}"; }
+        catch (Exception e) when (e is LagerException or InvalidOperationException) { _err = e.Message; }
+    }
+
+    private async Task Discard(Item i)
+    {
+        if (!Admin) return;
+        await Items.RemoveAsync(i.Id);
+        _done.Add(i.Id);
+        _msg = $"Kasseret: {i.Title} (Ikke købt).";
+    }
+
+    private async Task AllOk()
+    {
+        _busy = true; _err = null;
+        try
+        {
+            var saved = 0;
+            foreach (var i in _page.Where(i => !_done.Contains(i.Id)))
+            {
+                try { await Items.SaveAsync(i); saved++; }
+                catch (Exception e) when (e is LagerException or InvalidOperationException) { _err = $"{i.Title}: {e.Message}"; }
+            }
+            _msg = $"{saved} gemt. Her er de næste.";
+            await Load();
+        }
+        finally { _busy = false; }
+    }
+}

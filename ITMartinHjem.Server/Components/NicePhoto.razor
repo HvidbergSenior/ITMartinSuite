@@ -8,7 +8,7 @@
 <span class="hj-head-photo">
     @if (_pick is { } p)
     {
-        <a href="/varer/foto/@p.Id" target="_blank" rel="noopener" title="@p.Line"><img src="/varer/foto/@p.Id" alt="@p.Line" width="150" height="150" /></a>
+        <a href="/varer/foto/@p.Id" target="_blank" rel="noopener" title="@p.Line"><img src="/varer/foto/@p.Id" alt="@p.Line" width="150" height="150" onerror="this.onerror=null;this.src='@_fallback.Src'" /></a>
         <span class="hj-head-place">@Short(p.Line)</span>
     }
     else
@@ -39,7 +39,8 @@
     {
         if (_cache is { } c && DateTime.UtcNow - c.At < KeepFor) return c.Items;
         var (market, _) = await Shop.MarketAsync(ShopDeals.RareName, null, null, "", ShopSorts.Dearest, 0);
-        var list = (market?.Items ?? []).Where(i => i.HasPhoto).Select(i => new Pick(i.Id, i.Line)).Take(24).ToList();
+        // Not Tingshoppen or Strikkeshoppen (user 2026-11-21 "ignore all that has to do with Tingshoppen", "also ignore strikkeshoppen").
+        var list = (market?.Items ?? []).Where(i => i.HasPhoto && i.Kind is not (Kinds.Ting or Kinds.Strik)).Select(i => new Pick(i.Id, i.Line)).Take(24).ToList();
         if (market is not null) _cache = (DateTime.UtcNow, list);   // Salg down = try again next view
         return list;
     }

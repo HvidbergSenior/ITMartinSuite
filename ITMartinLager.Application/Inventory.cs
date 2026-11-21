@@ -51,6 +51,9 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
     // Worst first, and the real count (2026-11-16: it said 500 - the cap - while there were 586).
     public Task<List<int>> UnsureAsync(CancellationToken ct = default) => items.UnsureIdsAsync(10_000, ct);
 
+    /// <summary>Many things at once (Hurtig gennemgang, 2026-11-21).</summary>
+    public Task<List<Item>> ByIdsAsync(IReadOnlyCollection<int> ids, CancellationToken ct = default) => items.ByIdsAsync(ids.ToList(), ct);
+
     /// <summary>The hopeless readings (below Readings.HopelessBelow) that nobody marked rare or priced - "Kassér de værste".</summary>
     public async Task<List<Item>> HopelessAsync(CancellationToken ct = default) =>
         (await items.ByIdsAsync(await items.UnsureIdsAsync(10_000, ct), ct))
