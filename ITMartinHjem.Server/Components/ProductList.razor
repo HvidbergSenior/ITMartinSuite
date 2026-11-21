@@ -55,6 +55,16 @@
     {
         <a class="k-btn k-btn-sm bs-back" href="/produkter">← Alle butikker</a>
         <h2 class="bs-family-name">@Family.Name</h2>
+        @* Each shop's own invitation (2026-11-21) - not one box on top of all shops. *@
+        @if (ShopInvites.For(Family.Slug) is { } invite)
+        {
+            <details class="bs-used bs-invite" data-remember="bs-invite-@Family.Slug" open>
+                <summary><b>@invite.Title</b></summary>
+                <p>@invite.Text</p>
+                @if (invite.Loan) { <ConsoleLoanBox /> }
+                @if (invite.Join) { <a class="k-btn k-btn-primary bs-btn" href="https://itmartin.dk/chat-med-martin">Vil du være med? Skriv til mig</a> }
+            </details>
+        }
         <p class="k-help">@Family.About Tryk på et billede for at se det stort. Under <b>Mere om den</b> står @(Prices.On ? "stand og hvad lignende koster andre steder" : "mere om standen").</p>
         @* The free helpers for this shop (2026-11-03): a button when it is public, else the same button disabled with "Kommer snart" (user: "Let the be diabled but visible now"). *@
         @* HIDDEN 2026-11-21 (user: "On bogshoppen remove gratis snebold part... kommer snart"). Set ShowHelpers = true to show again. *@
@@ -88,7 +98,6 @@
         <p><b>Derfor giver vi ikke penge tilbage.</b> Er der noget galt, du ikke kunne se: tag et billede, skriv hvad der er galt, og send det til os. Så får du en anden ting i bytte.</p>
         <p class="k-help">Dine rettigheder efter loven gælder altid.</p>
     </details>
-    @if (Family is null || Family == ShopFamilies.Film || Family == ShopFamilies.Spil) { <ConsoleLoanBox /> }
 
     <form class="bs-search" @onsubmit="Search" @onsubmit:preventDefault>
         <input class="k-input" type="search" aria-label="Søg efter en titel" placeholder="@(Family is null ? "Søg i alle butikker, fx Barnaby" : $"Søg i {Family.Name}")" @bind="_text" />

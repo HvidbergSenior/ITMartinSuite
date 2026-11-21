@@ -115,3 +115,15 @@ public class WishMailTests
         body.Should().Contain("Du leder efter: Bones DVD").And.Contain("Sæson 2").And.Contain("https://bogshoppen.dk");
     }
 }
+
+public class ShopInviteTests
+{
+    [Test]
+    public void Each_shop_has_its_own_invitation()
+    {
+        ITMartinHjem.Domain.ShopInvites.For("film")!.Loan.Should().BeTrue();
+        ITMartinHjem.Domain.ShopInvites.For("boeger")!.Title.Should().Be("Skal vi lave en bogklub?");
+        ITMartinHjem.Domain.ShopInvites.For("musik")!.Join.Should().BeTrue();
+        ITMartinHjem.Domain.ShopInvites.For("strik").Should().BeNull();
+    }
+}
