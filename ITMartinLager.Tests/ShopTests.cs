@@ -115,7 +115,7 @@ public class StockForSaleTests
         Shop.DealFor(new Item { Kind = Kinds.Dvd, Title = "Heat", Confidence = 1 }, [], ShopDeals.All).Should().Be("", "not searched yet");
         Shop.DealFor(new Item { Kind = Kinds.Bog, Title = "Mort", Confidence = 0.3, PricesAt = now }, [], ShopDeals.All).Should().Be("", "unsure - a person looks");
         Shop.DealFor(new Item { Kind = Kinds.Cd, Title = "Abbey Road", Confidence = 1, PricesAt = now }, [], ShopDeals.All).Should().Be(ShopDeals.Cds.Name);
-        Shop.DealFor(new Item { Kind = Kinds.Cd, Title = "Abbey Road", Confidence = 1, PricesAt = now }, []).Should().Be("", "no deals in use");
+        Shop.DealFor(new Item { Kind = Kinds.Cd, Title = "Abbey Road", Confidence = 1, PricesAt = now }, []).Should().Be(ShopDeals.Cds.Name, "the CD deal is on since 2026-11-21");
         Shop.DealFor(new Item { Kind = Kinds.AndersAnd, Title = "Anders And", Confidence = 0.3 }, []).Should().Be(ShopDeals.PerPiece.Name, "every blad is 3 kr");
         Shop.DealFor(new Item { Kind = Kinds.AndersAnd, Title = "Anders And", Confidence = 0.3, PriceHint = 40 }, [], ShopDeals.All).Should().Be(ShopDeals.Blade.Name, "unsure blad = the Blade bin");
         Shop.Listed(new Item { Kind = Kinds.AndersAnd, Title = "Anders And", Confidence = 0.3, Status = Statuses.Lager, Deal = ShopDeals.Blade.Name }).Should().BeTrue();
