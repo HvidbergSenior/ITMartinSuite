@@ -30,11 +30,7 @@
         <h3 class="k-card-title">@e.Number. @e.Title</h3>
         <p><b>@e.Make</b> @e.More</p>
         <p><b>Hvorfor?</b> @e.Why</p>
-        @if (e.Snebolde.Count > 0)
-        {
-            <p class="k-help">Snebolde, du kan prøve:</p>
-            <div class="hj-offer-btns">@foreach (var (n, h) in e.Snebolde) { <a class="k-btn k-btn-sm" href="@h">@n</a> }</div>
-        }
+        @* "Snebolde, du kan prøve" buttons HIDDEN 2026-11-21 (user: the snebolde should not be free and openable). Data stays in News/LOF evenings. *@
         <p class="k-help">Læs mere:</p>
         <div class="hj-offer-btns">@foreach (var (n, h) in e.Read) { <a class="k-btn k-btn-sm k-btn-ghost" href="@h">@n</a> }</div>
     </section>
