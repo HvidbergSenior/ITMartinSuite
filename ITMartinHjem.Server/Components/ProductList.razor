@@ -34,9 +34,12 @@
                 <div class="bs-market-in">
                     <span>Logget ind med @ShowCode(Customer)</span>
                     <button type="button" class="k-btn k-btn-primary" @onclick="() => _bundleOpen = !_bundleOpen">Mit bundt (@Drafts.Of(Customer).Count)</button>
+                    @* Haggling (2026-11-21): the bids and bundles they sent, and the prices we answered. *@
+                    <button type="button" class="k-btn" @onclick="() => _mineOpen = !_mineOpen">@MineLabel</button>
                     <form method="post" action="/marked/ud" style="display:inline"><input type="hidden" name="tilbage" value="@BackPath" /><button class="k-btn k-btn-ghost k-btn-sm" type="submit">Log ud</button></form>
                 </div>
                 @if (_bundleOpen) { @BundlePanel }
+                @if (_mineOpen) { @MinePanel }
             }
         </div>
     }
@@ -74,6 +77,17 @@
     {
         <p class="k-help">Vælg en butik – eller søg i dem alle.</p>
     }
+
+    @* Like a flea market (user 2026-11-21): "products are new and used ... risk of being not perfect ... take a picture ...
+       another thing in return", "we do not pay money back, but you are allowed to see, feel and try it out before", "even see the
+       products live on my stream", "you see what it is and we find prices". The law line stays: ITMartin sells as a business. *@
+    <details class="bs-used" data-remember="bs-used">
+        <summary><b>Se det, før du køber</b></summary>
+        <p>Som på et loppemarked: du ser tingen, før du køber. Kom og se, rør og prøv den – eller se den live på min stream. Så finder vi prisen sammen.</p>
+        <p>Vi sælger både nye og brugte ting. En brugt ting har haft en ejer før, så der kan være slid, en ridse eller et mærke. Det står under <b>Mere om den</b>, hvis vi har set noget.</p>
+        <p><b>Derfor giver vi ikke penge tilbage.</b> Er der noget galt, du ikke kunne se: tag et billede, skriv hvad der er galt, og send det til os. Så får du en anden ting i bytte.</p>
+        <p class="k-help">Dine rettigheder efter loven gælder altid.</p>
+    </details>
 
     <form class="bs-search" @onsubmit="Search" @onsubmit:preventDefault>
         <input class="k-input" type="search" aria-label="Søg efter en titel" placeholder="@(Family is null ? "Søg i alle butikker, fx Barnaby" : $"Søg i {Family.Name}")" @bind="_text" />
@@ -187,7 +201,11 @@
     private int? _bidOpen;
     private string _bidText = "", _bundleKr = "";
     private readonly Dictionary<int, string> _note = [];
-    private bool _bundleOpen;
+    private bool _bundleOpen, _mineOpen;
+    private List<ShopBundleView> _mine = [];
+    private readonly Dictionary<int, string> _mineKr = [];
+    private string? _mineMsg;
+    private string MineLabel => _mine.Count(m => m.PriceForYou is not null && m.Status is not ("Aftalt" or "Afvist")) is var n and > 0 ? $"Mine bud ({n} svar)" : "Mine bud";
     private string? _bundleMsg;
     private string BackPath => new Uri(Nav.Uri).PathAndQuery.Split("markedfejl=")[0].TrimEnd('?', '&');
     private static string ShowCode(string c) => c.Length == 8 ? c[..4] + " " + c[4..] : c;
@@ -197,7 +215,53 @@
         if (!Visibility.Customers || Customer == "") return;
         _marked = await Market.MineAsync(Customer);
         _myBids = await Market.MyBidsAsync(Customer);
+        _mine = await Market.MyBundlesAsync(Customer);
     }
+
+    private async Task ReplyMine(int id, bool accept, bool reject)
+    {
+        int? kr = int.TryParse(new string(_mineKr.GetValueOrDefault(id, "").Where(char.IsDigit).ToArray()), out var k) ? k : null;
+        var r = await Market.ReplyAsync(Customer, id, accept, kr, reject);
+        _mineMsg = r.Ok ? (accept ? "Aftalt! Vi skriver til dig om, hvordan du får tingene." : reject ? "Ok – det er lukket." : "Dit nye bud er sendt.") : r.Error;
+        _mineKr.Remove(id);
+        _mine = await Market.MyBundlesAsync(Customer);
+    }
+
+    private static string MineText(ShopBundleView m) => m.Status switch
+    {
+        "Aftalt" => $"Aftalt: {m.AgreedKr} kr.",
+        "Afvist" => "Lukket.",
+        _ when m.PriceForYou is { } p => m.FromShop ? $"Vores tilbud til dig: {p} kr for det hele." : $"Vores svar: {p} kr.",
+        _ => $"Dit bud: {m.YourKr} kr – vi svarer snart.",
+    };
+
+    private RenderFragment MinePanel => __builder =>
+    {
+        <div class="bs-bundle">
+            <h3>Mine bud</h3>
+            @if (_mine.Count == 0) { <p>Du har ikke givet bud endnu. Tryk <b>Dit bud</b> ved en ting – eller lav et bundt.</p> }
+            <ul class="bs-mine">
+                @foreach (var m in _mine)
+                {
+                    <li>
+                        <b>@(m.Lines.Count == 1 ? m.Lines[0] : $"{m.Lines.Count} ting")</b>
+                        @if (m.Lines.Count > 1) { <span class="k-help">@string.Join(" · ", m.Lines)</span> }
+                        <span>@MineText(m)</span>
+                        @if (m.PriceForYou is { } price && m.Status is not ("Aftalt" or "Afvist"))
+                        {
+                            <span class="bs-market-row">
+                                <button type="button" class="k-btn k-btn-primary k-btn-sm" @onclick="() => ReplyMine(m.Id, true, false)">Ja til @price kr</button>
+                                <input class="k-input" inputmode="numeric" placeholder="Dit bud (kr)" aria-label="Dit nye bud" @bind="_mineKr[m.Id]" />
+                                <button type="button" class="k-btn k-btn-sm" @onclick="() => ReplyMine(m.Id, false, false)">Byd</button>
+                                <button type="button" class="k-btn k-btn-ghost k-btn-sm" @onclick="() => ReplyMine(m.Id, false, true)">Nej tak</button>
+                            </span>
+                        }
+                    </li>
+                }
+            </ul>
+            @if (_mineMsg is { } mm) { <p class="bs-market-note" role="status">@mm</p> }
+        </div>
+    };
 
     private async Task Mark(int id)
     {
@@ -217,8 +281,9 @@
     {
         var digits = new string(_bidText.Where(char.IsDigit).ToArray());
         int? kr = int.TryParse(digits, out var k) ? k : null;
-        var r = await Market.BidAsync(Customer, id, kr);
-        if (r.Ok && kr is { } got) { _myBids[id] = got; _bidOpen = null; _bidText = ""; _note[id] = $"Dit bud er gemt: højst {got} kr. Ingen kan se det – auktionen byder for dig."; }
+        // "Dit bud" (2026-11-21) goes into the same back-and-forth as Mit bundt - Martin answers on Salg's Bud page.
+        var r = await Market.ItemOfferAsync(Customer, id, kr);
+        if (r.Ok && kr is { } got) { _bidOpen = null; _bidText = ""; _note[id] = $"Dit bud på {got} kr er sendt. Du ser vores svar under Mine bud."; _mine = await Market.MyBundlesAsync(Customer); }
         else _note[id] = r.Error ?? "Det virkede ikke.";
     }
 
@@ -251,14 +316,14 @@
         <div class="bs-market-btns">
             <button type="button" class="k-btn k-btn-sm @(marked ? "is-on" : "")" aria-pressed="@marked" @onclick="() => Mark(i.Id)">@(marked ? "Interessant ✓" : "Interessant")</button>
             <button type="button" class="k-btn k-btn-sm @(inBundle ? "is-on" : "")" aria-pressed="@inBundle" @onclick="() => ToggleBundle(i.Id)">@(inBundle ? "I bundtet ✓" : "Læg i bundt")</button>
-            <button type="button" class="k-btn k-btn-sm" @onclick="() => OpenBid(i.Id)">@(hasBid ? $"Dit bud: {mine} kr" : "Byd")</button>
+            <button type="button" class="k-btn k-btn-sm" @onclick="() => OpenBid(i.Id)">Dit bud</button>
         </div>
         @if (_bidOpen == i.Id)
         {
             <div class="bs-market-bid">
-                <label class="k-help" for="bud-@i.Id">Det højeste, du vil give (kr) – ingen kan se det:</label>
+                <label class="k-help" for="bud-@i.Id">Hvad vil du give (kr)?</label>
                 <span class="bs-market-row"><input class="k-input" id="bud-@i.Id" inputmode="numeric" @bind="_bidText" placeholder="fx 80" />
-                <button type="button" class="k-btn k-btn-primary" @onclick="() => SendBid(i.Id)">Gem bud</button></span>
+                <button type="button" class="k-btn k-btn-primary" @onclick="() => SendBid(i.Id)">Send bud</button></span>
             </div>
         }
         @if (_note.TryGetValue(i.Id, out var n)) { <p class="k-help bs-market-note" role="status">@n</p> }
@@ -654,6 +719,13 @@
                 {
                     <p class="bs-shop-noprice">@ShopDeals.NoPriceName</p>
                 }
+                @* Every thing with a reference (user 2026-11-21: "found on Faraos -> link, your offer"): the buyer sees where and what,
+                   and gives their own bid - also while our own prices are hidden. *@
+                @if ((Prices.On || Visibility.Customers) && !i.ForShow && i.Deal == "" && i.Reference is { } seen)
+                {
+                    <p class="bs-shop-seen">Fundet på <a href="@seen.Url" target="_blank" rel="noopener nofollow">@seen.Source: @seen.Kr kr@(seen.IsNew ? " (ny)" : "")</a></p>
+                    @if (Visibility.Customers && Customer == "") { <a class="k-help" href="#marked">Log ind og giv dit bud</a> }
+                }
                 @if (Visibility.Customers && Customer != "" && !i.ForShow) { @MarketButtons(i) }
                 <details class="bs-shop-more" data-remember="produkt-@i.Id">
                     <summary>Mere om den</summary>
@@ -665,10 +737,6 @@
                         <p class="k-help">Vi undersøger prisen. Den kan ikke købes endnu.</p>
                     }
                     @* Links only on things with their own price (user 2026-11-02: "only if rare blad there should be links"). *@
-                    @if (Prices.On && i.Deal == "" && i.Reference is { } r)
-                    {
-                        <a class="k-btn k-btn-sm bs-shop-ref" href="@r.Url" target="_blank" rel="noopener nofollow">Lignende koster @r.Kr kr på @r.Source@(r.IsNew ? " (ny)" : "")</a>
-                    }
                     @if (i.Interest != "") { <p class="bs-shop-interest">@i.Interest</p> }
                     @if (i.Interested > 0) { <p class="k-help">@i.Interested er interesseret</p> }
                     @* A "vurderes" thing shows no other sites until a person has set the price (2026-11-03). *@

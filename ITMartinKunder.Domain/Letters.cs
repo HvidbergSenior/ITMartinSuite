@@ -56,5 +56,19 @@ public static class Letters
          ITMartin og Bogshoppen · ITMartin@Mensa.dk · 31 19 47 30
          """);
 
+    /// <summary>A message the customer asked for (an "ønske" found, 2026-11-21): the text from the app, then who we are and
+    /// the afmeld link - the same footer as every letter.</summary>
+    public static string NotifyMail(Customer c, string body, string kunderSite) => $"""
+        Hej {(string.IsNullOrWhiteSpace(c.Name) ? "" : c.Name.Trim())}
+
+        {body.Trim()}
+
+        Du får den her mail, fordi du selv har skrevet det på din ønskeliste. Vil du ikke have flere, så slet ønsket – eller tryk her for at melde dig helt fra: {kunderSite.TrimEnd('/')}/afmeld/{c.UnsubscribeToken}
+
+        Mange hilsner
+        Martin og Rico
+        ITMartin og Bogshoppen · ITMartin@Mensa.dk · 31 19 47 30
+        """;
+
     public static CustomerEvent Sent(string key, string subject, DateTime utcNow) => CustomerEvent.Of(EventKinds.Mailed, "Kunder", key, subject, 0, utcNow);
 }

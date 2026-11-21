@@ -58,6 +58,28 @@ public class WishTests
         public Task RemoveAsync(string customer, int id, CancellationToken ct = default) { _w.RemoveAll(w => w.Customer == customer && w.Id == id); return Task.CompletedTask; }
         public Task<HashSet<int>> SeenAsync(string customer, CancellationToken ct = default) => Task.FromResult(_seen.Where(s => s.C == customer).Select(s => s.Id).ToHashSet());
         public Task MarkSeenAsync(string customer, IEnumerable<int> itemIds, CancellationToken ct = default) { _seen.AddRange(itemIds.Select(i => (customer, i))); return Task.CompletedTask; }
+        public readonly List<(string C, int Id)> Mailed = [];
+        public Task<List<string>> CustomersAsync(CancellationToken ct = default) => Task.FromResult(_w.Select(w => w.Customer).Distinct().ToList());
+        public Task<HashSet<int>> MailedAsync(string customer, CancellationToken ct = default) => Task.FromResult(Mailed.Where(s => s.C == customer).Select(s => s.Id).ToHashSet());
+        public Task MarkMailedAsync(string customer, IEnumerable<int> itemIds, CancellationToken ct = default) { Mailed.AddRange(itemIds.Select(i => (customer, i))); return Task.CompletedTask; }
+    }
+
+    private sealed class CountingNotifier : ICustomerNotifier
+    {
+        public int Sent;
+        public Task<bool> NotifyAsync(string code, string subject, string body, CancellationToken ct = default) { Sent++; return Task.FromResult(true); }
+    }
+
+    [Test]
+    public async Task A_found_thing_is_mailed_once()
+    {
+        var store = new MemoryWishes();
+        var uc = new WishUseCases(store, new OneShop());
+        await uc.AddAsync("11112222", "Bones");
+        var n = new CountingNotifier();
+        (await uc.MailFoundAsync(n, "https://bogshoppen.dk")).Should().Be(1);
+        (await uc.MailFoundAsync(n, "https://bogshoppen.dk")).Should().Be(0);   // nothing new
+        n.Sent.Should().Be(1);
     }
 
     // Only SearchAsync is used; the shop answers "Bones" with a DVD and a Blu-ray.
@@ -79,5 +101,17 @@ public class WishTests
         public Task<ShopOverview> OverviewAsync(int perShelf, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<ShopQuote> QuoteAsync(IReadOnlyList<int> itemIds, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<(string? Url, string? Error)> BuyBasketAsync(IReadOnlyList<int> itemIds, string siteBase, CancellationToken ct = default) => throw new NotImplementedException();
+    }
+}
+
+// The wish mail (2026-11-21): one mail, the things under the wish they fit, no ads.
+public class WishMailTests
+{
+    [Test]
+    public void One_mail_lists_the_found_things_under_each_wish()
+    {
+        var (subject, body) = ITMartinHjem.Domain.WishRules.Mail([("Bones DVD", "Bones · Sæson 1 · DVD", 3401), ("Bones DVD", "Bones · Sæson 2 · DVD", 3402)], "https://bogshoppen.dk");
+        subject.Should().Be("Vi har fået 2 ting, du leder efter");
+        body.Should().Contain("Du leder efter: Bones DVD").And.Contain("Sæson 2").And.Contain("https://bogshoppen.dk");
     }
 }

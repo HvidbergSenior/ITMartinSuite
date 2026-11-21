@@ -686,6 +686,16 @@ public static partial class Pricing
     public static readonly string[] ClassifiedAds = ["DBA", "GulogGratis"];
     public static readonly string[] MusicKinds = [Kinds.Cd, Kinds.Vinyl, Kinds.Kassette];
 
+    /// <summary>"Én høj annonce" (user 2026-11-21: "get all products where ONE ad shows high price"): our suggestion rests on
+    /// one counted used listing only, and that listing is at least 2x the standard price of its kind (Shop.StandardFor, else
+    /// MinimumKr). A person decides; the buyer still sees the listing and can bid. Own price, rare and deal things are left out.</summary>
+    public static bool OneHighAd(Item i, IEnumerable<PriceFind> finds)
+    {
+        if (i.PriceHint is not > 0 || i.Price is > 0 || i.Rare || i.Deal != "") return false;
+        var counted = finds.Where(f => !f.Similar && !f.IsNew && f.Kr > 0 && Counts(f.Source, i.Kind)).ToList();
+        return counted.Count == 1 && counted[0].Kr >= 2 * (Shop.StandardFor(i.Kind, i.Category) ?? MinimumKr);
+    }
+
     /// <summary>Whether a site's asking prices count in our price for this kind.</summary>
     public static bool Counts(string source, string kind) =>
         source == "Discogs" ? MusicKinds.Contains(kind) : !NotForNormal.Contains(source);

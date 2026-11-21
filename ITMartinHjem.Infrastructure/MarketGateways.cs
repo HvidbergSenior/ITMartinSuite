@@ -50,6 +50,23 @@ public sealed class SalgOfferGateway(HttpClient http) : IOfferGateway
         res.EnsureSuccessStatusCode();
         return (await res.Content.ReadFromJsonAsync<ShopOfferAnswer>(ct))!;
     }
+
+    public async Task<ShopOfferAnswer> ItemOfferAsync(string customer, int itemId, int kr, CancellationToken ct = default)
+    {
+        using var res = await http.PostAsJsonAsync($"/api/butik/varer/{itemId}/tilbud", new ShopBidPlace(customer, kr), ct);
+        res.EnsureSuccessStatusCode();
+        return (await res.Content.ReadFromJsonAsync<ShopOfferAnswer>(ct))!;
+    }
+
+    public async Task<List<ShopBundleView>> MyBundlesAsync(string customer, CancellationToken ct = default) =>
+        (await http.GetFromJsonAsync<ShopMyBundles>($"/api/butik/bundter/{Uri.EscapeDataString(customer)}", ct))?.Bundles ?? [];
+
+    public async Task<ShopOfferAnswer> ReplyAsync(int bundleId, ShopBundleReply reply, CancellationToken ct = default)
+    {
+        using var res = await http.PostAsJsonAsync($"/api/butik/bundt/{bundleId}/svar", reply, ct);
+        res.EnsureSuccessStatusCode();
+        return (await res.Content.ReadFromJsonAsync<ShopOfferAnswer>(ct))!;
+    }
 }
 
 public static class MarketGatewayRegistration

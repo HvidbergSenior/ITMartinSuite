@@ -45,7 +45,7 @@
         fetch(url, { credentials: 'same-origin' })
             .then(function (r) { if (!r.ok) throw new Error('Lager svarer ikke lige nu – prøv igen om lidt.'); return r.json(); })
             .then(function (q) {
-                $('vu-n-vurderes').textContent = q.assess; $('vu-n-ingen').textContent = q.noPrice;
+                $('vu-n-vurderes').textContent = q.assess; $('vu-n-ingen').textContent = q.noPrice; if ($('vu-n-enannonce')) $('vu-n-enannonce').textContent = q.oneAd || 0;
                 item = q.items && q.items[0];
                 $('vu-card').hidden = !item; $('vu-empty').hidden = !!item || !!query;
                 var unsure = q.unsure ? ' ' + q.unsure + ' usikre læsninger passer også – dem retter du i Lager under »Ret de svære«.' : '';

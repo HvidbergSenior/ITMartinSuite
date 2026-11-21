@@ -236,3 +236,10 @@ public sealed record ShopBundlePlace(string Customer, List<int> ItemIds, int? Kr
 public sealed record ShopOfferAnswer(bool Ok, string? Error = null, int? AnswerKr = null, int? ExtraPercent = null);
 /// <summary>The customer's own bids (item -> their max), so the page can show "Dit bud: 120 kr".</summary>
 public sealed record ShopMyBids(Dictionary<int, int> MaxKr);
+
+/// <summary>One of the customer's bundles on bogshoppen.dk (haggling, 2026-11-21). PriceForYou = the price they can say yes to now;
+/// YourKr = their latest bid; Status = Ny / Besvaret / Modbud / Aftalt / Afvist; FromShop = Martin offered it.</summary>
+public sealed record ShopBundleView(int Id, List<string> Lines, int? YourKr, int? PriceForYou, int? AgreedKr, string Status, bool FromShop, DateTime At);
+public sealed record ShopMyBundles(List<ShopBundleView> Bundles);
+/// <summary>The customer's answer: Accept = yes to PriceForYou; else Kr = a new bid; Reject = no thanks.</summary>
+public sealed record ShopBundleReply(string Customer, bool Accept, int? Kr, bool Reject = false);

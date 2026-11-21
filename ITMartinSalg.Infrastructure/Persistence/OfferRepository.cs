@@ -44,6 +44,12 @@ public sealed class OfferRepository(IDbContextFactory<SalgDb> dbf) : IOfferRepos
         return await db.Bundles.AsNoTracking().OrderByDescending(b => b.CreatedAt).Take(200).ToListAsync(ct);
     }
 
+    public async Task<List<BundleOffer>> BundlesOfAsync(string customer, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.Bundles.AsNoTracking().Where(b => b.Customer == customer).OrderByDescending(b => b.CreatedAt).Take(30).ToListAsync(ct);
+    }
+
     public async Task<BundleOffer?> BundleAsync(int id, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);

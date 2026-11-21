@@ -41,6 +41,9 @@ public sealed record ItemView(Item Item, List<PriceFind> Finds, List<PriceCheck>
 /// <summary>Search, look at, correct and delete items.</summary>
 public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices, IPhotoStore photos)
 {
+    /// <summary>All finds of these items, per item - one query (Vurdering's "Én høj annonce", 2026-11-21).</summary>
+    public Task<Dictionary<int, List<PriceFind>>> FindsForAsync(IReadOnlyCollection<int> itemIds, CancellationToken ct = default) => prices.FindsForAsync(itemIds, ct);
+
     public const int MaxHits = 200;
 
     /// <summary>Lager's job (user 2026-11-15: "correct ones that are a little difficult"): the things the AI was unsure of.

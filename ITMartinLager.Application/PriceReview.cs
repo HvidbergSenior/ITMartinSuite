@@ -13,8 +13,21 @@ public sealed class PriceReviewUseCases(ItemUseCases items, IBoxRepository boxRe
 
     private string Valuation(string pile) => pile == VurderingPiles.NoPrice ? Valuations.NoPrice : Valuations.Assess;
 
-    private async Task<List<Item>> PileAsync(string pile, CancellationToken ct) =>
-        (await items.SearchAsync("", null, Valuation(pile), ct))?.Hits.Where(i => Statuses.Ours(i.Status) && i.Status != Statuses.Solgt && Sure(i)).ToList() ?? [];
+    private async Task<List<Item>> PileAsync(string pile, CancellationToken ct)
+    {
+        if (pile == VurderingPiles.OneAd) return await OneAdAsync(ct);
+        return (await items.SearchAsync("", null, Valuation(pile), ct))?.Hits.Where(i => Statuses.Ours(i.Status) && i.Status != Statuses.Solgt && Sure(i)).ToList() ?? [];
+    }
+
+    /// <summary>Things whose suggestion rests on ONE high ad (Pricing.OneHighAd) - dearest first. One query for all finds.</summary>
+    private async Task<List<Item>> OneAdAsync(CancellationToken ct)
+    {
+        var withHint = ((await items.SearchAsync("", null, null, ct))?.Hits ?? [])
+            .Where(i => Statuses.Ours(i.Status) && i.Status != Statuses.Solgt && Sure(i) && i.PriceHint is > 0 && i.Price is not > 0 && !i.Rare && i.Deal == "").ToList();
+        if (withHint.Count == 0) return [];
+        var finds = await items.FindsForAsync(withHint.Select(i => i.Id).ToList(), ct);
+        return withHint.Where(i => Pricing.OneHighAd(i, finds.GetValueOrDefault(i.Id) ?? [])).OrderByDescending(i => i.PriceHint).ToList();
+    }
 
     /// <summary>Only things the reader was sure of come to Priser (user 2026-11-16: "pictures that look like this should not be
     /// found" - "Søs &amp; Kirsten", 0.3, "kun ryg delvist synlig"). Unsure ones are put right in Lager's "Ret de svære" first.
@@ -29,13 +42,14 @@ public sealed class PriceReviewUseCases(ItemUseCases items, IBoxRepository boxRe
         var assess = (await PileAsync(VurderingPiles.Assess, ct)).Where(i => VurderingFilter.Shows(filter, i.Usage))
             .OrderByDescending(i => i.Rare).ToList();
         var none = (await PileAsync(VurderingPiles.NoPrice, ct)).Where(i => VurderingFilter.Shows(filter, i.Usage)).ToList();
-        var next = (pile == VurderingPiles.NoPrice ? none : assess).Where(i => !skip.Contains(i.Id)).Take(Math.Clamp(take, 1, 10)).ToList();
+        var oneAd = (await PileAsync(VurderingPiles.OneAd, ct)).Where(i => VurderingFilter.Shows(filter, i.Usage)).ToList();
+        var next = (pile == VurderingPiles.NoPrice ? none : pile == VurderingPiles.OneAd ? oneAd : assess).Where(i => !skip.Contains(i.Id)).Take(Math.Clamp(take, 1, 10)).ToList();
         var boxes = new Dictionary<int, string>();
         foreach (var b in next.Select(i => i.BoxId).OfType<int>().Distinct())
             if (await boxRepo.GetAsync(b, ct) is { } box) boxes[b] = box.Code;
         var cards = new List<VurderingItem>();
         foreach (var i in next) cards.Add(await CardAsync(i, boxes, ct));
-        return new VurderingQueue(assess.Count, none.Count, cards);
+        return new VurderingQueue(assess.Count, none.Count, cards, 0, oneAd.Count);
     }
 
     /// <summary>Find one thing to price (2026-11-16, user: "not easy to search for"): "3372" / "#3372" = that thing first, words =

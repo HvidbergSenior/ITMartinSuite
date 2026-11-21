@@ -11,6 +11,16 @@ public interface ICustomerWishStore
     Task RemoveAsync(string customer, int id, CancellationToken ct = default);
     Task<HashSet<int>> SeenAsync(string customer, CancellationToken ct = default);
     Task MarkSeenAsync(string customer, IEnumerable<int> itemIds, CancellationToken ct = default);
+    // The mail when a wish turns up (2026-11-21).
+    Task<List<string>> CustomersAsync(CancellationToken ct = default);
+    Task<HashSet<int>> MailedAsync(string customer, CancellationToken ct = default);
+    Task MarkMailedAsync(string customer, IEnumerable<int> itemIds, CancellationToken ct = default);
+}
+
+/// <summary>Kunder mails one customer by kundenummer (it holds the e-mail and the afmeld link).</summary>
+public interface ICustomerNotifier
+{
+    Task<bool> NotifyAsync(string code, string subject, string body, CancellationToken ct = default);
 }
 
 /// <summary>A product that fits one of the customer's wishes. New = the notice has not been shown for it yet.</summary>
@@ -63,4 +73,23 @@ public sealed class WishUseCases(ICustomerWishStore store, IShopGateway shop)
 
     public Task MarkSeenAsync(string customer, IEnumerable<int> itemIds, CancellationToken ct = default) =>
         customer == "" ? Task.CompletedTask : store.MarkSeenAsync(customer, itemIds, ct);
+
+    /// <summary>The mail when a wish turns up (user 2026-11-21: "notifications on special wares that customer wants"): for each
+    /// customer with wishes, the found things not mailed before -> ONE mail with all of them -> marked mailed. Only what they
+    /// asked for (no ads). At most MaxCustomersPerRun per run; Kunder down = tried again next run.</summary>
+    public async Task<int> MailFoundAsync(ICustomerNotifier notifier, string shopUrl, CancellationToken ct = default)
+    {
+        var sent = 0;
+        foreach (var customer in (await store.CustomersAsync(ct)).Take(WishRules.MaxCustomersPerRun))
+        {
+            var mailed = await store.MailedAsync(customer, ct);
+            var fresh = (await FoundAsync(customer, ct)).Where(f => !mailed.Contains(f.Item.Id)).ToList();
+            if (fresh.Count == 0) continue;
+            var (subject, body) = WishRules.Mail(fresh.Select(f => (f.Wish.Text, f.Item.Line, f.Item.Id)).ToList(), shopUrl);
+            if (!await notifier.NotifyAsync(customer, subject, body, ct)) continue;
+            await store.MarkMailedAsync(customer, fresh.Select(f => f.Item.Id), ct);
+            sent++;
+        }
+        return sent;
+    }
 }

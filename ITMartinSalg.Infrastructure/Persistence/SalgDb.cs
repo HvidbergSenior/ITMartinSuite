@@ -23,6 +23,9 @@ public sealed class SalgDb(DbContextOptions<SalgDb> options) : DbContext(options
         b.Entity<Bid>().HasIndex(x => x.ItemId);
         b.Entity<BundleOffer>().Ignore(x => x.Ids);
         b.Entity<BundleOffer>().Ignore(x => x.AsksForPrice);
+        b.Entity<BundleOffer>().Ignore(x => x.IsDone);
+        b.Entity<BundleOffer>().Ignore(x => x.ShopsTurn);
+        b.Entity<BundleOffer>().Ignore(x => x.PriceForCustomer);
     }
 }
 
@@ -42,7 +45,9 @@ public static class SalgDbInitializer
                 .Replace("CREATE UNIQUE INDEX ", "CREATE UNIQUE INDEX IF NOT EXISTS "));
         Exec(conn, "PRAGMA journal_mode=WAL;");
         // Columns added later to tables that already exist (the create script above only makes missing tables).
-        foreach (var (table, col, type) in new[] { ("Bundles", "AnswerKr", "INTEGER NULL"), ("Bundles", "ExtraPercent", "INTEGER NULL") })
+        foreach (var (table, col, type) in new[] { ("Bundles", "AnswerKr", "INTEGER NULL"), ("Bundles", "ExtraPercent", "INTEGER NULL"),
+                     ("Bundles", "FromShop", "INTEGER NOT NULL DEFAULT 0"), ("Bundles", "ShopKr", "INTEGER NULL"), ("Bundles", "AgreedKr", "INTEGER NULL"),
+                     ("Bundles", "UpdatedAt", "TEXT NULL") })
             if (!HasColumn(conn, table, col)) Exec(conn, $"ALTER TABLE \"{table}\" ADD COLUMN \"{col}\" {type}");
 
         if (importLagerDb is not null && File.Exists(importLagerDb) && Count(conn, "Orders") == 0 && Count(conn, "Campaigns") == 0)

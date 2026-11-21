@@ -22,6 +22,9 @@ internal static class KunderEndpoints
             await k.UnsubscribeByLinkAsync(r.Token) is { } email ? Results.Ok(new UnsubscribeResponse(true, email)) : Results.Ok(new UnsubscribeResponse(false)))
             .DisableAntiforgery();
 
+        app.MapPost(KunderApi.Notify, async (NotifyRequest r, KundeBreve breve, IConfiguration cfg) =>
+            Results.Ok(new NotifyResponse(await breve.NotifyAsync(r.Code, r.Subject, r.Body, r.App, cfg["Kunder:PublicUrl"] ?? "https://kunder.itmartin.dk"))))
+            .DisableAntiforgery();
         app.MapGet(KunderApi.FreeApps, async (FreeApps apps) => Results.Ok(await apps.AvailableAsync()));
         app.MapGet(KunderApi.Helpers, async (Kundekartotek k) => Results.Ok(await k.HelpersAsync()));
         app.MapGet(KunderApi.Wishes, async (string? firma, Kundekartotek k) =>

@@ -35,6 +35,9 @@ public class MarketOfferTests
         public Task<Dictionary<int, int>> MyBidsAsync(string customer, CancellationToken ct = default) => Task.FromResult(new Dictionary<int, int>());
         public Task<ShopOfferAnswer> BundleAsync(string customer, IReadOnlyList<int> itemIds, int? kr, CancellationToken ct = default)
         { Bundles++; LastKr = kr; LastCount = itemIds.Count; return Task.FromResult(new ShopOfferAnswer(true)); }
+        public Task<ShopOfferAnswer> ItemOfferAsync(string customer, int itemId, int kr, CancellationToken ct = default) => Task.FromResult(new ShopOfferAnswer(true));
+        public Task<List<ShopBundleView>> MyBundlesAsync(string customer, CancellationToken ct = default) => Task.FromResult(new List<ShopBundleView>());
+        public Task<ShopOfferAnswer> ReplyAsync(int bundleId, ShopBundleReply reply, CancellationToken ct = default) => Task.FromResult(new ShopOfferAnswer(true));
     }
     private sealed class NoCodes : IMarketCodes { public Task<(bool Ok, string Error)> CheckAsync(string code, CancellationToken ct = default) => Task.FromResult((true, "")); }
     private sealed class NoInterests : IInterestGateway

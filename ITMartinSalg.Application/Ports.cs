@@ -103,6 +103,7 @@ public interface IOfferRepository
     Task AddBundleAsync(BundleOffer bundle, CancellationToken ct);
     Task<List<BundleOffer>> BundlesAsync(CancellationToken ct);
     Task<BundleOffer?> BundleAsync(int id, CancellationToken ct);
+    Task<List<BundleOffer>> BundlesOfAsync(string customer, CancellationToken ct);
     Task SaveBundleAsync(BundleOffer bundle, CancellationToken ct);
 }
 

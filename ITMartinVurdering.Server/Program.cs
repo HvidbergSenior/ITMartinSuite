@@ -98,7 +98,7 @@ var dodsboBody = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "dod
 var guldBody = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "guld.html"));
 var kioskBody = File.ReadAllText(Path.Combine(app.Environment.WebRootPath, "kiosk.html"));
 
-app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, body, "/app.js?v=17"));
+app.MapGet("/", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, body, "/app.js?v=18"));
 // Guld/sølv/bronze + Ny i kiosken (2026-11-15, moved from Lager): the same login, own pages.
 app.MapGet("/guld", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, guldBody, "/guld.js?v=2"));
 app.MapGet("/kiosk", (KolibriAppInfo info, HttpContext ctx) => Page(info, ctx, kioskBody, "/kiosk.js?v=1"));

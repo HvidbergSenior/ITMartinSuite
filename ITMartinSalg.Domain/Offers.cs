@@ -27,7 +27,10 @@ public sealed class Bid
 public sealed class BundleOffer
 {
     public const int MinItems = 2, MaxItems = 50;
-    public const string New = "Ny", Answered = "Besvaret";
+    // Haggling (user 2026-11-21: "both buyer and seller can say all these for this price"): Ny = Martin's turn, Modbud = the
+    // customer's turn (Martin said a price, or offered the bundle himself), Aftalt / Afvist = done. Besvaret = answered at once
+    // by the shop (AnswerKr) or marked by hand - the customer can still say yes or give a new bid.
+    public const string New = "Ny", Answered = "Besvaret", Counter = "Modbud", Agreed = "Aftalt", Rejected = "Afvist";
 
     public int Id { get; set; }
     public string Customer { get; set; } = "";
@@ -53,11 +56,79 @@ public sealed class BundleOffer
         return new() { Customer = Kundenummer.Require(customer), ItemIds = string.Join(',', ids), Kr = kr, CreatedAt = now };
     }
 
-    public void MarkAnswered() => Status = Answered;
+    public void MarkAnswered() { Status = Answered; }
 
     /// <summary>Answered by the shop itself: the price is the customer's to say yes to (a bid at that price).</summary>
     public void AnswerAutomatically(int kr, int extraPercent)
     {
         AnswerKr = kr; ExtraPercent = extraPercent; Status = Answered;
+    }
+
+    /// <summary>"Dit bud" on one thing (2026-11-21, user: "found on Faraos -> link, your offer"): a bundle of one, so it is
+    /// haggled the same way as Mit bundt.</summary>
+    public static BundleOffer Single(string? customer, int itemId, int kr, DateTime now)
+    {
+        if (itemId <= 0) throw new InvalidOperationException("Varen findes ikke.");
+        if (kr is < Bid.LowestKr or > Bid.HighestKr) throw new InvalidOperationException($"Skriv et beløb mellem {Bid.LowestKr} og {Bid.HighestKr:N0} kr.");
+        return new() { Customer = Kundenummer.Require(customer), ItemIds = itemId.ToString(), Kr = kr, CreatedAt = now, UpdatedAt = now };
+    }
+
+    /// <summary>Martin started it: "alle disse for X kr" to one customer.</summary>
+    public bool FromShop { get; set; }
+    /// <summary>Martin's latest price (his counter, or his own offer).</summary>
+    public int? ShopKr { get; set; }
+    /// <summary>The price both said yes to.</summary>
+    public int? AgreedKr { get; set; }
+    public DateTime? UpdatedAt { get; set; }
+
+    public bool IsDone => Status is Agreed or Rejected;
+    public bool ShopsTurn => Status == New;
+    /// <summary>The price the customer can say yes to now, or null when it is not their turn.</summary>
+    public int? PriceForCustomer => Status == Counter ? ShopKr : Status == Answered ? AnswerKr : null;
+
+    public static BundleOffer FromShopOffer(string? customer, IEnumerable<int> itemIds, int kr, DateTime now)
+    {
+        var b = Make(customer, itemIds, null, now);
+        if (kr is < Bid.LowestKr or > Bid.HighestKr) throw new InvalidOperationException($"Skriv et beløb mellem {Bid.LowestKr} og {Bid.HighestKr:N0} kr.");
+        (b.FromShop, b.ShopKr, b.Status, b.UpdatedAt) = (true, kr, Counter, now);
+        return b;
+    }
+
+    /// <summary>Martin's price back to the customer.</summary>
+    public void ShopCounters(int kr, DateTime now)
+    {
+        if (IsDone) throw new InvalidOperationException("Bundtet er afsluttet.");
+        if (kr is < Bid.LowestKr or > Bid.HighestKr) throw new InvalidOperationException($"Skriv et beløb mellem {Bid.LowestKr} og {Bid.HighestKr:N0} kr.");
+        (ShopKr, Status, UpdatedAt) = (kr, Counter, now);
+    }
+
+    /// <summary>Martin says yes to the customer's bid.</summary>
+    public void ShopAccepts(DateTime now)
+    {
+        if (Status != New || Kr is not { } kr) throw new InvalidOperationException("Der er intet bud at sige ja til.");
+        (AgreedKr, Status, UpdatedAt) = (kr, Agreed, now);
+    }
+
+    /// <summary>The customer's new bid after Martin's price.</summary>
+    public void CustomerCounters(int kr, DateTime now)
+    {
+        if (IsDone) throw new InvalidOperationException("Bundtet er afsluttet.");
+        if (PriceForCustomer is null) throw new InvalidOperationException("Vent på svar fra os.");
+        if (kr is < Bid.LowestKr or > Bid.HighestKr) throw new InvalidOperationException($"Skriv et beløb mellem {Bid.LowestKr} og {Bid.HighestKr:N0} kr.");
+        (Kr, Status, UpdatedAt) = (kr, New, now);
+    }
+
+    /// <summary>The customer says yes to Martin's price.</summary>
+    public void CustomerAccepts(DateTime now)
+    {
+        if (PriceForCustomer is not { } kr) throw new InvalidOperationException("Der er ingen pris at sige ja til endnu.");
+        (AgreedKr, Status, UpdatedAt) = (kr, Agreed, now);
+    }
+
+    /// <summary>Either side says no thanks.</summary>
+    public void Reject(DateTime now)
+    {
+        if (IsDone) throw new InvalidOperationException("Bundtet er afsluttet.");
+        (Status, UpdatedAt) = (Rejected, now);
     }
 }

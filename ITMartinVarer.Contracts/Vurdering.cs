@@ -12,8 +12,9 @@ public static class VurderingHeaders
 /// <summary>Which pile: "vurderes" = found 50 kr or more, no own price yet; "ingen" = no price found anywhere.</summary>
 public static class VurderingPiles
 {
-    public const string Assess = "vurderes", NoPrice = "ingen";
-    public static bool Valid(string? pile) => pile is Assess or NoPrice;
+    // OneAd (user 2026-11-21: "a category for me to get all products where ONE ad shows high price").
+    public const string Assess = "vurderes", NoPrice = "ingen", OneAd = "enannonce";
+    public static bool Valid(string? pile) => pile is Assess or NoPrice or OneAd;
 }
 
 /// <summary>A listing found on another site, shown so the person can judge.</summary>
@@ -59,7 +60,7 @@ public sealed record VurderingNote(string Note);
 
 /// <summary>How many wait in each pile, and the next thing(s).</summary>
 /// <summary>Unsure = things a search found that the reader was unsure of - put right in Lager's "Ret de svære" first, not shown here.</summary>
-public sealed record VurderingQueue(int Assess, int NoPrice, List<VurderingItem> Items, int Unsure = 0);
+public sealed record VurderingQueue(int Assess, int NoPrice, List<VurderingItem> Items, int Unsure = 0, int OneAd = 0);
 
 /// <summary>The price a person set - Ok = the suggestion, or their own.</summary>
 /// <summary>One line of the gold list, shown in Vurdering (moved from Lager /guld, 2026-11-15). Badge = "🏆 GULD" etc.</summary>

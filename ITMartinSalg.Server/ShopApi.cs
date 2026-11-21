@@ -59,6 +59,11 @@ public static class ShopApi
             return await offers.BundleAnswerAsync(body.Customer, body.ItemIds ?? [], body.Kr);
         });
 
+        // Haggling (2026-11-21): the customer's bundles, and their answer to Martin's price.
+        api.MapPost("/varer/{id:int}/tilbud", async (int id, ShopBidPlace body, OfferUseCases offers) => await offers.ItemOfferAsync(body.Customer, id, body.MaxKr));
+        api.MapGet("/bundter/{customer}", async (string customer, OfferUseCases offers) => new ShopMyBundles(await offers.MyBundlesAsync(customer)));
+        api.MapPost("/bundt/{id:int}/svar", async (int id, ShopBundleReply body, OfferUseCases offers) => await offers.CustomerReplyAsync(id, body));
+
         api.MapGet("/ordrer/{token}", async (string token, ShopUseCases shop) =>
         {
             try

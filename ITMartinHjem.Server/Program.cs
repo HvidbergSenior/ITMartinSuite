@@ -99,7 +99,8 @@ builder.Services.AddSingleton<ITMartinHjem.Server.MarketCookie>();
 builder.Services.AddHjemShop(new ShopSeller(builder.Configuration["Hjem:ShopCompany"] ?? "", builder.Configuration["Hjem:ShopCvr"] ?? "",
     builder.Configuration["Hjem:ShopAddress"] ?? "", builder.Configuration["Hjem:ShopEmail"] ?? "ITMartin@Mensa.dk",
     builder.Configuration["Hjem:ShopPhone"] ?? "31 19 47 30"));
-builder.Services.AddHostedService<ChatSweeper>();   // reply mails/notifications, kept in the DB
+builder.Services.AddHostedService<ChatSweeper>();
+builder.Services.AddHostedService<ITMartinHjem.Server.Services.WishMailer>();   // "Mine ønsker" mail, daily at 9 (2026-11-21)   // reply mails/notifications, kept in the DB
 
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDir, "keys")))

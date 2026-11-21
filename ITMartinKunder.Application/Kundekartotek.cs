@@ -285,6 +285,24 @@ public sealed class KundeBreve(ICustomerRepository repo, IMailSender mail, TimeP
         await repo.SaveAsync(c, ct);
         return true;
     }
+
+    /// <summary>Mail one customer by kundenummer about something they asked for. Never to someone who unsubscribed.</summary>
+    /// <returns>True when the mail left.</returns>
+    public async Task<bool> NotifyAsync(string? code, string? subject, string? body, string? app, string kunderSite, CancellationToken ct = default)
+    {
+        var s = (subject ?? "").Trim(); var b = (body ?? "").Trim();
+        if (s == "" || b == "" || s.Length > Notifications.MaxSubject || b.Length > Notifications.MaxBody) return false;
+        if (string.IsNullOrWhiteSpace(code) || await repo.ByCodeAsync(code.Replace(" ", ""), ct) is not { Active: true } c) return false;
+        if (!await mail.SendAsync(c.Email, s, Letters.NotifyMail(c, b, kunderSite), ct)) return false;
+        c.Events.Add(CustomerEvent.Of(EventKinds.Mailed, string.IsNullOrWhiteSpace(app) ? "Kunder" : app.Trim(), "besked", s, 0, clock.GetUtcNow().UtcDateTime));
+        await repo.SaveAsync(c, ct);
+        return true;
+    }
+}
+
+public static class Notifications
+{
+    public const int MaxSubject = 120, MaxBody = 4000;
 }
 
 public sealed class KunderException(string message) : Exception(message);

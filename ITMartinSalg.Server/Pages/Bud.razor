@@ -8,13 +8,13 @@
 <section class="k-card">
     <h1 class="k-card-title">Bud fra bogshoppen.dk</h1>
     <p><b>Gør dette:</b> se, hvad de interesserede vil give. <b>Du får:</b> et overblik over bud på enkelte ting (til lørdagens auktion) og over bundter, du skal svare på.</p>
-    <p class="k-help">Nummeret er personens nummer fra Kunder – slå det op dér for navn og mail. Svar fx "Den er jeres for X kr", og tryk så <b>Besvaret</b>.</p>
+    <p class="k-help">Nummeret er personens nummer fra Kunder – slå det op dér for navn og mail. Sig ja til buddet, send din egen pris tilbage, eller sig nej tak – kunden ser svaret på bogshoppen.dk under <b>Mine bundter</b>.</p>
 </section>
 
 @if (_error is not null) { <section class="k-card"><p class="lg-warn" role="alert">⚠ @_error</p></section> }
 
 <section class="k-card">
-    <h2 class="k-card-title">@(_bundles is null ? "Henter bundter …" : $"Bundter ({_bundles.Count(b => b.Status == "Ny")} nye)")</h2>
+    <h2 class="k-card-title">@(_bundles is null ? "Henter bundter …" : $"Bundter ({_bundles.Count(b => b.Status == "Ny")} venter på dig)")</h2>
     @if (_bundles is { Count: 0 }) { <p>Ingen bundter endnu.</p> }
     else if (_bundles is not null)
     {
@@ -25,14 +25,37 @@
                     <span class="lg-main">
                         <b>@(b.Kr is { } kr ? $"Bud: {kr} kr for {b.Lines.Count} ting" : $"Spørger om pris på {b.Lines.Count} ting")</b>
                         @if (b.AnswerKr is { } ans) { <span class="k-small">Svaret med det samme: <b>@ans kr</b> (mængderabat + @b.ExtraPercent % ekstra) – siger kunden ja, kommer det som et bud.</span> }
+                        @if (b.FromShop) { <span class="k-small">Dit eget tilbud til kunden.</span> }
+                        @if (b.ShopKr is { } sk && b.Status == "Modbud") { <span class="k-small">Din pris: <b>@sk kr</b> – venter på kunden.</span> }
+                        @if (b.AgreedKr is { } ak) { <span class="k-small"><b>Aftalt: @ak kr.</b> Lav salget, når kunden henter eller betaler.</span> }
                         <span class="k-small">Nummer @Show(b.Customer) · @b.At.ToLocalTime().ToString("d/M HH:mm") · @b.Status</span>
                         <span class="k-small">@string.Join(" · ", b.Lines)</span>
                     </span>
-                    @if (b.Status == "Ny") { <button class="k-btn k-btn-sm" @onclick="() => Answered(b.Id)">Besvaret</button> }
+                    @* Haggling (2026-11-21): Ja til buddet, din pris tilbage, or Nej tak. The customer sees it on bogshoppen.dk. *@
+                    @if (b.Status is "Ny" or "Besvaret" or "Modbud")
+                    {
+                        <span class="lg-actions">
+                            @if (b.Status == "Ny" && b.Kr is { } bid) { <button class="k-btn k-btn-sm k-btn-primary" @onclick="() => Reply(b.Id, true, null, false)">Ja til @bid kr</button> }
+                            <input class="k-input k-input-sm" style="width:7em" inputmode="numeric" placeholder="Din pris" aria-label="Din pris" @bind="_counter[b.Id]" />
+                            <button class="k-btn k-btn-sm" @onclick="() => Reply(b.Id, false, Kr(_counter.GetValueOrDefault(b.Id)), false)">Send din pris</button>
+                            <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => Reply(b.Id, false, null, true)">Nej tak</button>
+                        </span>
+                    }
                 </li>
             }
         </ul>
     }
+</section>
+
+@* "Alle disse for X kr" from Martin (2026-11-21): the customer sees it under Mine bundter on bogshoppen.dk and can say yes or bid. *@
+<section class="k-card" data-fold-closed>
+    <h2 class="k-card-title">Giv en kunde et tilbud</h2>
+    <p><b>Gør dette:</b> skriv kundens nummer, varenumrene og din pris for det hele. <b>Du får:</b> et tilbud, kunden ser på bogshoppen.dk og kan sige ja til – eller byde på.</p>
+    <label class="k-label">Kundens nummer <input class="k-input" inputmode="numeric" @bind="_offerCustomer" placeholder="8 cifre" /></label>
+    <label class="k-label">Varenumre <input class="k-input" @bind="_offerItems" placeholder="fx 3372, 3401, 3410" /></label>
+    <label class="k-label">Din pris for det hele (kr) <input class="k-input" inputmode="numeric" @bind="_offerKr" placeholder="fx 150" /></label>
+    <button class="k-btn k-btn-primary" @onclick="Offer">Send tilbuddet</button>
+    @if (_offerMsg is not null) { <p class="k-help" role="status">@_offerMsg</p> }
 </section>
 
 <section class="k-card" data-fold-closed>
@@ -57,13 +80,33 @@
 
     protected override async Task OnInitializedAsync() => await Load();
 
-    private async Task Load()
+    private async Task Load(bool keepError = false)
     {
-        try { (_bids, _bundles) = await Offers.OverviewAsync(); _error = null; }
+        try { (_bids, _bundles) = await Offers.OverviewAsync(); if (!keepError) _error = null; }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { _error = "Lager svarer ikke lige nu – prøv igen om lidt."; }
     }
 
-    private async Task Answered(int id) { await Offers.AnsweredAsync(id); await Load(); }
+    private readonly Dictionary<int, string> _counter = [];
+    private string _offerCustomer = "", _offerItems = "", _offerKr = "";
+    private string? _offerMsg;
+
+    private static int? Kr(string? s) => int.TryParse(new string((s ?? "").Where(char.IsDigit).ToArray()), out var k) ? k : null;
+
+    private async Task Reply(int id, bool accept, int? kr, bool reject)
+    {
+        _error = await Offers.ShopReplyAsync(id, accept, kr, reject);
+        _counter.Remove(id);
+        await Load(keepError: true);
+    }
+
+    private async Task Offer()
+    {
+        var ids = _offerItems.Split([',', ' ', ';'], StringSplitOptions.RemoveEmptyEntries).Select(x => int.TryParse(x.TrimStart('#'), out var i) ? i : 0).Where(i => i > 0).ToList();
+        if (Kr(_offerKr) is not { } kr) { _offerMsg = "Skriv din pris."; return; }
+        var err = await Offers.OfferToCustomerAsync(_offerCustomer.Replace(" ", ""), ids, kr);
+        _offerMsg = err ?? $"Sendt: {ids.Count} ting for {kr} kr. Kunden ser det under Mine bundter på bogshoppen.dk.";
+        if (err is null) { (_offerItems, _offerKr) = ("", ""); await Load(); }
+    }
 
     private static string Show(string code) => code.Length == 8 ? code[..4] + " " + code[4..] : code;
 }

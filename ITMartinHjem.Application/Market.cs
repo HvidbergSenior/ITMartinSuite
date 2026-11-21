@@ -26,6 +26,10 @@ public interface IOfferGateway
     Task<ShopOfferAnswer> BidAsync(string customer, int itemId, int maxKr, CancellationToken ct = default);
     Task<Dictionary<int, int>> MyBidsAsync(string customer, CancellationToken ct = default);
     Task<ShopOfferAnswer> BundleAsync(string customer, IReadOnlyList<int> itemIds, int? kr, CancellationToken ct = default);
+    // Haggling (2026-11-21)
+    Task<ShopOfferAnswer> ItemOfferAsync(string customer, int itemId, int kr, CancellationToken ct = default);
+    Task<List<ShopBundleView>> MyBundlesAsync(string customer, CancellationToken ct = default);
+    Task<ShopOfferAnswer> ReplyAsync(int bundleId, ShopBundleReply reply, CancellationToken ct = default);
 }
 
 /// <summary>"Mit bundt" while the customer picks (2026-11-05): kept here per kundenummer until they send it - nothing is
@@ -90,6 +94,31 @@ public sealed class MarketUseCases(IMarketCodes codes, IInterestGateway interest
         if (customer == "") return new(false, "Log ind med dit nummer først.");
         if (itemIds.Count < 2) return new(false, "Læg mindst 2 ting i bundtet.");
         try { return await (offers ?? throw new InvalidOperationException()).BundleAsync(customer, itemIds, kr, ct); }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException) { return new(false, Unreachable); }
+    }
+
+    /// <summary>"Dit bud" on one thing (2026-11-21) - haggled like a bundle.</summary>
+    public async Task<ShopOfferAnswer> ItemOfferAsync(string customer, int itemId, int? kr, CancellationToken ct = default)
+    {
+        if (customer == "") return new(false, "Log ind med dit nummer først.");
+        if (kr is not > 0) return new(false, "Skriv, hvad du vil give.");
+        try { return await (offers ?? throw new InvalidOperationException()).ItemOfferAsync(customer, itemId, kr.Value, ct); }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException) { return new(false, Unreachable); }
+    }
+
+    /// <summary>The customer's bundles (haggling, 2026-11-21) - empty when Salg does not answer.</summary>
+    public async Task<List<ShopBundleView>> MyBundlesAsync(string customer, CancellationToken ct = default)
+    {
+        if (customer == "" || offers is null) return [];
+        try { return await offers.MyBundlesAsync(customer, ct); }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return []; }
+    }
+
+    /// <summary>Yes to the price, a new bid, or no thanks.</summary>
+    public async Task<ShopOfferAnswer> ReplyAsync(string customer, int bundleId, bool accept, int? kr, bool reject, CancellationToken ct = default)
+    {
+        if (customer == "") return new(false, "Log ind med dit nummer først.");
+        try { return await (offers ?? throw new InvalidOperationException()).ReplyAsync(bundleId, new ShopBundleReply(customer, accept, kr, reject), ct); }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException) { return new(false, Unreachable); }
     }
 

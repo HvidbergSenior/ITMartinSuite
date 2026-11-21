@@ -23,7 +23,13 @@ public static class KunderApi
     /// <summary>GET (key), ?firma=Bogshoppen: what the customers who still said yes to that company ticked and wrote -
     /// only the texts, never names or e-mails (bogshoppen.dk shows what people look for, user 2026-11-19).</summary>
     public const string Wishes = "/api/kunder/oensker";
+    /// <summary>POST (key): mail ONE customer by kundenummer about something they asked for (bogshoppen.dk "Mine ønsker",
+    /// 2026-11-21). Kunder adds the afmeld link and never mails someone who said no. Answers NotifyResponse.</summary>
+    public const string Notify = "/api/kunder/besked";
 }
+
+public sealed record NotifyRequest(string Code, string Subject, string Body, string App);
+public sealed record NotifyResponse(bool Sent);
 
 /// <summary>A ticked helper: the kundenummer (Vareinfo's helper id is minus it) and the name.</summary>
 public sealed record HelperInfo(string Code, string Name);

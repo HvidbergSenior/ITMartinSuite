@@ -16,6 +16,7 @@ public sealed class HjemQuestionsDb(DbContextOptions<HjemQuestionsDb> options) :
     public DbSet<CollabMessage> CollabMessages => Set<CollabMessage>();
     public DbSet<CustomerWish> Wishes => Set<CustomerWish>();   // Mine ønsker (2026-11-19)
     public DbSet<WishSeen> WishSeen => Set<WishSeen>();
+    public DbSet<WishMailed> WishMailed => Set<WishMailed>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -24,6 +25,7 @@ public sealed class HjemQuestionsDb(DbContextOptions<HjemQuestionsDb> options) :
         b.Entity<CollabMessage>().ToTable("CollabMessages").HasKey(x => x.Id);
         b.Entity<CustomerWish>().ToTable("CustomerWishes").HasKey(x => x.Id);
         b.Entity<WishSeen>().ToTable("WishSeen").HasKey(x => x.Id);
+        b.Entity<WishMailed>().ToTable("WishMailed").HasKey(x => x.Id);
 
         var q = b.Entity<PublicQuestion>();
         q.ToTable("PublicQuestions");
@@ -86,6 +88,11 @@ public sealed class HjemQuestionsDb(DbContextOptions<HjemQuestionsDb> options) :
         await db.Database.ExecuteSqlRawAsync("""
             CREATE TABLE IF NOT EXISTS "WishSeen" (
                 "Id" INTEGER NOT NULL CONSTRAINT "PK_WishSeen" PRIMARY KEY AUTOINCREMENT,
+                "Customer" TEXT NOT NULL, "ItemId" INTEGER NOT NULL, "At" TEXT NOT NULL)
+            """);
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS "WishMailed" (
+                "Id" INTEGER NOT NULL CONSTRAINT "PK_WishMailed" PRIMARY KEY AUTOINCREMENT,
                 "Customer" TEXT NOT NULL, "ItemId" INTEGER NOT NULL, "At" TEXT NOT NULL)
             """);
     }
@@ -282,6 +289,7 @@ public static class DependencyInjection
         services.AddSingleton<ICollabStore, CollabStore>();
         services.AddSingleton<ICollabDisk, CollabDisk>();
         services.AddSingleton<ICustomerWishStore, CustomerWishStore>();
+        services.AddScoped<ICustomerNotifier, KunderNotifier>();
         return services;
     }
 
@@ -337,4 +345,32 @@ public sealed class CustomerWishStore(IDbContextFactory<HjemQuestionsDb> dbf) : 
             db.WishSeen.Add(new WishSeen { Customer = customer, ItemId = id, At = DateTime.UtcNow });
         await db.SaveChangesAsync(ct);
     }
+
+    public async Task<List<string>> CustomersAsync(CancellationToken ct = default)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.Wishes.AsNoTracking().Select(w => w.Customer).Distinct().ToListAsync(ct);
+    }
+
+    public async Task<HashSet<int>> MailedAsync(string customer, CancellationToken ct = default)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return (await db.WishMailed.AsNoTracking().Where(s => s.Customer == customer).Select(s => s.ItemId).ToListAsync(ct)).ToHashSet();
+    }
+
+    public async Task MarkMailedAsync(string customer, IEnumerable<int> itemIds, CancellationToken ct = default)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        var have = (await db.WishMailed.Where(s => s.Customer == customer).Select(s => s.ItemId).ToListAsync(ct)).ToHashSet();
+        foreach (var id in itemIds.Distinct().Where(i => !have.Contains(i)))
+            db.WishMailed.Add(new WishMailed { Customer = customer, ItemId = id, At = DateTime.UtcNow });
+        await db.SaveChangesAsync(ct);
+    }
+}
+
+/// <summary>Kunder sends the wish mail (it has the e-mail + afmeld link).</summary>
+public sealed class KunderNotifier(ITMartinKunder.Client.KunderClient kunder) : ICustomerNotifier
+{
+    public Task<bool> NotifyAsync(string code, string subject, string body, CancellationToken ct = default) =>
+        kunder.NotifyAsync(code, subject, body, "Bogshoppen", ct);
 }

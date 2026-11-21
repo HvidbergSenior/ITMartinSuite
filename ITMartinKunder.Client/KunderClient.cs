@@ -130,6 +130,22 @@ public sealed class KunderClient(HttpClient http, KunderOutbox outbox, ILogger<K
         }
     }
 
+    /// <summary>Mail one customer by kundenummer (Kunder adds the afmeld link). False when not sent or Kunder is down -
+    /// the caller tries again next time; nothing is queued (a late "it is here" is worse than the next run).</summary>
+    public async Task<bool> NotifyAsync(string code, string subject, string body, string app, CancellationToken ct = default)
+    {
+        try
+        {
+            using var res = await http.PostAsJsonAsync(KunderApi.Notify, new NotifyRequest(code, subject, body, app), Json, ct);
+            return res.IsSuccessStatusCode && (await res.Content.ReadFromJsonAsync<NotifyResponse>(Json, ct))?.Sent == true;
+        }
+        catch (Exception ex) when (Unreachable(ex, ct) || ex is JsonException)
+        {
+            log.LogWarning("Kunder did not send the message ({Message})", ex.Message);
+            return false;
+        }
+    }
+
     /// <summary>What Bogshoppen's customers look for (texts only). Null when Kunder does not answer.</summary>
     public async Task<List<string>?> WishesAsync(string company, CancellationToken ct = default)
     {

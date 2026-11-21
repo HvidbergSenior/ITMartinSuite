@@ -22,8 +22,31 @@ public sealed class WishSeen
     public DateTime At { get; set; }
 }
 
+/// <summary>A found product the customer got a mail about (2026-11-21) - one mail per thing, ever.</summary>
+public sealed class WishMailed
+{
+    public int Id { get; set; }
+    public string Customer { get; set; } = "";
+    public int ItemId { get; set; }
+    public DateTime At { get; set; }
+}
+
 public static class WishRules
 {
+    /// <summary>Customers looked at per run of the wish mail (each = one search per wish).</summary>
+    public const int MaxCustomersPerRun = 200;
+
+    /// <summary>The wish mail: one line per found thing, under the wish it fits, and the link to see it.</summary>
+    public static (string Subject, string Body) Mail(IReadOnlyList<(string Wish, string Line, int ItemId)> found, string shopUrl)
+    {
+        var subject = found.Count == 1 ? "Vi har fået noget, du leder efter" : $"Vi har fået {found.Count} ting, du leder efter";
+        var lines = found.GroupBy(f => f.Wish).Select(g => $"Du leder efter: {g.Key}\n" +
+            string.Join("\n", g.Select(f => $"  - {f.Line} (nr. {f.ItemId})")));
+        var body = "Nu har vi fået det her ind på bogshoppen.dk:\n\n" + string.Join("\n\n", lines) +
+            $"\n\nSe det og giv dit bud på {shopUrl.TrimEnd('/')} – log ind med dit nummer. Eller kom forbi og se det.";
+        return (subject, body);
+    }
+
     public const int MaxText = 80, MaxPerCustomer = 20, MaxFoundPerWish = 6;
 
     // A word for the kind of thing narrows the search instead of being looked for in the title ("Bones DVD").
