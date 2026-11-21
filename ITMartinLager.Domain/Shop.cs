@@ -45,8 +45,11 @@ public static class Shop
     /// products"): the cheapest exact listing, used first - what our price is set under; else one "magen til". Never eBay
     /// (user 2026-10-29: "Dont use ebay at all"). Our price is set UNDER the other sites, so the reference is the cheapest listing at or above our price (2026-10-31:
     /// "25 kr - lignende koster 1 kr" worked against us); listings under MinReferenceKr are start bids or junk.</summary>
-    public static ShopProof? Reference(IEnumerable<PriceFind> finds, decimal? ourKr = null, bool likeNew = false)
+    public static ShopProof? Reference(IEnumerable<PriceFind> finds, decimal? ourKr = null, bool likeNew = false, bool ads = false)
     {
+        // A season / box set (2026-11-21): its price comes from the ads, so the ad is its reference.
+        if (ads && finds.Where(f => !f.Similar && !f.IsNew && Pricing.ClassifiedAds.Contains(f.Source) && f.Kr >= Math.Max(MinReferenceKr, ourKr ?? 0) && f.Url.StartsWith("http"))
+                .OrderBy(f => f.Kr).FirstOrDefault() is { } ad) return ProofView(ad);
         // A book as new: the proof is the new shop's price and link (2026-11-16, "compared to Bog og Ide with link and price").
         if (likeNew && finds.Where(f => f.IsNew && !f.Similar && Pricing.DanishNewShops.Contains(f.Source) && f.Kr >= (ourKr ?? 0) && f.Url.StartsWith("http"))
                 .OrderBy(f => f.Kr).FirstOrDefault() is { } shop) return ProofView(shop);

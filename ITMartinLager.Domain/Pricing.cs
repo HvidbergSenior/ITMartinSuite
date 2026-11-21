@@ -26,6 +26,20 @@ public static partial class Pricing
     /// with link and price. And 25 pct off"): 25 % under the new price, down to the nearest 5 kr.</summary>
     public const decimal AsNewFactor = 0.75m;
     public static bool LikeNew(string usage) => usage is Usages.New or Usages.AsNew;
+
+    /// <summary>Seasons and box sets (user 2026-11-21: "dvds are only if single dvd standard price. Seasons etc need reference"):
+    /// film has no dealer, so for these the classified ads DO count - at half their realistic middle (ads ask 2-5x what things
+    /// sell for), on a shop step, never under the kind's standard price. A single DVD keeps the standard price.</summary>
+    public static bool FilmBox(Item i) => IsBoxSet(i) || Films.IsSeason(i.Kind, i.Title);
+    public const decimal AdsFactor = 0.5m;
+
+    public static int? FromAds(Item i, IEnumerable<PriceFind> finds)
+    {
+        if (!FilmBox(i)) return null;
+        var ads = finds.Where(f => !f.Similar && !f.IsNew && f.Kr > 0 && ClassifiedAds.Contains(f.Source)).Select(f => (f.Source, f.Kr)).ToList();
+        if (Realistic(ads) is not { } middle) return null;
+        return Math.Max(OnStep(middle * AdsFactor), Shop.StandardFor(i.Kind, i.Category) ?? MinimumKr);
+    }
     public static int? AsNewPrice(int? newKr) => newKr is > 0 ? (int)(Math.Floor(newKr.Value * AsNewFactor / 5) * 5) : null;
 
     /// <summary>Ordinary = under bronze (100 kr) - loppemarked prices.</summary>
@@ -840,6 +854,8 @@ public sealed record HuntResult(List<PriceCheck> Checks, List<PriceFind> Finds, 
             return;
         }
         item.PriceHint = ShopPrice(Normal);
+        // A season / box set: no dealer has film, so the ads at half (Pricing.FromAds, 2026-11-21).
+        if (item.PriceHint is null && Pricing.FromAds(item, Finds) is { } fromAds) item.PriceHint = fromAds;
         // Ny / Som ny and the same book is sold new (2026-11-16, user: "BUSINESS IDEA IS WHEN I HAVE EXACT BOOK THAT IS AS NEW!" +
         // "compared to Bog og Ide ... 25 pct off"): 25 % under the new price - never under what a used copy would get.
         if (Pricing.LikeNew(item.Usage) && Pricing.AsNewPrice(NewNormal) is { } asNew && asNew > (item.PriceHint ?? 0)) item.PriceHint = asNew;

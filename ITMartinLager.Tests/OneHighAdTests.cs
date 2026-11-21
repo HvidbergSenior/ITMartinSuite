@@ -53,3 +53,24 @@ public class NewReferenceTests
         Shop.NewReference([finds[2]]).Should().BeNull();
     }
 }
+
+// Seasons and box sets priced from the ads at half; a single DVD keeps the standard price (2026-11-21).
+public class FilmBoxTests
+{
+    private static PriceFind Ad(int kr) => new() { Source = "DBA", Kr = kr, Name = "x", Url = $"https://dba.dk/{kr}" };
+
+    [Test]
+    public void A_season_gets_half_the_ads_on_a_step_and_the_ad_as_reference()
+    {
+        var season = new Item { Kind = Kinds.Dvd, Title = "Matador Kollektionen" };
+        Pricing.FromAds(season, [Ad(200), Ad(240), Ad(260)]).Should().Be(100);   // middle 240 -> 120 -> step 100
+        Shop.Reference([Ad(200), Ad(240)], 100, ads: true)!.Url.Should().Be("https://dba.dk/200");
+    }
+
+    [Test]
+    public void A_single_dvd_and_cheap_ads_stay_on_the_standard()
+    {
+        Pricing.FromAds(new Item { Kind = Kinds.Dvd, Title = "Gladiator" }, [Ad(200)]).Should().BeNull();
+        Pricing.FromAds(new Item { Kind = Kinds.Dvd, Title = "Bones sæson 2" }, [Ad(20)]).Should().Be(20);   // never under standard 20
+    }
+}
