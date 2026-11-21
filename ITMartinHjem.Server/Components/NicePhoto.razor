@@ -1,0 +1,50 @@
+@inject ShopUseCases Shop
+@inject PersistentComponentState State
+@implements IDisposable
+
+@* The photo next to "Produkter" (user 2026-11-21: "should be random and some nice ones. Like the rare ones"): a random one of
+   the Sjældne things with a photo, dearest first. The list is kept 10 minutes (one call to Salg, not one per view); the pick
+   is handed from the server drawing to the live one, so the picture does not jump. No rare photos = Bogshoppen's own photo. *@
+<span class="hj-head-photo">
+    @if (_pick is { } p)
+    {
+        <a href="/varer/foto/@p.Id" target="_blank" rel="noopener" title="@p.Line"><img src="/varer/foto/@p.Id" alt="@p.Line" width="150" height="150" /></a>
+        <span class="hj-head-place">@Short(p.Line)</span>
+    }
+    else
+    {
+        <img src="@_fallback.Src" alt="@_fallback.Place" width="150" height="150" />
+        <span class="hj-head-place">@_fallback.Place</span>
+    }
+</span>
+
+@code {
+    public sealed record Pick(int Id, string Line);
+
+    private static readonly TimeSpan KeepFor = TimeSpan.FromMinutes(10);
+    private static (DateTime At, List<Pick> Items)? _cache;
+    private readonly MartinPhotos.Photo _fallback = BogshoppenPhotos.Now;
+    private Pick? _pick;
+    private PersistingComponentStateSubscription _persist;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _persist = State.RegisterOnPersisting(() => { State.PersistAsJson("nice-photo", _pick); return Task.CompletedTask; });
+        if (State.TryTakeFromJson<Pick>("nice-photo", out var kept) && kept is not null) { _pick = kept; return; }
+        var items = await NiceAsync();
+        _pick = items.Count == 0 ? null : items[Random.Shared.Next(items.Count)];
+    }
+
+    private async Task<List<Pick>> NiceAsync()
+    {
+        if (_cache is { } c && DateTime.UtcNow - c.At < KeepFor) return c.Items;
+        var (market, _) = await Shop.MarketAsync(ShopDeals.RareName, null, null, "", ShopSorts.Dearest, 0);
+        var list = (market?.Items ?? []).Where(i => i.HasPhoto).Select(i => new Pick(i.Id, i.Line)).Take(24).ToList();
+        if (market is not null) _cache = (DateTime.UtcNow, list);   // Salg down = try again next view
+        return list;
+    }
+
+    private static string Short(string line) => line.Length > 28 ? line[..26].TrimEnd(' ', '·', '–') + " …" : line;
+
+    public void Dispose() => _persist.Dispose();
+}
