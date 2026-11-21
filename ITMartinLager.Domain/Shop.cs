@@ -58,6 +58,13 @@ public static class Shop
 
     public const int MinReferenceKr = 5;
 
+    /// <summary>The new price at a Danish new shop (Bog &amp; idé, Fantask), new or used (user 2026-11-21: "a reference should also be
+    /// Bog og Ide ... when you are about to buy it can find similar on my site", "well also if it is used"): the cheapest exact
+    /// new copy with a link, or null.</summary>
+    public static ShopProof? NewReference(IEnumerable<PriceFind> finds) =>
+        finds.Where(f => f.IsNew && !f.Similar && Pricing.DanishNewShops.Contains(f.Source) && f.Kr >= MinReferenceKr && f.Url.StartsWith("http"))
+            .OrderBy(f => f.Kr).FirstOrDefault() is { } f ? ProofView(f) : null;
+
     /// <summary>The links a buyer may see (user 2026-11-04: "links to too high prices like Ebay should just be hided"): never eBay
     /// or Discogs (shops' asking prices, never part of our price - Pricing.NotForNormal), and never a listing over 2x the normal
     /// price of the used listings. Lager itself still shows every link.</summary>
@@ -126,11 +133,11 @@ public static class Shop
             : StandardFor(i.Kind, i.Category);
 
     /// <summary>A thing for sale as Salg gets it.</summary>
-    public static StockItem View(Item i, IReadOnlyList<GoldEntry> gold, ShopProof? reference = null) =>
+    public static StockItem View(Item i, IReadOnlyList<GoldEntry> gold, ShopProof? reference = null, ShopProof? newReference = null) =>
         new(i.Id, i.Kind, i.Line(), i.Title, i.Interest, i.Condition, i.Year, i.Quantity, i.Usage,
             i.Price is > 0 ? (int)Math.Round(i.Price.Value) : null, i.PriceHint is > 0 ? (int)Math.Round(i.PriceHint.Value) : Standard(i),
             i.Confidence, i.ShopPhotoProblem == "", Badge(gold, i), i.Box?.IsTest == true, reference, i.Deal, i.Seller,
-            i.ShopPhotoProblem == "" ? 1 + i.MorePhotos : 0);
+            i.ShopPhotoProblem == "" ? 1 + i.MorePhotos : 0, newReference);
 
     public static ShopProof ProofView(PriceFind f) => new(f.Source, f.Kr, f.Original, f.Url, f.IsNew);
 }

@@ -35,3 +35,21 @@ public class OneHighAdTests
         Pricing.OneHighAd(Blad(400), [F("Faraos", 425, similar: true)]).Should().BeFalse();
     }
 }
+
+// Bog & idé as a reference, new or used (2026-11-21).
+public class NewReferenceTests
+{
+    [Test]
+    public void The_cheapest_new_copy_at_a_Danish_new_shop()
+    {
+        var finds = new List<PriceFind>
+        {
+            new() { Source = "Bog & idé", Kr = 249, IsNew = true, Url = "https://bogide.dk/2" },
+            new() { Source = "Bog & idé", Kr = 199, IsNew = true, Url = "https://bogide.dk/1" },
+            new() { Source = "Faraos", Kr = 60, Url = "https://faraos.dk/1" },
+            new() { Source = "Saxo", Kr = 150, IsNew = true, Url = "https://saxo.dk/1" },
+        };
+        Shop.NewReference(finds)!.Url.Should().Be("https://bogide.dk/1");
+        Shop.NewReference([finds[2]]).Should().BeNull();
+    }
+}

@@ -721,9 +721,17 @@
                 }
                 @* Every thing with a reference (user 2026-11-21: "found on Faraos -> link, your offer"): the buyer sees where and what,
                    and gives their own bid - also while our own prices are hidden. *@
-                @if ((Prices.On || Visibility.Customers) && !i.ForShow && i.Deal == "" && i.Reference is { } seen)
+                @if ((Prices.On || Visibility.Customers) && !i.ForShow && i.Deal == "" && (i.Reference is not null || i.NewReference is not null))
                 {
-                    <p class="bs-shop-seen">Fundet på <a href="@seen.Url" target="_blank" rel="noopener nofollow">@seen.Source: @seen.Kr kr@(seen.IsNew ? " (ny)" : "")</a></p>
+                    @if (i.Reference is { } seen && seen.Url != i.NewReference?.Url)
+                    {
+                        <p class="bs-shop-seen">Fundet på <a href="@seen.Url" target="_blank" rel="noopener nofollow">@seen.Source: @seen.Kr kr@(seen.IsNew ? " (ny)" : "")</a></p>
+                    }
+                    @* The new price at Bog & idé / Fantask, also for a used copy (2026-11-21) - "about to buy it new? see it here". *@
+                    @if (i.NewReference is { } fresh)
+                    {
+                        <p class="bs-shop-seen">Koster som ny: <a href="@fresh.Url" target="_blank" rel="noopener nofollow">@fresh.Kr kr hos @fresh.Source</a></p>
+                    }
                     @if (Visibility.Customers && Customer == "") { <a class="k-help" href="#marked">Log ind og giv dit bud</a> }
                 }
                 @if (Visibility.Customers && Customer != "" && !i.ForShow) { @MarketButtons(i) }

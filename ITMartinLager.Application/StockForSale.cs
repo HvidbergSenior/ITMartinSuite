@@ -121,7 +121,9 @@ public sealed class StockForSaleUseCases(IItemRepository items, IPriceRepository
         if (list.Count == 0) return [];
         var goldList = await gold.AllAsync(ct);
         var finds = await prices.FindsForAsync(list.Select(i => i.Id).ToList(), ct);
-        return list.Select(i => Shop.View(i, goldList, finds.TryGetValue(i.Id, out var f) ? Shop.Reference(f, i.Price ?? i.PriceHint, Pricing.LikeNew(i.Usage)) : null)).ToList();
+        return list.Select(i => finds.TryGetValue(i.Id, out var f)
+            ? Shop.View(i, goldList, Shop.Reference(f, i.Price ?? i.PriceHint, Pricing.LikeNew(i.Usage)), Shop.NewReference(f))
+            : Shop.View(i, goldList)).ToList();
     }
 }
 
