@@ -27,6 +27,9 @@ public interface IOfferGateway
     Task<Dictionary<int, int>> MyBidsAsync(string customer, CancellationToken ct = default);
     Task<ShopOfferAnswer> BundleAsync(string customer, IReadOnlyList<int> itemIds, int? kr, CancellationToken ct = default);
     // Haggling (2026-11-21)
+    Task<ShopOfferAnswer> LoanAsync(ShopLoanPlace place, CancellationToken ct = default);
+    Task<List<ShopLoanView>> MyLoansAsync(string customer, CancellationToken ct = default);
+    Task<ShopOfferAnswer> CancelLoanAsync(string customer, int loanId, CancellationToken ct = default);
     Task<ShopOfferAnswer> ItemOfferAsync(string customer, int itemId, int kr, CancellationToken ct = default);
     Task<List<ShopBundleView>> MyBundlesAsync(string customer, CancellationToken ct = default);
     Task<ShopOfferAnswer> ReplyAsync(int bundleId, ShopBundleReply reply, CancellationToken ct = default);
@@ -94,6 +97,28 @@ public sealed class MarketUseCases(IMarketCodes codes, IInterestGateway interest
         if (customer == "") return new(false, "Log ind med dit nummer først.");
         if (itemIds.Count < 2) return new(false, "Læg mindst 2 ting i bundtet.");
         try { return await (offers ?? throw new InvalidOperationException()).BundleAsync(customer, itemIds, kr, ct); }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException) { return new(false, Unreachable); }
+    }
+
+    // -- Lån en konsol (2026-11-21) --
+    public async Task<ShopOfferAnswer> LoanAsync(string customer, string console, DateTime friday, bool tenDvds, CancellationToken ct = default)
+    {
+        if (customer == "") return new(false, "Log ind med dit nummer først.");
+        try { return await (offers ?? throw new InvalidOperationException()).LoanAsync(new ShopLoanPlace(customer, console, friday, tenDvds), ct); }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException) { return new(false, Unreachable); }
+    }
+
+    public async Task<List<ShopLoanView>> MyLoansAsync(string customer, CancellationToken ct = default)
+    {
+        if (customer == "" || offers is null) return [];
+        try { return await offers.MyLoansAsync(customer, ct); }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return []; }
+    }
+
+    public async Task<ShopOfferAnswer> CancelLoanAsync(string customer, int loanId, CancellationToken ct = default)
+    {
+        if (customer == "") return new(false, "Log ind med dit nummer først.");
+        try { return await (offers ?? throw new InvalidOperationException()).CancelLoanAsync(customer, loanId, ct); }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException) { return new(false, Unreachable); }
     }
 

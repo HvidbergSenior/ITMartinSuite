@@ -60,6 +60,10 @@ public static class ShopApi
         });
 
         // Haggling (2026-11-21): the customer's bundles, and their answer to Martin's price.
+        // Lån en konsol (2026-11-21).
+        api.MapPost("/laan", async (ShopLoanPlace body, LoanUseCases loans) => await loans.AskAsync(body));
+        api.MapGet("/laan/{customer}", async (string customer, LoanUseCases loans) => new ShopMyLoans(await loans.MineAsync(customer)));
+        api.MapPost("/laan/{id:int}/aflys", async (int id, ShopBidPlace body, LoanUseCases loans) => await loans.CancelByCustomerAsync(id, body.Customer));
         api.MapPost("/varer/{id:int}/tilbud", async (int id, ShopBidPlace body, OfferUseCases offers) => await offers.ItemOfferAsync(body.Customer, id, body.MaxKr));
         api.MapGet("/bundter/{customer}", async (string customer, OfferUseCases offers) => new ShopMyBundles(await offers.MyBundlesAsync(customer)));
         api.MapPost("/bundt/{id:int}/svar", async (int id, ShopBundleReply body, OfferUseCases offers) => await offers.CustomerReplyAsync(id, body));

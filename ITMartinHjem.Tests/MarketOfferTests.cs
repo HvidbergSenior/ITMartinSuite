@@ -36,6 +36,9 @@ public class MarketOfferTests
         public Task<ShopOfferAnswer> BundleAsync(string customer, IReadOnlyList<int> itemIds, int? kr, CancellationToken ct = default)
         { Bundles++; LastKr = kr; LastCount = itemIds.Count; return Task.FromResult(new ShopOfferAnswer(true)); }
         public Task<ShopOfferAnswer> ItemOfferAsync(string customer, int itemId, int kr, CancellationToken ct = default) => Task.FromResult(new ShopOfferAnswer(true));
+        public Task<ShopOfferAnswer> LoanAsync(ShopLoanPlace place, CancellationToken ct = default) => Task.FromResult(new ShopOfferAnswer(true));
+        public Task<List<ShopLoanView>> MyLoansAsync(string customer, CancellationToken ct = default) => Task.FromResult(new List<ShopLoanView>());
+        public Task<ShopOfferAnswer> CancelLoanAsync(string customer, int loanId, CancellationToken ct = default) => Task.FromResult(new ShopOfferAnswer(true));
         public Task<List<ShopBundleView>> MyBundlesAsync(string customer, CancellationToken ct = default) => Task.FromResult(new List<ShopBundleView>());
         public Task<ShopOfferAnswer> ReplyAsync(int bundleId, ShopBundleReply reply, CancellationToken ct = default) => Task.FromResult(new ShopOfferAnswer(true));
     }

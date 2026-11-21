@@ -245,3 +245,22 @@ public sealed record ShopBundleView(int Id, List<string> Lines, int? YourKr, int
 public sealed record ShopMyBundles(List<ShopBundleView> Bundles);
 /// <summary>The customer's answer: Accept = yes to PriceForYou; else Kr = a new bid; Reject = no thanks.</summary>
 public sealed record ShopBundleReply(string Customer, bool Accept, int? Kr, bool Reject = false);
+
+/// <summary>"Lån en konsol" (user 2026-11-21: "I also have a lot of ps3s they should be able to play dvds" + "take money for
+/// borrowing" + PS4/PS5; prices chosen the same day, "no depositum needed"): a weekend Friday-Monday, price incl. moms. Only the console is
+/// lent - films and games are SOLD (renting those out needs the rights holder's OK). A PS3 is free with 10 DVDs bought.</summary>
+public static class ConsoleLoanRules
+{
+    public const string Ps3 = "PS3", Ps4 = "PS4", Ps5 = "PS5";
+    public static readonly IReadOnlyList<(string Console, int PriceKr)> All = [(Ps3, 50), (Ps4, 100), (Ps5, 150)];
+    public const int FreePs3FromDvds = 10, MaxDaysAhead = 60;
+    public static (string Console, int PriceKr)? For(string? console) =>
+        All.FirstOrDefault(c => c.Console == console) is { Console: not null } c ? c : null;
+    /// <summary>The weekend price: a PS3 is free when they buy 10 DVDs.</summary>
+    public static int? PriceFor(string? console, bool withTenDvds) =>
+        For(console) is { } c ? (c.Console == Ps3 && withTenDvds ? 0 : c.PriceKr) : null;
+}
+
+public sealed record ShopLoanPlace(string Customer, string Console, DateTime Friday, bool WithTenDvds);
+public sealed record ShopLoanView(int Id, string Console, DateTime Friday, int PriceKr, string Status);
+public sealed record ShopMyLoans(List<ShopLoanView> Loans);

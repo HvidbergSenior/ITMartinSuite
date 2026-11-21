@@ -88,6 +88,7 @@
         <p><b>Derfor giver vi ikke penge tilbage.</b> Er der noget galt, du ikke kunne se: tag et billede, skriv hvad der er galt, og send det til os. Så får du en anden ting i bytte.</p>
         <p class="k-help">Dine rettigheder efter loven gælder altid.</p>
     </details>
+    @if (Family is null || Family == ShopFamilies.Film || Family == ShopFamilies.Spil) { <ConsoleLoanBox /> }
 
     <form class="bs-search" @onsubmit="Search" @onsubmit:preventDefault>
         <input class="k-input" type="search" aria-label="Søg efter en titel" placeholder="@(Family is null ? "Søg i alle butikker, fx Barnaby" : $"Søg i {Family.Name}")" @bind="_text" />

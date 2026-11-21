@@ -5,6 +5,7 @@ namespace ITMartinSalg.Infrastructure.Persistence;
 public sealed class SalgDb(DbContextOptions<SalgDb> options) : DbContext(options)
 {
     public DbSet<Order> Orders => Set<Order>();
+    public DbSet<ConsoleLoan> Loans => Set<ConsoleLoan>();   // Lån en konsol (2026-11-21)
     public DbSet<OrderLine> OrderLines => Set<OrderLine>();
     public DbSet<Campaign> Campaigns => Set<Campaign>();
     public DbSet<Interest> Interests => Set<Interest>();

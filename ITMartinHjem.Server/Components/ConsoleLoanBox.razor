@@ -1,0 +1,84 @@
+@inject MarketUseCases Market
+@inject ShopVisibility Visibility
+
+@* "Lån en konsol" (user 2026-11-21: "a lot of ps3s they should be able to play dvds", "take money for borrowing", PS4/PS5,
+   "no depositum needed"). Prices from ConsoleLoanRules. Asking needs the kundenummer login (the market switch); the prices
+   are shown to all. Only the console is lent - the films and games are bought and kept. *@
+<details class="bs-used bs-loan" data-remember="bs-loan">
+    <summary><b>Filmaften? Lån en konsol</b></summary>
+    <p>Køb dine film – <b>4 DVD'er for 50 kr, 10 for 100 kr</b>, og du beholder dem – og lån en konsol at se dem på. Fra fredag til mandag:</p>
+    <ul class="bs-loan-prices">
+        @foreach (var c in ConsoleLoanRules.All)
+        {
+            <li><b>@c.Console</b> @c.PriceKr kr@(c.Console == ConsoleLoanRules.Ps3 ? $" – gratis, når du køber {ConsoleLoanRules.FreePs3FromDvds} DVD'er" : "")</li>
+        }
+    </ul>
+    <p class="k-help">PS3 spiller DVD og Blu-ray. Spil til konsollen kan du købe hos os. Alle priser er inkl. moms.</p>
+    @if (!Visibility.Customers) { <p class="k-help">Skriv til os, hvis du vil låne en.</p> }
+    else if (Customer == "") { <a class="k-help" href="#marked">Log ind med dit nummer for at bestille</a> }
+    else
+    {
+        <div class="bs-market-row">
+            <select class="k-input" @bind="_console" aria-label="Konsol">
+                @foreach (var c in ConsoleLoanRules.All) { <option value="@c.Console">@c.Console</option> }
+            </select>
+            <select class="k-input" @bind="_friday" aria-label="Weekend">
+                @foreach (var f in Fridays) { <option value="@f.ToString("yyyy-MM-dd")">Fredag @f.ToString("d/M")</option> }
+            </select>
+        </div>
+        @if (_console == ConsoleLoanRules.Ps3) { <label class="k-help"><input type="checkbox" @bind="_tenDvds" /> Jeg køber @ConsoleLoanRules.FreePs3FromDvds DVD'er (så er PS3'en gratis)</label> }
+        <button type="button" class="k-btn k-btn-primary" @onclick="Ask">Bestil – @(ConsoleLoanRules.PriceFor(_console, _tenDvds)) kr</button>
+        @if (_msg is { } m) { <p class="bs-market-note" role="status">@m</p> }
+        @if (_mine.Count > 0)
+        {
+            <ul class="bs-mine">
+                @foreach (var l in _mine)
+                {
+                    <li>@l.Console fra fredag @l.Friday.ToString("d/M") · @(l.PriceKr == 0 ? "gratis" : $"{l.PriceKr} kr") · <b>@l.Status</b>
+                        @if (l.Status is "Ny" or "Bekræftet") { <button type="button" class="k-btn k-btn-ghost k-btn-sm" @onclick="() => Cancel(l.Id)">Aflys</button> }
+                    </li>
+                }
+            </ul>
+        }
+    }
+</details>
+
+@code {
+    [CascadingParameter(Name = "ShopCustomer")] public string Customer { get; set; } = "";
+    private string _console = ConsoleLoanRules.Ps3, _friday = "";
+    private bool _tenDvds;
+    private string? _msg;
+    private List<ShopLoanView> _mine = [];
+
+    private static readonly TimeZoneInfo Copenhagen = TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
+    private static List<DateTime> Fridays
+    {
+        get
+        {
+            var today = TimeZoneInfo.ConvertTime(DateTime.UtcNow, Copenhagen).Date;
+            var first = today.AddDays(((int)DayOfWeek.Friday - (int)today.DayOfWeek + 7) % 7);
+            return Enumerable.Range(0, 8).Select(w => first.AddDays(7 * w)).ToList();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _friday = Fridays[0].ToString("yyyy-MM-dd");
+        if (Visibility.Customers && Customer != "") _mine = await Market.MyLoansAsync(Customer);
+    }
+
+    private async Task Ask()
+    {
+        if (!DateTime.TryParse(_friday, out var day)) { _msg = "Vælg en weekend."; return; }
+        var r = await Market.LoanAsync(Customer, _console, day, _tenDvds);
+        _msg = r.Ok ? "Bestilt! Vi bekræfter, når vi har set, at der er en konsol til dig." : r.Error;
+        _mine = await Market.MyLoansAsync(Customer);
+    }
+
+    private async Task Cancel(int id)
+    {
+        var r = await Market.CancelLoanAsync(Customer, id);
+        _msg = r.Ok ? "Lånet er aflyst." : r.Error;
+        _mine = await Market.MyLoansAsync(Customer);
+    }
+}

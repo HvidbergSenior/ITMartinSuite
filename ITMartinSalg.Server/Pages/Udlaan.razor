@@ -1,0 +1,56 @@
+@page "/udlaan"
+@inject LoanUseCases Loans
+
+@* "Lån en konsol" (2026-11-21): the weekend loans asked for on bogshoppen.dk. Only the console is lent - films and games are sold. *@
+<PageTitle>Udlån – Bogshoppen Salg</PageTitle>
+
+<section class="k-card">
+    <h1 class="k-card-title">Udlån af konsoller</h1>
+    <p><b>Gør dette:</b> sig ja til de lån, du har en konsol til, og tryk <b>Udleveret</b>, når den er hentet, og <b>Afleveret</b>, når den er tilbage. <b>Du får:</b> et overblik over, hvem der har hvilken konsol hvilken weekend.</p>
+    <p class="k-help">Priser pr. weekend (fredag–mandag) inkl. moms: @string.Join(" · ", ConsoleLoanRules.All.Select(c => $"{c.Console} {c.PriceKr} kr")). En PS3 er gratis, når de køber @ConsoleLoanRules.FreePs3FromDvds DVD'er. Intet depositum. Kun konsollen lånes ud – film og spil bliver solgt.</p>
+    <p class="k-help">Nummeret er personens nummer fra Kunder – slå det op dér for navn og mail.</p>
+</section>
+
+@if (_error is not null) { <section class="k-card"><p class="lg-warn" role="alert">⚠ @_error</p></section> }
+
+<section class="k-card">
+    <h2 class="k-card-title">@(_loans is null ? "Henter lån …" : $"Lån ({_loans.Count(l => l.Status == ConsoleLoan.New)} venter på dig)")</h2>
+    @if (_loans is { Count: 0 }) { <p>Ingen lån endnu.</p> }
+    else if (_loans is not null)
+    {
+        <ul class="lg-list">
+            @foreach (var l in _loans)
+            {
+                <li>
+                    <span class="lg-main">
+                        <b>@l.Console · weekend fra fredag @l.Friday.ToString("d/M")</b>
+                        <span class="k-small">@(l.PriceKr == 0 ? "Gratis (med 10 DVD'er)" : $"{l.PriceKr} kr") · nummer @Show(l.Customer) · @l.Status</span>
+                    </span>
+                    <span class="lg-actions">
+                        @if (l.Status == ConsoleLoan.New) { <button class="k-btn k-btn-sm k-btn-primary" @onclick='() => Move(l.Id, "bekraeft")'>Ja, jeg har en</button> }
+                        @if (l.Status is ConsoleLoan.New or ConsoleLoan.Confirmed) { <button class="k-btn k-btn-sm" @onclick='() => Move(l.Id, "udlever")'>Udleveret</button> }
+                        @if (l.Status == ConsoleLoan.Out) { <button class="k-btn k-btn-sm k-btn-primary" @onclick='() => Move(l.Id, "tilbage")'>Afleveret</button> }
+                        @if (l.Status is ConsoleLoan.New or ConsoleLoan.Confirmed) { <button class="k-btn k-btn-sm k-btn-ghost" @onclick='() => Move(l.Id, "aflys")'>Aflys</button> }
+                    </span>
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+@code {
+    private List<ConsoleLoan>? _loans;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    private async Task Load()
+    {
+        try { _loans = await Loans.OverviewAsync(); }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { _error = "Kunne ikke hente lånene – prøv igen om lidt."; }
+    }
+
+    private async Task Move(int id, string action) { _error = await Loans.MoveAsync(id, action); await Load(); }
+
+    private static string Show(string code) => code.Length == 8 ? code[..4] + " " + code[4..] : code;
+}

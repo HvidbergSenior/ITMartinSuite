@@ -31,11 +31,13 @@ public static partial class Pricing
     /// film has no dealer, so for these the classified ads DO count - at half their realistic middle (ads ask 2-5x what things
     /// sell for), on a shop step, never under the kind's standard price. A single DVD keeps the standard price.</summary>
     public static bool FilmBox(Item i) => IsBoxSet(i) || Films.IsSeason(i.Kind, i.Title);
+    /// <summary>Priced from the ads: seasons/box sets and console games (user 2026-11-21 "like DVD seasons" for games).</summary>
+    public static bool FromAdsKind(Item i) => FilmBox(i) || i.Kind == Kinds.Konsolspil;
     public const decimal AdsFactor = 0.5m;
 
     public static int? FromAds(Item i, IEnumerable<PriceFind> finds)
     {
-        if (!FilmBox(i)) return null;
+        if (!FromAdsKind(i)) return null;
         var ads = finds.Where(f => !f.Similar && !f.IsNew && f.Kr > 0 && ClassifiedAds.Contains(f.Source)).Select(f => (f.Source, f.Kr)).ToList();
         if (Realistic(ads) is not { } middle) return null;
         return Math.Max(OnStep(middle * AdsFactor), Shop.StandardFor(i.Kind, i.Category) ?? MinimumKr);

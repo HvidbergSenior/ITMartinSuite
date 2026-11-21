@@ -20,6 +20,7 @@ public static class DependencyInjection
         services.AddScoped<ICampaignRepository, CampaignRepository>();
         services.AddScoped<IInterestRepository, InterestRepository>();
         services.AddScoped<IOfferRepository, OfferRepository>();
+        services.AddScoped<ILoanRepository, LoanRepository>();   // Lån en konsol (2026-11-21)
         services.AddHttpClient<IPaymentGateway, StripeCheckout>(c => c.Timeout = TimeSpan.FromSeconds(30));
         services.AddHttpClient<IStockGateway, LagerStockLink>(c => c.Timeout = TimeSpan.FromSeconds(20));
         services.AddKunderClient(cfg, dataDir);

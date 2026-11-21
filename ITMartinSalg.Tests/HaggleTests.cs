@@ -56,3 +56,36 @@ public class HaggleTests
         FluentActions.Invoking(() => b.ShopCounters(120, Now)).Should().Throw<InvalidOperationException>();
     }
 }
+
+// Lån en konsol (2026-11-21): a weekend from a Friday, no deposit, PS3 free with 10 DVDs.
+public class ConsoleLoanTests
+{
+    private static readonly DateTime Now = new(2026, 11, 21, 12, 0, 0, DateTimeKind.Utc);   // a Saturday
+    private static readonly DateTime Friday = new(2026, 11, 27);
+
+    [Test]
+    public void Asked_confirmed_handed_out_back()
+    {
+        var l = ConsoleLoan.Ask("48810359", "PS4", Friday, false, Now);
+        l.PriceKr.Should().Be(100);
+        l.Confirm(Now); l.HandOut(Now); l.Return(Now);
+        l.Status.Should().Be(ConsoleLoan.Back);
+    }
+
+    [Test]
+    public void Ps3_is_free_with_ten_dvds_but_ps5_is_not()
+    {
+        ConsoleLoan.Ask("48810359", "PS3", Friday, true, Now).PriceKr.Should().Be(0);
+        ConsoleLoan.Ask("48810359", "PS5", Friday, true, Now).PriceKr.Should().Be(150);
+    }
+
+    [Test]
+    public void Only_a_coming_friday_and_no_cancel_once_handed_out()
+    {
+        FluentActions.Invoking(() => ConsoleLoan.Ask("48810359", "PS3", Friday.AddDays(1), false, Now)).Should().Throw<InvalidOperationException>().WithMessage("*fredag*");
+        FluentActions.Invoking(() => ConsoleLoan.Ask("48810359", "PS3", new DateTime(2026, 11, 20), false, Now)).Should().Throw<InvalidOperationException>();
+        var l = ConsoleLoan.Ask("48810359", "PS3", Friday, false, Now);
+        l.HandOut(Now);
+        FluentActions.Invoking(() => l.Cancel(Now)).Should().Throw<InvalidOperationException>();
+    }
+}

@@ -74,3 +74,13 @@ public class FilmBoxTests
         Pricing.FromAds(new Item { Kind = Kinds.Dvd, Title = "Bones sæson 2" }, [Ad(20)]).Should().Be(20);   // never under standard 20
     }
 }
+
+public class GamePriceTests
+{
+    [Test]
+    public void A_console_game_is_priced_from_the_ads_at_half()
+    {
+        var game = new Item { Kind = Kinds.Konsolspil, Title = "The Last of Us", Platform = "PlayStation 3" };
+        Pricing.FromAds(game, [new PriceFind { Source = "DBA", Kr = 100, Name = "x", Url = "https://dba.dk/1" }]).Should().Be(50);
+    }
+}
