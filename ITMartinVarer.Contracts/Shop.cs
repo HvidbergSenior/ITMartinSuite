@@ -264,3 +264,8 @@ public static class ConsoleLoanRules
 public sealed record ShopLoanPlace(string Customer, string Console, DateTime Friday, bool WithTenDvds);
 public sealed record ShopLoanView(int Id, string Console, DateTime Friday, int PriceKr, string Status);
 public sealed record ShopMyLoans(List<ShopLoanView> Loans);
+
+/// <summary>"Hvad syntes du?" (2026-11-21): a customer's verdict (few words) + optional teaser, first name only, shown after Martin approves.</summary>
+public sealed record ShopVerdictPlace(string Customer, string Name, string Verdict, string Teaser);
+public sealed record ShopVerdict(int ItemId, string Name, string Verdict, string Teaser);
+public sealed record ShopVerdicts(List<ShopVerdict> Verdicts);

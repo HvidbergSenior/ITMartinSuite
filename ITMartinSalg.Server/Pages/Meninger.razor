@@ -1,0 +1,53 @@
+@page "/meninger"
+@inject VerdictUseCases Verdicts
+
+@* "Hvad syntes du?" (2026-11-21): the customers' verdicts and teasers wait here - nothing is on bogshoppen.dk before Godkend. *@
+<PageTitle>Meninger – Bogshoppen Salg</PageTitle>
+
+<section class="k-card">
+    <h1 class="k-card-title">Meninger fra kunderne</h1>
+    <p><b>Gør dette:</b> læs hver mening, og tryk <b>Godkend</b> eller <b>Afvis</b>. <b>Du får:</b> små anmeldelser og teasere på bogshoppen.dk – kun dem, du har sagt ja til.</p>
+    <p class="k-help">Afvis, hvis den afslører slutningen, er grim, eller ikke handler om tingen. Kun fornavnet bliver vist.</p>
+</section>
+
+@if (_error is not null) { <section class="k-card"><p class="lg-warn" role="alert">⚠ @_error</p></section> }
+
+<section class="k-card">
+    <h2 class="k-card-title">@(_list is null ? "Henter …" : $"Venter på dig ({_list.Count})")</h2>
+    @if (_list is { Count: 0 }) { <p>Ingen nye meninger.</p> }
+    else if (_list is not null)
+    {
+        <ul class="lg-list">
+            @foreach (var (v, line) in _list)
+            {
+                <li>
+                    <span class="lg-main">
+                        <b>@line</b>
+                        <span>«@v.Verdict» – @v.Name</span>
+                        @if (v.Teaser != "") { <span class="k-small">Teaser: @v.Teaser</span> }
+                        <span class="k-small">@v.CreatedAt.ToLocalTime().ToString("d/M HH:mm")</span>
+                    </span>
+                    <span class="lg-actions">
+                        <button class="k-btn k-btn-sm k-btn-primary" @onclick="() => Decide(v.Id, true)">Godkend</button>
+                        <button class="k-btn k-btn-sm k-btn-ghost" @onclick="() => Decide(v.Id, false)">Afvis</button>
+                    </span>
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+@code {
+    private List<(ItemVerdict, string)>? _list;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    private async Task Load()
+    {
+        try { _list = await Verdicts.WaitingAsync(); }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { _error = "Lager svarer ikke lige nu – prøv igen om lidt."; }
+    }
+
+    private async Task Decide(int id, bool ok) { _error = await Verdicts.DecideAsync(id, ok); await Load(); }
+}

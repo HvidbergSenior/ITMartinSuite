@@ -14,6 +14,7 @@ public static class DependencyInjection
         services.AddScoped<InterestUseCases>();
         services.AddScoped<OfferUseCases>();   // Byd + Mit bundt (2026-11-05)
         services.AddScoped<LoanUseCases>();    // Lån en konsol (2026-11-21)
+        services.AddScoped<VerdictUseCases>(); // Hvad syntes du? (2026-11-21)
         return services;
     }
 }

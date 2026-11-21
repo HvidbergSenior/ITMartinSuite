@@ -27,6 +27,8 @@ public interface IOfferGateway
     Task<Dictionary<int, int>> MyBidsAsync(string customer, CancellationToken ct = default);
     Task<ShopOfferAnswer> BundleAsync(string customer, IReadOnlyList<int> itemIds, int? kr, CancellationToken ct = default);
     // Haggling (2026-11-21)
+    Task<ShopOfferAnswer> VerdictAsync(int itemId, ShopVerdictPlace place, CancellationToken ct = default);
+    Task<List<ShopVerdict>> VerdictsAsync(IReadOnlyCollection<int> itemIds, CancellationToken ct = default);
     Task<ShopOfferAnswer> LoanAsync(ShopLoanPlace place, CancellationToken ct = default);
     Task<List<ShopLoanView>> MyLoansAsync(string customer, CancellationToken ct = default);
     Task<ShopOfferAnswer> CancelLoanAsync(string customer, int loanId, CancellationToken ct = default);
@@ -98,6 +100,22 @@ public sealed class MarketUseCases(IMarketCodes codes, IInterestGateway interest
         if (itemIds.Count < 2) return new(false, "Læg mindst 2 ting i bundtet.");
         try { return await (offers ?? throw new InvalidOperationException()).BundleAsync(customer, itemIds, kr, ct); }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException) { return new(false, Unreachable); }
+    }
+
+    // -- Hvad syntes du? (2026-11-21) --
+    public async Task<ShopOfferAnswer> VerdictAsync(string customer, int itemId, string? name, string? verdict, string? teaser, CancellationToken ct = default)
+    {
+        if (customer == "") return new(false, "Log ind med dit nummer først.");
+        try { return await (offers ?? throw new InvalidOperationException()).VerdictAsync(itemId, new ShopVerdictPlace(customer, name ?? "", verdict ?? "", teaser ?? ""), ct); }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException) { return new(false, Unreachable); }
+    }
+
+    /// <summary>The approved verdicts for the things on a page - empty when Salg does not answer.</summary>
+    public async Task<ILookup<int, ShopVerdict>> VerdictsAsync(IReadOnlyCollection<int> itemIds, CancellationToken ct = default)
+    {
+        if (itemIds.Count == 0 || offers is null) return Array.Empty<ShopVerdict>().ToLookup(v => v.ItemId);
+        try { return (await offers.VerdictsAsync(itemIds, ct)).ToLookup(v => v.ItemId); }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return Array.Empty<ShopVerdict>().ToLookup(v => v.ItemId); }
     }
 
     // -- Lån en konsol (2026-11-21) --

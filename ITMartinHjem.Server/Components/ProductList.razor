@@ -213,6 +213,18 @@
     private string _bidText = "", _bundleKr = "";
     private readonly Dictionary<int, string> _note = [];
     private bool _bundleOpen, _mineOpen;
+    // Hvad syntes du? (2026-11-21)
+    private ILookup<int, ShopVerdict> _verdicts = Array.Empty<ShopVerdict>().ToLookup(v => v.ItemId);
+    private int? _verdictOpen;
+    private string _vName = "", _vText = "", _vTeaser = "";
+    private readonly Dictionary<int, string> _vNote = [];
+
+    private async Task SendVerdict(int id)
+    {
+        var r = await Market.VerdictAsync(Customer, id, _vName, _vText, _vTeaser);
+        _vNote[id] = r.Ok ? "Tak! Vi læser den, og så kommer den på siden." : r.Error ?? "Det virkede ikke.";
+        if (r.Ok) { (_vText, _vTeaser, _verdictOpen) = ("", "", null); }
+    }
     private List<ShopBundleView> _mine = [];
     private readonly Dictionary<int, string> _mineKr = [];
     private string? _mineMsg;
@@ -386,7 +398,7 @@
     [SupplyParameterFromQuery(Name = "vis")] public string? Vis { get; set; }
 
     // No flicker (2026-11-03): the page is drawn twice (server, then live) - the first drawing's data is handed over.
-    private sealed record Snapshot(ShopOverview? Overview, ShopMarket? Market, List<ShopItem> Items);
+    private sealed record Snapshot(ShopOverview? Overview, ShopMarket? Market, List<ShopItem> Items, List<ShopVerdict>? Verdicts = null);
     private PersistingComponentStateSubscription _persist;
     private string SnapshotKey => "bs-produkter-" + (Family?.Slug ?? "alle");
 
@@ -401,13 +413,14 @@
         await LoadMarket();   // the customer's own marks and bids (markedsplads)
         _persist = State.RegisterOnPersisting(() =>
         {
-            State.PersistAsJson(SnapshotKey, new Snapshot(_overview, _market, _items));
+            State.PersistAsJson(SnapshotKey, new Snapshot(_overview, _market, _items, _verdicts.SelectMany(g => g).ToList()));
             return Task.CompletedTask;
         });
         if (State.TryTakeFromJson<Snapshot>(SnapshotKey, out var snap) && snap?.Overview is not null)
         {
             (_overview, _market) = (snap.Overview, snap.Market);
             _items.AddRange(snap.Items);
+            _verdicts = (snap.Verdicts ?? []).ToLookup(v => v.ItemId);
             return;
         }
         await LoadOverview();
@@ -635,6 +648,7 @@
         if (market is null) return;
         _items.AddRange(market.Items);
         _market = market;
+        _verdicts = await Market.VerdictsAsync(_items.Select(i => i.Id).ToList());
     }
 
     private string ResultText => _market?.Total switch
@@ -747,8 +761,27 @@
                 }
                 @if (Visibility.Customers && Customer != "" && !i.ForShow) { @MarketButtons(i) }
                 <details class="bs-shop-more" data-remember="produkt-@i.Id">
-                    <summary>Mere om den</summary>
+                    <summary>Mere om den@(_verdicts[i.Id].Any() ? $" · {_verdicts[i.Id].Count()} mening{(_verdicts[i.Id].Count() == 1 ? "" : "er")}" : "")</summary>
                     <p class="k-help">@Facts(i)</p>
+                    @* Hvad syntes du? (2026-11-21) - only the ones Martin approved, first name only. *@
+                    @foreach (var v in _verdicts[i.Id])
+                    {
+                        <p class="bs-verdict"><b>«@v.Verdict»</b> – @v.Name@if (v.Teaser != "") { <br /><span class="k-help">@v.Teaser</span> }</p>
+                    }
+                    @if (Visibility.Customers && Customer != "" && !i.ForShow)
+                    {
+                        @if (_verdictOpen == i.Id)
+                        {
+                            <div class="bs-verdict-form">
+                                <input class="k-input" maxlength="30" placeholder="Dit fornavn" aria-label="Dit fornavn" @bind="_vName" />
+                                <input class="k-input" maxlength="80" placeholder="Hvad syntes du? Få ord" aria-label="Hvad syntes du" @bind="_vText" />
+                                <textarea class="k-input" maxlength="280" rows="3" placeholder="En lille teaser – uden at afsløre slutningen (kan springes over)" aria-label="Teaser" @bind="_vTeaser"></textarea>
+                                <button type="button" class="k-btn k-btn-primary k-btn-sm" @onclick="() => SendVerdict(i.Id)">Send</button>
+                            </div>
+                        }
+                        else { <button type="button" class="k-btn k-btn-sm" @onclick="() => _verdictOpen = i.Id">Hvad syntes du?</button> }
+                        @if (_vNote.TryGetValue(i.Id, out var vn)) { <p class="k-help" role="status">@vn</p> }
+                    }
                     @if (ShopDeals.Named(i.Deal) is { } d2 && d2.Steps.Count > 1) { <p class="k-help">Bland frit mellem alle @d2.Group.ToLowerInvariant() i tilbuddet – og du beholder dem.</p> }
                     @if (i.Assess) { <p class="k-help">Den er sjælden eller dyr, så vi kigger på den selv og sætter prisen.</p> }
                     else if (Prices.On && !i.ForShow && ShopDeals.Named(i.Deal) is null && (i.DayKr ?? i.BuyNowKr ?? i.ExpectKr) is null)

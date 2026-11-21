@@ -1164,3 +1164,7 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .bs-mine li { display: grid; gap: 4px; padding-bottom: 10px; border-bottom: 1px solid var(--k-line, #ddd); }
 .bs-used { margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--k-line, #ddd); border-radius: 10px; }
 .bs-used p { margin: 8px 0 0; }
+
+/* Hvad syntes du? (2026-11-21) */
+.bs-verdict { margin: 6px 0 0; }
+.bs-verdict-form { display: grid; gap: 6px; margin-top: 6px; }

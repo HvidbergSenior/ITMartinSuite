@@ -58,6 +58,16 @@ public sealed class SalgOfferGateway(HttpClient http) : IOfferGateway
         return (await res.Content.ReadFromJsonAsync<ShopOfferAnswer>(ct))!;
     }
 
+    public async Task<ShopOfferAnswer> VerdictAsync(int itemId, ShopVerdictPlace place, CancellationToken ct = default)
+    {
+        using var res = await http.PostAsJsonAsync($"/api/butik/varer/{itemId}/mening", place, ct);
+        res.EnsureSuccessStatusCode();
+        return (await res.Content.ReadFromJsonAsync<ShopOfferAnswer>(ct))!;
+    }
+
+    public async Task<List<ShopVerdict>> VerdictsAsync(IReadOnlyCollection<int> itemIds, CancellationToken ct = default) =>
+        (await http.GetFromJsonAsync<ShopVerdicts>($"/api/butik/meninger?ids={string.Join(',', itemIds)}", ct))?.Verdicts ?? [];
+
     public async Task<ShopOfferAnswer> LoanAsync(ShopLoanPlace place, CancellationToken ct = default)
     {
         using var res = await http.PostAsJsonAsync("/api/butik/laan", place, ct);

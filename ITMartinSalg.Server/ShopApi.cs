@@ -60,6 +60,10 @@ public static class ShopApi
         });
 
         // Haggling (2026-11-21): the customer's bundles, and their answer to Martin's price.
+        // Hvad syntes du? (2026-11-21): write one; the approved ones for the things on a page.
+        api.MapPost("/varer/{id:int}/mening", async (int id, ShopVerdictPlace body, VerdictUseCases v) => await v.WriteAsync(id, body));
+        api.MapGet("/meninger", async (string? ids, VerdictUseCases v) =>
+            new ShopVerdicts(await v.ApprovedForAsync((ids ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => int.TryParse(x, out var i) ? i : 0).Where(i => i > 0).ToList())));
         // Lån en konsol (2026-11-21).
         api.MapPost("/laan", async (ShopLoanPlace body, LoanUseCases loans) => await loans.AskAsync(body));
         api.MapGet("/laan/{customer}", async (string customer, LoanUseCases loans) => new ShopMyLoans(await loans.MineAsync(customer)));

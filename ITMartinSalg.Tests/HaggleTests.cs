@@ -89,3 +89,25 @@ public class ConsoleLoanTests
         FluentActions.Invoking(() => l.Cancel(Now)).Should().Throw<InvalidOperationException>();
     }
 }
+
+// Hvad syntes du? (2026-11-21): few words, optional teaser, first name only, shown only when approved.
+public class VerdictTests
+{
+    private static readonly DateTime Now = new(2026, 11, 21, 12, 0, 0, DateTimeKind.Utc);
+
+    [Test]
+    public void A_verdict_keeps_only_the_first_name_and_waits_for_martin()
+    {
+        var v = ItemVerdict.Write("48810359", 3372, "Martin Hvidberg Nielsen", "  Uhyggelig   fra første side ", "", Now);
+        (v.Name, v.Verdict, v.Status).Should().Be(("Martin", "Uhyggelig fra første side", ItemVerdict.New));
+        v.Approve(Now);
+        FluentActions.Invoking(() => v.Reject(Now)).Should().Throw<InvalidOperationException>();
+    }
+
+    [Test]
+    public void Empty_or_too_long_is_refused()
+    {
+        FluentActions.Invoking(() => ItemVerdict.Write("48810359", 1, "Bo", "", "", Now)).Should().Throw<InvalidOperationException>();
+        FluentActions.Invoking(() => ItemVerdict.Write("48810359", 1, "Bo", "ok", new string('x', 281), Now)).Should().Throw<InvalidOperationException>();
+    }
+}
