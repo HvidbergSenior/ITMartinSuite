@@ -16,12 +16,16 @@
     <a class="hj-nav-logo" href="/" aria-label="ITMartin – forsiden"><img class="k-logo-brand" src="/_content/ITMartin.Shared.UI/itmartin-logo.png" alt="ITMartin" /></a>
     @* Only Forside in sight; the rest behind "Mere" (2026-11-12 super simple - SiteMenu.More). *@
     <a href="/">Forside</a>
+    @* Only Forside + Om mig in the menu (user 2026-11-21). *@
+    <a href="/om-itmartin">Om mig</a>
+    @* "Mere ⋯" HIDDEN 2026-11-21 (user: "just hide them"); the pages still work by direct link. Remove this comment wrapper to show it again.
     <details class="hj-nav-more" data-noremember>
         <summary>Mere ⋯</summary>
         <div class="hj-nav-more-list">
             @foreach (var i in SiteMenu.More(_menu, DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen")))) { <a class="@(i.Pilot ? "hj-nav-pilot" : "")" href="@i.Href" onclick="this.closest('details').open=false">@i.Title</a> }
         </div>
     </details>
+    *@
     @* Light/dark like the apps (App.razor's script listens for clicks on it). *@
     <button id="themeToggleBtn" class="hj-nav-theme" type="button" title="Skift lys/mørk visning">Lys/mørk</button>
 </nav>
