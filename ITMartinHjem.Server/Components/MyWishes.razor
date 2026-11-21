@@ -1,4 +1,5 @@
 @inject WishUseCases Wishes
+@inject MarketUseCases Market
 @inject NavigationManager Nav
 
 @* "Mine ønsker" (user 2026-11-19): with the kundenummer from the mail a customer writes what they look for. When a product
@@ -49,8 +50,15 @@
                                 @foreach (var h in hits)
                                 {
                                     <li>
-                                        @if (h.Item.HasPhoto) { <img src="/varer/foto/@h.Item.Id" alt="" loading="lazy" /> }
-                                        <span><b>@h.Item.Title</b><br /><span class="k-muted">@h.Item.Kind@(h.Item.Year is { } y ? $" · {y}" : "")@(h.Item.Condition != "" ? $" · {h.Item.Condition} stand" : "")</span></span>
+                                        @if (h.Item.HasPhoto) { <a href="@Open(h.Item)"><img src="/varer/foto/@h.Item.Id" alt="" loading="lazy" /></a> }
+                                        <span>
+                                            <a href="@Open(h.Item)"><b>@h.Item.Title</b></a><br /><span class="k-muted">@h.Item.Kind@(h.Item.Year is { } y ? $" · {y}" : "")@(h.Item.Condition != "" ? $" · {h.Item.Condition} stand" : "")</span>
+                                            <span class="bs-market-row bs-wish-bid">
+                                                <input class="k-input" inputmode="numeric" placeholder="Dit bud (kr)" aria-label="Dit bud på @h.Item.Title" @bind="_bid[h.Item.Id]" />
+                                                <button type="button" class="k-btn k-btn-primary k-btn-sm" @onclick="() => BidAsync(h.Item.Id)">Dit bud</button>
+                                            </span>
+                                            @if (_bidNote.TryGetValue(h.Item.Id, out var note)) { <span class="k-help" role="status">@note</span> }
+                                        </span>
                                     </li>
                                 }
                             </ul>
@@ -58,7 +66,7 @@
                     </li>
                 }
             </ul>
-            <p class="k-help">Vil du have en af dem? Skriv til os på <a href="@BogshoppenHome.AskUrl">itmartin.dk</a> og nævn dit nummer.</p>
+            <p class="k-help">Vil du have en af dem? Giv dit bud – du ser vores svar under <b>Mine bud</b> i butikken.</p>
         }
     }
 </div>
@@ -72,6 +80,20 @@
     private string _text = "";
     private string? _error;
     private bool _busy;
+    private readonly Dictionary<int, string> _bid = [];
+    private readonly Dictionary<int, string> _bidNote = [];
+
+    /// <summary>The thing in its own shop, found by its title (bogshoppen.dk/film?q=Princess).</summary>
+    private static string Open(ShopItem i) =>
+        (ShopFamilies.For(i.Type != "" ? i.Type : ProductTypes.For(i.Kind))?.Path ?? "/produkter") + "?q=" + Uri.EscapeDataString(i.Title) + "#alle";
+
+    private async Task BidAsync(int itemId)
+    {
+        int? kr = int.TryParse(new string(_bid.GetValueOrDefault(itemId, "").Where(char.IsDigit).ToArray()), out var k) ? k : null;
+        var r = await Market.ItemOfferAsync(WishCustomer, itemId, kr);
+        _bidNote[itemId] = r.Ok ? $"Dit bud på {kr} kr er sendt. Du ser vores svar under Mine bud." : r.Error ?? "Det virkede ikke.";
+        if (r.Ok) _bid.Remove(itemId);
+    }
 
     private string Back => "/" + Nav.ToBaseRelativePath(Nav.Uri).Split('?', '#')[0] + "#oensker";
 

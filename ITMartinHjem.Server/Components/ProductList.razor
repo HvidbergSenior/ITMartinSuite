@@ -410,6 +410,7 @@
         _sort = ShopSorts.All.Contains(SortParam) ? SortParam! : ShopSorts.Title;
         if (!Prices.On && (_sort == ShopSorts.Cheapest || _sort == ShopSorts.Dearest)) _sort = ShopSorts.Title;   // no prices = no price order
         _batch = Family is not null && Serie is { Length: > 0 } ? Serie : null;
+        if (_batch is null && Q is { Length: > 0 } q) { _text = q.Trim(); _query = _text; }
         await LoadMarket();   // the customer's own marks and bids (markedsplads)
         _persist = State.RegisterOnPersisting(() =>
         {
@@ -424,7 +425,7 @@
             return;
         }
         await LoadOverview();
-        if (Family is not null && _error is null) await Load(reset: true);
+        if ((Family is not null || _query != "") && _error is null) await Load(reset: true);
     }
 
     public void Dispose() => _persist.Dispose();
@@ -490,6 +491,8 @@
     [SupplyParameterFromQuery(Name = "sort")] public string? SortParam { get; set; }
     /// <summary>?serie=Jonah Hex opens one batch.</summary>
     [SupplyParameterFromQuery(Name = "serie")] public string? Serie { get; set; }
+    /// <summary>?q=Princess opens the shop searched for it (a found wish links here, 2026-11-21).</summary>
+    [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
     private string _sort = ShopSorts.Title;
 
     /// <summary>The address for what is shown now: the shop, its subcategory and the sort order (A-Å is left out).</summary>
