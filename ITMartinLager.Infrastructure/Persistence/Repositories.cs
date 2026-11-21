@@ -342,12 +342,24 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     // about a thousand rows) as a query of their ids.
     private static async Task<IQueryable<Item>> RareAsync(LagerDb db, CancellationToken ct)
     {
-        var gold = await db.GoldEntries.AsNoTracking().ToListAsync(ct);
-        // Sjældne = a mark, or found 50 kr+ without an own price (2026-11-03: interesting = a person looks, ShopDeals.AssessFromKr).
-        var ids = (await OnPage(db).AsNoTracking().ToListAsync(ct))
-            .Where(i => Shop.Badge(gold, i) != "" || (i.Price is not > 0 && i.PriceHint >= ShopDeals.AssessFromKr)).Select(i => i.Id).ToList();
+        // Kept for RareCacheFor (2026-11-21, user: "it takes like 1-2 seconds" on every shop): working the marks out took 1.0 s
+        // of every shop page's 1.4 s - only for the count on the Sjældne button. A count up to 2 minutes old is fine.
+        var cached = _rare;
+        if (cached is null || DateTime.UtcNow - cached.Value.At > RareCacheFor)
+        {
+            var gold = await db.GoldEntries.AsNoTracking().ToListAsync(ct);
+            // Sjældne = a mark, or found 50 kr+ without an own price (2026-11-03: interesting = a person looks, ShopDeals.AssessFromKr).
+            var found = (await OnPage(db).AsNoTracking().ToListAsync(ct))
+                .Where(i => Shop.Badge(gold, i) != "" || (i.Price is not > 0 && i.PriceHint >= ShopDeals.AssessFromKr)).Select(i => i.Id).ToList();
+            cached = (DateTime.UtcNow, found);
+            _rare = cached;
+        }
+        var ids = cached.Value.Ids;
         return OnPage(db).Where(i => ids.Contains(i.Id));
     }
+
+    public static readonly TimeSpan RareCacheFor = TimeSpan.FromMinutes(2);
+    private static (DateTime At, List<int> Ids)? _rare;
 
     // One or more main categories and/or one language (Item.Category / Item.Language, 2026-11-03: "Interested in books and
     // dvds... Only those products").
