@@ -738,7 +738,7 @@
                 <details class="bs-shop-more" data-remember="produkt-@i.Id">
                     <summary>Mere om den</summary>
                     <p class="k-help">@Facts(i)</p>
-                    @if (ShopDeals.Named(i.Deal) is { } d2 && d2.Steps.Count > 1) { <p class="k-help">Bland frit mellem alle @d2.Group.ToLowerInvariant() i tilbuddet.</p> }
+                    @if (ShopDeals.Named(i.Deal) is { } d2 && d2.Steps.Count > 1) { <p class="k-help">Bland frit mellem alle @d2.Group.ToLowerInvariant() i tilbuddet – og du beholder dem.</p> }
                     @if (i.Assess) { <p class="k-help">Den er sjælden eller dyr, så vi kigger på den selv og sætter prisen.</p> }
                     else if (Prices.On && !i.ForShow && ShopDeals.Named(i.Deal) is null && (i.DayKr ?? i.BuyNowKr ?? i.ExpectKr) is null)
                     {

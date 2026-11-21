@@ -182,7 +182,9 @@ public static class ShopDeals
 
     /// <summary>The deals in use: only PerPiece since 2026-11-02 (the 4 for 50 deals went 2026-10-31: "the 4 for 50 and so
     /// should be removed" - every thing its own price); All stays so they can come back by listing them here.</summary>
-    public static readonly IReadOnlyList<ShopDeal> Active = [PerPiece, VhsPerPiece];
+    // DVD back 2026-11-21 (user: "Minimum 4 dvds for 50. 10 dvds for 100 -> and you get to keep them"): single DVDs; a season or
+    // box set priced over MaxSingleKr (12 kr) stays out and is sold one by one (Lager Shop.DealFor).
+    public static readonly IReadOnlyList<ShopDeal> Active = [PerPiece, VhsPerPiece, Dvds];
 
     /// <summary>The deal for things of this kind among these deals (default Active), or null.</summary>
     public static ShopDeal? For(string kind, IReadOnlyList<ShopDeal>? deals = null) => For(kind, null, deals);
