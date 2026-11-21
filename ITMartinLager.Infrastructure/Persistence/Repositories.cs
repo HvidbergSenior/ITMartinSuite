@@ -187,7 +187,8 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     // Shop.ForSale / Shop.Listed as SQL: in stock or for sale, copies left, a title (+ sure, or an unsure blad in the Blade
     // deal). With the box: a test box = only for show (Box.IsTest).
     private static IQueryable<Item> ForSale(LagerDb db) =>
-        db.Items.Include(i => i.Box).Where(i => (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg) && i.Quantity > 0 && i.Title != "");
+        db.Items.Include(i => i.Box).Where(i => (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg) && i.Quantity > 0 && i.Title != ""
+            && i.Kind != Kinds.Vhs);   // no VHS on bogshoppen.dk (user 2026-11-21 "remove vhs")
 
     private static readonly string BladeDeal = ShopDeals.Blade.Name;
 

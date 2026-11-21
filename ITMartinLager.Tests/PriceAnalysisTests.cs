@@ -89,7 +89,8 @@ public class PriceAnalysisTests
     public void Every_VHS_is_in_the_5_kr_bin()
     {
         var vhs = new Item { Kind = Kinds.Vhs, Title = "Cirkeline", Confidence = 0.9, PriceHint = 40 };
-        Shop.DealFor(vhs, []).Should().Be("VHS: 5 kr stk.");
+        // The bin is off since 2026-11-21 ("remove vhs") - the rule still works when the deal is listed.
+        Shop.DealFor(vhs, [], [ShopDeals.VhsPerPiece]).Should().Be("VHS: 5 kr stk.");
         Shop.DealFor(new Item { Kind = Kinds.Vhs, Title = "Sjælden", Confidence = 0.9, Rare = true }, []).Should().BeEmpty();
         ShopDeals.VhsPerPiece.Packs(23).Single().Name.Should().Be("Pakke: 10 blandede VHS-film – VHS");
         ShopDeals.PerPiece.Packs(10).Single().Name.Should().Be("Pakke: 10 blandede blade – Anders And og Basserne");

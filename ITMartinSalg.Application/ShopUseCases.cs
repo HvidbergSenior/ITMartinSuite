@@ -82,7 +82,9 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
     public async Task<ShopOverview> OverviewAsync(int perShelf = 6, CancellationToken ct = default)
     {
         perShelf = Math.Clamp(perShelf, 1, 12);
-        var counts = await stock.PerCategoryAsync(ct, ShopDeals.Single);
+        // Counted with the things in a mixed deal (2026-11-21, user "Why diferent count?": the DVD deal made Film 45 instead of
+        // ~740 and the total 1,712) - they are on the page one by one. The pictures stay the dearest single-priced ones.
+        var counts = await stock.PerCategoryAsync(ct, null);
         var shelves = new List<ShopShelf>();
         foreach (var t in ProductTypes.All.Where(t => t != ProductTypes.Andet && counts.GetValueOrDefault(t) > 0))
         {
@@ -92,10 +94,10 @@ public sealed class ShopUseCases(IStockGateway stock, IOrderRepository orders, I
         var deals = await stock.DealsAsync(ct);
         var packs = ShopDeals.Active.Where(d => d.EveryPrice).SelectMany(d => d.Packs(deals.GetValueOrDefault(d.Name))).ToList();
         // The shops' subcategories (2026-11-03): counts per kind and per language, so an empty one is not shown.
-        var perKind = await stock.PerKindAsync(ct, ShopDeals.Single);
+        var perKind = await stock.PerKindAsync(ct, null);
         var perLanguage = new Dictionary<string, Dictionary<string, int>>();
         foreach (var lang in ShopFamilies.All.SelectMany(f => f.Subs).Select(s => s.Language).OfType<string>().Distinct())
-            perLanguage[lang] = await stock.PerCategoryAsync(ct, ShopDeals.Single, lang);
+            perLanguage[lang] = await stock.PerCategoryAsync(ct, null, lang);
         return new ShopOverview(shelves, packs, perKind, perLanguage);
     }
 

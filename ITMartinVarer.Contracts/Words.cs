@@ -298,8 +298,9 @@ public static class ShopFamilies
          new(ProductTypes.Superhelte, ProductTypes.Superhelte)],
         [new("Kolibri Bibliotek", "Din samling af album og blade – hvilke numre du har, og hvilke du mangler.")]);
 
-    public static readonly ShopFamily Film = new("Filmshoppen", "film", "Film på DVD, Blu-ray og VHS.",
-        [ProductTypes.Film], [new(Kinds.Dvd, Kind: Kinds.Dvd), new(Kinds.BluRay, Kind: Kinds.BluRay), new(Kinds.Vhs, Kind: Kinds.Vhs)],
+    // No VHS (user 2026-11-21 "remove vhs") - the tapes were thrown out 2026-11-02.
+    public static readonly ShopFamily Film = new("Filmshoppen", "film", "Film på DVD og Blu-ray.",
+        [ProductTypes.Film], [new(Kinds.Dvd, Kind: Kinds.Dvd), new(Kinds.BluRay, Kind: Kinds.BluRay)],
         [new("Kolibri Mine skiver", "Tag et billede af dine film – så ved du, hvad du har.")]);
 
     public static readonly ShopFamily Musik = new("Musikshoppen", "musik", "Musik på CD, vinyl og kassettebånd.",
