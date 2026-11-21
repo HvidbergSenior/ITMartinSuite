@@ -149,6 +149,34 @@ public static partial class GenreRules
         ("Hobby", ["handicraft", "crafts", "knitting", "sewing", "model", "collectors and collecting", "games", "hobbies"]),
     ];
 
+    /// <summary>The finer genre of a book, from the same Open Library subjects (2026-11-21): the first that fits its genre, or "".</summary>
+    public static string BookSubGenre(string genre, IReadOnlyList<string> tags)
+    {
+        var clean = Clean(tags);
+        if (clean.Count == 0 || !SubWords.TryGetValue(genre, out var subs)) return "";
+        foreach (var (sub, words) in subs)
+            if (Any(clean, words)) return sub;
+        return "";
+    }
+
+    private static readonly Dictionary<string, (string Sub, string[] Words)[]> SubWords = new()
+    {
+        ["Krimi"] = [("Nordisk krimi", ["sweden", "norway", "denmark", "iceland", "finland", "scandinavia", "stockholm", "copenhagen", "oslo"]),
+            ("Politikrimi", ["police procedural", "police", "detectives", "policewomen"]), ("Hyggekrimi", ["cozy", "cosy", "amateur sleuth"]),
+            ("Historisk krimi", ["historical fiction", "history"])],
+        ["Thriller"] = [("Spionthriller", ["spy stories", "espionage", "intelligence service", "secret service", "spies"]),
+            ("Psykologisk thriller", ["psychological fiction", "psychological", "psychological thrillers"]),
+            ("Politisk thriller", ["political fiction", "terrorism", "presidents", "politics"]), ("Militærthriller", ["military", "special forces", "navy seals"])],
+        ["Fantasy"] = [("Urban fantasy", ["urban fantasy", "vampires", "werewolves", "paranormal"]), ("Episk fantasy", ["epic", "dragons", "magic", "wizards", "quests"]),
+            ("Historisk fantasy", ["historical fiction", "norway", "witches"])],
+        ["Gys"] = [("Overnaturligt", ["supernatural", "ghost stories", "ghosts", "haunted houses"]), ("Vampyrer", ["vampires"]), ("Monstre", ["monsters", "zombies"])],
+        ["Sci-fi"] = [("Dystopi", ["dystopias", "dystopian"]), ("Rumopera", ["space opera", "space warfare", "interstellar travel"]), ("Tidsrejser", ["time travel"])],
+        ["Romaner"] = [("Historisk roman", ["historical fiction", "history"]), ("Familieroman", ["families", "family life", "family"]),
+            ("Feel-good", ["humorous", "friendship", "feel good"])],
+        ["Kærlighed"] = [("Historisk kærlighed", ["historical fiction", "regency"]), ("Romantisk komedie", ["humorous", "comedy"])],
+        ["Børnebøger"] = [("Eventyr for børn", ["fairy tales", "adventure", "magic"]), ("Dyr", ["animals", "dogs", "cats", "horses"])],
+    };
+
     private static string Book(List<string> tags)
     {
         if (tags.Count == 0) return "";

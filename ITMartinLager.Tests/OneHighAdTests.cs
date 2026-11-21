@@ -84,3 +84,15 @@ public class GamePriceTests
         Pricing.FromAds(game, [new PriceFind { Source = "DBA", Kr = 100, Name = "x", Url = "https://dba.dk/1" }]).Should().Be(50);
     }
 }
+
+// Book sub-genres from the same Open Library subjects (2026-11-21).
+public class BookSubGenreTests
+{
+    [Test]
+    public void Spy_stories_are_a_spy_thriller_and_scandinavian_crime_is_nordic()
+    {
+        GenreRules.BookSubGenre("Thriller", ["Fiction", "Spy stories", "Espionage"]).Should().Be("Spionthriller");
+        GenreRules.BookSubGenre("Krimi", ["Detective and mystery stories", "Sweden", "Fiction"]).Should().Be("Nordisk krimi");
+        GenreRules.BookSubGenre("Fagbøger", ["Law"]).Should().BeEmpty();
+    }
+}

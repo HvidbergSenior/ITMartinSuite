@@ -102,7 +102,7 @@ public static class LagerDbInitializer
             ("SimilarHint", "REAL NULL"), ("FeaturedAt", "TEXT NULL"), ("Usage", "TEXT NOT NULL DEFAULT 'Brugt'"),
             ("Want", "INTEGER NULL"), ("Have", "INTEGER NULL"),
             ("Category", "TEXT NOT NULL DEFAULT 'Andet'"), ("Language", "TEXT NOT NULL DEFAULT ''"),
-            ("Genre", "TEXT NOT NULL DEFAULT ''"), ("GenreAt", "TEXT NULL"), ("DescribedAt", "TEXT NULL"), ("Seller", "TEXT NOT NULL DEFAULT ''"), ("MorePhotos", "INTEGER NOT NULL DEFAULT 0"),
+            ("Genre", "TEXT NOT NULL DEFAULT ''"), ("SubGenre", "TEXT NOT NULL DEFAULT ''"), ("GenreAt", "TEXT NULL"), ("DescribedAt", "TEXT NULL"), ("Seller", "TEXT NOT NULL DEFAULT ''"), ("MorePhotos", "INTEGER NOT NULL DEFAULT 0"),
             ("StickerKr", "INTEGER NULL"),
             ("Rare", "INTEGER NOT NULL DEFAULT 0"),
             ("PhotoHidden", "INTEGER NOT NULL DEFAULT 0"),

@@ -117,6 +117,8 @@ public sealed class Item
     /// <summary>The genre (Genres, user 2026-11-07: "danktop, indie, pop") - set once from a free source by the genre job;
     /// GenreAt = when it was looked up (null = not yet), so nothing is asked twice.</summary>
     public string Genre { get; set; } = "";
+    /// <summary>A finer genre for books (2026-11-21, user "Or sub genres as well"): "Spionthriller", "Nordisk krimi" ... or "".</summary>
+    public string SubGenre { get; set; } = "";
     /// <summary>The maker who owns it and gets the money when it sells ("" = ITMartin's own). 2026-11-10 Strikkeshoppen: her things, sold by Martin for a share.</summary>
     public string Seller { get; set; } = "";
     /// <summary>More photos of the same thing after the main one (ItemPhoto): photos/items/&lt;id&gt;-2.jpg, -3 ... (user 2026-11-10:

@@ -35,6 +35,7 @@ public sealed class GenreUseCases(IItemRepository items, IGenreSource source, Ti
                 var tags = await source.TagsAsync(item, ct);
                 if (tags is null) break;   // this source is busy or down - the next round tries again
                 item.Genre = GenreRules.Pick(item.Category, tags, item.Title, item.Series);
+                item.SubGenre = item.Category == ProductTypes.Boeger ? GenreRules.BookSubGenre(item.Genre, tags) : "";
                 item.GenreAt = clock.GetUtcNow().UtcDateTime;
                 done.Add(item);
             }

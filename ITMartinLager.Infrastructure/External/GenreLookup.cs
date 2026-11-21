@@ -158,7 +158,14 @@ public sealed partial class GenreLookup(HttpClient http, IConfiguration cfg, ILo
         var author = Plain(item.Artist);
         var url = $"https://openlibrary.org/search.json?title={E(title)}" + (author != "" ? $"&author={E(author)}" : "") + "&fields=subject&limit=3";
         var found = await GetAsync<OlPage>(url, ct);
-        return (found?.Docs ?? []).SelectMany(d => d.Subject ?? []).Distinct(StringComparer.OrdinalIgnoreCase).Take(60).ToList();
+        var subjects = (found?.Docs ?? []).SelectMany(d => d.Subject ?? []).Distinct(StringComparer.OrdinalIgnoreCase).Take(60).ToList();
+        if (subjects.Count > 0 || author == "") return subjects;
+        // A Danish title Open Library does not know (2026-11-21: 254 of 328 books had no genre - "Den sorte hund", "Eget ansvar"):
+        // the author's other books instead. Only subjects on 2+ of them, so one odd book does not decide.
+        var works = await GetAsync<OlPage>($"https://openlibrary.org/search.json?author={E(author)}&fields=subject&limit=20", ct);
+        return (works?.Docs ?? []).SelectMany(d => (d.Subject ?? []).Distinct(StringComparer.OrdinalIgnoreCase))
+            .GroupBy(s => s, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() >= 2).OrderByDescending(g => g.Count())
+            .Select(g => g.Key).Take(60).ToList();
     }
 
     private sealed record OlDoc(List<string>? Subject);
