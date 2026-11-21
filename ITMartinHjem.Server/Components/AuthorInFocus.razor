@@ -1,0 +1,34 @@
+@inject ShopUseCases Shop
+
+@* "Forfatter i fokus" in Bogshoppen (user 2026-11-21: "Bog: Author of the week" -> "fortnight. And both could be there"): every
+   14 days the next of the authors (or series) we have 2+ books by - Lager's batch groups, no AI. The list is kept an hour. *@
+@if (_pick is { } g)
+{
+    <p class="bs-author"><b>Forfatter i fokus:</b> @g.Name
+        <a class="k-btn k-btn-sm" href="/boeger?serie=@Uri.EscapeDataString(g.Name)">Se @g.Count bøger</a>
+        <span class="k-help">Skifter hver 14. dag.</span></p>
+}
+
+@code {
+    private static readonly TimeSpan KeepFor = TimeSpan.FromHours(1);
+    private static (DateTime At, List<ShopGroup> Groups)? _cache;
+    private ShopGroup? _pick;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var groups = await GroupsAsync();
+        if (groups.Count > 0) _pick = groups[Fortnight(DateTime.UtcNow) % groups.Count];
+    }
+
+    /// <summary>Which 14 days we are in - the same for everybody, changes every second Monday.</summary>
+    public static int Fortnight(DateTime utc) => System.Globalization.ISOWeek.GetWeekOfYear(utc) / 2 + System.Globalization.ISOWeek.GetYear(utc) * 27;
+
+    private async Task<List<ShopGroup>> GroupsAsync()
+    {
+        if (_cache is { } c && DateTime.UtcNow - c.At < KeepFor) return c.Groups;
+        var (market, _) = await Shop.MarketAsync(null, null, null, "", ShopSorts.Title, 0, categories: ShopFamilies.Boeger.Types);
+        var list = (market?.Groups ?? []).Where(g => g.Count >= 2 && g.Name.Trim() != "").OrderBy(g => g.Name, StringComparer.Ordinal).ToList();
+        if (market is not null) _cache = (DateTime.UtcNow, list);
+        return list;
+    }
+}

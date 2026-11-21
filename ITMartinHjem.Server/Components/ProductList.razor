@@ -62,6 +62,7 @@
                 <summary><b>@invite.Title</b></summary>
                 <p>@invite.Text</p>
                 @if (invite.Loan) { <ConsoleLoanBox /> }
+                @if (Family == ShopFamilies.Boeger) { <AuthorInFocus /> }
                 @if (invite.Join) { <a class="k-btn k-btn-primary bs-btn" href="https://itmartin.dk/chat-med-martin">Vil du være med? Skriv til mig</a> }
             </details>
         }
@@ -93,9 +94,9 @@
        products live on my stream", "you see what it is and we find prices". The law line stays: ITMartin sells as a business. *@
     <details class="bs-used" data-remember="bs-used">
         <summary><b>Se det, før du køber</b></summary>
-        <p>Som på et loppemarked: du ser tingen, før du køber. Kom og se, rør og prøv den – eller se den live på min stream. Så finder vi prisen sammen.</p>
+        <p>Som på et loppemarked kan du se tingen, hvis du vil: kom og se, rør og prøv den – eller se den live på min stream. Så finder vi prisen sammen.</p>
         <p>Vi sælger både nye og brugte ting. En brugt ting har haft en ejer før, så der kan være slid, en ridse eller et mærke. Det står under <b>Mere om den</b>, hvis vi har set noget.</p>
-        <p><b>Derfor giver vi ikke penge tilbage.</b> Er der noget galt, du ikke kunne se: tag et billede, skriv hvad der er galt, og send det til os. Så får du en anden ting i bytte.</p>
+        <p><b>Vi giver ikke penge tilbage.</b> Er der noget galt, du ikke kunne se: tag et billede, skriv hvad der er galt, og send det til os. Så får du en anden ting i bytte.</p>
         <p class="k-help">Dine rettigheder efter loven gælder altid.</p>
     </details>
 
