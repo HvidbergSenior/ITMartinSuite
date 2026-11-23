@@ -41,7 +41,7 @@ else
        still exist (the sign-up is on the front page) - they are just not in the menu. *@
     @* Produkter first (user 2026-11-23: "Produkter and skriv dig op tabs should be switched"). *@
     <a href="/produkter">Produkter</a>
-    <a href="/produkter#foelg">Skriv dig op</a>
+    <a href="/skriv-dig-op">Skriv dig op</a>
     @* No Ros/ris on bogshoppen.dk (user 2026-10-29 "Remove from bogshoppen"): it lives on itmartin.dk/kritik only; old
        bogshoppen.dk/kritik links still go there (Program.cs). Light/dark is at the bottom of the page, not a tab
        (user 2026-11-03: "the theme should be elsewhere not as tab"). *@
@@ -59,7 +59,8 @@ else
 <div class="k-main"><div class="k-content">
     @* No emojis anywhere on the sites (user 2026-10-12) - shared components read this. *@
     <CascadingValue Name="Plain" Value="true">@Body</CascadingValue>
-    @if (_bs)
+    @* Not on the front page (user 2026-11-23: "mørk visning should not be on Forside"); the phone's own light/dark still applies. *@
+    @if (_bs && !IsBsFront)
     {
         <p class="bs-theme"><button id="themeToggleBtn" class="k-btn k-btn-sm" type="button" data-long="1" title="Skift lys/mørk visning">Lys/mørk visning</button></p>
     }
@@ -69,6 +70,7 @@ else
 </div>
 
 @code {
+    private bool IsBsFront => new Uri(Nav.Uri).AbsolutePath.TrimEnd('/') is "" or "/produkter";
     private List<SiteMenu.Item> _menu = [];
     [CascadingParameter(Name = "ShopVisible")] private bool ShopVisible { get; set; }
     [CascadingParameter(Name = "ShopCustomer")] private string ShopCustomer { get; set; } = "";

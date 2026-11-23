@@ -1,0 +1,11 @@
+@page "/skriv-dig-op"
+@inject NavigationManager Nav
+@* bogshoppen.dk's own sign-up tab (user 2026-11-23): "Opret dig som interesseret" + own chat room, as a Bogshoppen customer.
+   Moved off the front page. On itmartin.dk the same address goes to itmartin.dk's Skriv mig op. *@
+@if (!BogshoppenHome.IsHost(new Uri(Nav.Uri).Host)) { Nav.NavigateTo("/skriv-mig-op", replace: true); return; }
+<PageTitle>Skriv dig op · Bogshoppen</PageTitle>
+<header class="bs-head bs-head-varer">
+    <h1>Skriv dig op</h1>
+    <p>Gratis og uden forpligtelser. Du får dit nummer, kan skrive hvad du leder efter – og vi får et rum, hvor vi kan snakke sammen.</p>
+</header>
+<InterestedChat Service="@InterestedChatRules.Bogshoppen" Id="foelg" Class="bs-card" Placeholder="Hvad leder du efter? (kan springes over)" />
