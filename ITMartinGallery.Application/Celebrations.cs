@@ -7,7 +7,8 @@ using Timeline = ITMartinGallery.Domain.CelebrationRules.Timeline;
 namespace ITMartinGallery.Application;
 
 public sealed record CelebrationTile(string Name, string Kind, string Url, string? Thumb, string? Date, string? Who);
-public sealed record CelebrationPage(string Slug, string Name, string? BirthDate, JsonObject Texts, bool CanEdit, IEnumerable<CelebrationTile> Items);
+public sealed record CelebrationPage(string Slug, string Name, string? BirthDate, JsonObject Texts, bool CanEdit, IEnumerable<CelebrationTile> Items,
+    IReadOnlyDictionary<string, int>? Hidden = null);
 
 // The birthday page (wwwroot/fejring.html) of a celebration gallery - see CelebrationRules.
 public sealed class Celebrations(ILibraryDisk disk, ICaptureDates captureDates, ICelebrationEdits edits, LibraryLinks links)
@@ -28,7 +29,8 @@ public sealed class Celebrations(ILibraryDisk disk, ICaptureDates captureDates, 
         var texts = Texts(g);
         var shown = CelebrationRules.Shown(timeline.Items, texts);
         return new CelebrationPage(g.Slug, g.CelebrationName ?? g.Name, g.BirthDate, texts, !string.IsNullOrEmpty(g.EditPin),
-            shown.Select(i => new CelebrationTile(i.Name, i.Kind, i.Url, i.Thumb, i.Date?.ToString("yyyy-MM-ddTHH:mm:ss"), i.Who)));
+            shown.Select(i => new CelebrationTile(i.Name, i.Kind, i.Url, i.Thumb, i.Date?.ToString("yyyy-MM-ddTHH:mm:ss"), i.Who)),
+            CelebrationRules.HiddenPerYear(timeline.Items, shown));
     }
 
     // The page's theme, set before the password screen so a themed page never shows the default look first.

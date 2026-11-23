@@ -36,6 +36,16 @@ public static partial class CelebrationRules
         return items.Where(i => (i.Date is null || i.Date.Value.Year >= fromYear) && !skip.Contains(i.Name)).ToList();
     }
 
+    // How many pictures were left out per year ("undated" for the old albums) - so a year whose pictures were all left out
+    // keeps its headline and says what was there (user 2026-11-23: "keep the headlines... If no pictures there write what was in there").
+    public static Dictionary<string, int> HiddenPerYear(IEnumerable<Item> all, IEnumerable<Item> shown)
+    {
+        var kept = shown.Select(i => i.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return all.Where(i => !kept.Contains(i.Name))
+            .GroupBy(i => i.Date is { } d ? d.Year.ToString() : "undated")
+            .ToDictionary(g => g.Key, g => g.Count());
+    }
+
     // count pictures spread evenly over the (date-sorted) candidates.
     public static List<T> PickEvenly<T>(List<T> candidates, int count) =>
         candidates.Count <= count

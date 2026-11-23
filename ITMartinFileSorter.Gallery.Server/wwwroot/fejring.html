@@ -597,6 +597,9 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
       if (!groups.has(y)) groups.set(y, []);
       groups.get(y).push(it);
     });
+    // A year whose pictures were all left out (skip list) keeps its headline (user 2026-11-23).
+    const hidden = data.hidden || {};
+    Object.keys(hidden).forEach(k => { const y = +k; if (y && hidden[k] > 0 && !groups.has(y)) groups.set(y, []); });
     const years = [...groups.keys()].sort((a, b) => a - b);
 
     const sections = [];
@@ -637,6 +640,7 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
       return `<section class="year" id="${s.key}">${head}
         ${editing ? editor : (yt.title ? `<p class="title">${esc(yt.title)}</p>` : '')}
         ${!editing && yt.text ? `<p class="text">${esc(yt.text)}</p>` : ''}
+        ${!s.items.length && hidden[edKey] ? `<p class="text">${hidden[edKey] === 1 ? 'Her var der ét billede' : `Her var der ${hidden[edKey]} billeder`} af ${esc(name)} sammen med familie og venner. De er ikke med her – siden viser kun ${esc(name)}.</p>` : ''}
         <div class="grid" data-grid="${s.key}">${tiles}</div>${more}${memeBlock}</section>`;
     }).join('');
 
