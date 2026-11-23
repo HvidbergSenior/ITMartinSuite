@@ -78,7 +78,7 @@ h2{font-family:Bungee,sans-serif;font-weight:400;font-size:clamp(1.5rem,5vw,2.2r
 /* stats */
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
 .stat{background:var(--card);border-radius:18px;padding:16px;border:2px solid var(--line);transform:rotate(var(--t,0deg))}
-.stat b{display:block;font:400 1.6rem Bungee,sans-serif;color:var(--c,var(--red));font-variant-numeric:tabular-nums;line-height:1.1}
+.stat{min-width:0}.stat b{overflow-wrap:anywhere;display:block;font:400 1.6rem Bungee,sans-serif;color:var(--c,var(--red));font-variant-numeric:tabular-nums;line-height:1.1}
 .stat span{color:var(--muted);font-size:.92rem}
 
 /* year nav */
@@ -526,6 +526,8 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
     return a;
   }
   const fmt = n => Math.round(n).toLocaleString('da-DK');
+  // Big numbers short, so they fit the stat box (user 2026-11-23: "2.068.001.024 hjerteslag is too wide for the box").
+  const big = n => n >= 1e9 ? (n / 1e9).toLocaleString('da-DK', { maximumFractionDigits: 1 }) + ' mia.' : n >= 1e6 ? (n / 1e6).toLocaleString('da-DK', { maximumFractionDigits: 1 }) + ' mio.' : fmt(n);
 
   const levelLines = {
     0: 'Level 0: Tutorial startet 👶', 1: 'Level 1: Gå-evne låst op 🚶', 3: 'Level 3: "Hvorfor?" ×1000 ❓',
@@ -579,7 +581,7 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
       const stats = [
         [fmt(days), 'dage på jorden', 'var(--red)'],
         [fmt(days * 24), 'timer (og ingen af dem var kedelige)', 'var(--sky)'],
-        [fmt(days * 24 * 60 * 80), 'hjerteslag, cirka', 'var(--pink)'],
+        [big(days * 24 * 60 * 80), 'hjerteslag, cirka', 'var(--pink)'],
         [fmt(days * 0.36), 'nætter med nok søvn (skønnet)', 'var(--violet)'],
         [age, 'lagkager med lys', 'var(--mint)'],
         [fmt(data.items.length), 'billeder og film her på siden', 'var(--red)'],
