@@ -32,69 +32,27 @@
 <CascadingValue Name="Plain" Value="true">
 @* Every part its own box again, like the boxes around them (user 2026-10-29: "all these should also be in the boxes over them");
    was one calm card with rows since 2026-10-27. "Hvem er ITMartin?" open, the rest closed until opened (remembered per phone). *@
-@if (_hero is not null)
-{
-    <section class="k-card hj-page hj-sec">
-        <h2>Hvem er ITMartin?</h2>
-        <div><HeroTabs Body="@_hero.Body" /></div>
-    </section>
-}
+@* "Hvem er ITMartin?" tabs HIDDEN 2026-11-23 (user: "only relevant things" - the intro below says the same). *@
 @* Martin's own "Om mig og kontakt" text (Svar -> Sider -> om-mig), each "## " part a box. *@
 @if (_about is not null)
 {
     var (intro, parts) = Sections.Split(_about.Body);
     @if (intro.Length > 0) { <section class="k-card hj-page">@TinyMarkdown.Render(intro)</section> }
-    <SectionBoxes Parts="parts" FirstOpen="false" />
+    @* "Kontakt mig" box hidden (2026-11-23) - the contact buttons are at the top. *@
+    <SectionBoxes Parts="@Relevant(parts)" FirstOpen="false" />
 }
 
-<WorkTiles />
-
-@* Bogshoppen is a part of ITMartin - all about it lives here on itmartin.dk (2026-11-03); bogshoppen.dk is only products. *@
-<section class="k-card hj-page hj-sec">
-    <h2>Bogshoppen</h2>
-    <div>
-        <p>Bogshoppen er en del af ITMartin – Rico og Martins nye Bogshoppen med bøger, tegneserier, blade, film og musik.</p>
-        <div class="hj-head-btns">
-            <a class="k-btn k-btn-primary" href="/om-bogshoppen">Om Bogshoppen</a>
-            <a class="k-btn" href="https://bogshoppen.dk/produkter">Se produkterne</a>
-        </div>
-    </div>
-</section>
+@* WorkTiles ("Om mig og mit arbejde", "Mine andre sider") and the Bogshoppen box HIDDEN 2026-11-23 (user: "only relevant things"). *@
 </CascadingValue>
 
-@if (_posts.Count > 0)
-{
-    <h2 class="hj-h2">Seneste</h2>
-    @foreach (var p in _posts.Take(3)) { <PostCard Post="p" /> }
-
-    @if (_posts.Count > 3)
-    {
-        <h2 class="hj-h2">Tidslinje</h2>
-        <p class="k-help">Tryk på et år for at se, hvad der skete.</p>
-        @foreach (var year in _posts.Skip(3).GroupBy(p => p.At.Year))
-        {
-            <details class="hj-year" data-remember="year-@year.Key">
-                <summary><b>@year.Key</b> <span class="k-muted">· @year.Count() opslag</span></summary>
-                @foreach (var p in year) { <PostCard Post="p" /> }
-            </details>
-        }
-    }
-}
-
-@if (!_family && _hiddenFamily > 0)
-{
-    <div class="k-card hj-lock" data-nofold>
-        <p><b>@_hiddenFamily familieopslag</b> er kun for familien.</p>
-        <a class="k-btn k-btn-sm" href="/login">Skriv familiens kodeord</a>
-    </div>
-}
-else if (_family && !_owner)
-{
-    <p class="k-help k-center">Du ser familiens billeder. <a class="k-btn k-btn-sm" href="/logout">Log ud</a></p>
-}
+@* "Seneste" + "Tidslinje" posts and the family lock HIDDEN 2026-11-23 (user: "only relevant things"). *@
 </div>
 
 @code {
+    // "Kontakt mig" is the buttons at the top - not a box too (user 2026-11-23: "only relevant things").
+    private static List<Sections.Part> Relevant(List<Sections.Part> parts) =>
+        parts.Where(x => !x.Title.Trim().Equals("Kontakt mig", StringComparison.OrdinalIgnoreCase)).ToList();
+
     [CascadingParameter] private Task<AuthenticationState>? AuthTask { get; set; }
 
     private Page? _hero;   // Svar -> Sider -> "forside"
