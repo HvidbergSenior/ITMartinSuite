@@ -28,6 +28,18 @@ public static class MartinPhotos
 
     public static Photo Now => All[(int)(DateTime.UtcNow.Ticks / TimeSpan.TicksPerMinute % All.Count)];
 
+    /// <summary>Front page only: photos with just Martin in them (user 2026-11-23: "i want pictures but use the ones that are just me"
+    /// + "on forside"). The two car photos are cropped so nobody else is in them.</summary>
+    public static readonly IReadOnlyList<Photo> Solo =
+    [
+        new("/martin/martin-20250721-solo.jpg", ""),
+        new("/martin/martin-20250724-solo.jpg", "Sommerferie"),
+        new("/martin/martin-20250917.jpg", ""),
+        new("/martin/martin-20251220.jpg", "Jeg tror på julemanden"),
+    ];
+
+    public static Photo SoloNow => Solo[(int)(DateTime.UtcNow.Ticks / TimeSpan.TicksPerMinute % Solo.Count)];
+
     /// <summary>Personal photos only on Om mig and the Per pages (user 2026-11-23: "a little too personal ... in om mig instead").</summary>
     public static bool ShowOn(string? path)
     {

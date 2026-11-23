@@ -21,8 +21,9 @@
 @* SUPER SIMPLE front page (user 2026-11-12: "I need to make my itmartin.dk super simple ... What do I sell -> prices"):
    who I am, what I sell with the price, how to reach me. The prices live in the Domain (ITMartinHjem.Domain/PriceList).
    "Nyt", "Vidste du ..." and the market notice are gone from here - they are on the Om mig / topic tabs. *@
-@* No personal photo on the front page (user 2026-11-23: "too personal ... in om mig instead"). *@
-<header class="hj-head hj-head-nophoto hj-wide">
+@* Only photos of Martin alone on the front page (user 2026-11-23: "too personal" -> "use the ones that are just me" "on forside"). *@
+<header class="hj-head hj-head-me hj-wide">
+    <span class="hj-head-photo"><img src="@_photo.Src" alt="Martin Hvidberg@(_photo.Place.Length > 0 ? " – " + _photo.Place : "")" width="150" height="150" />@if (_photo.Place.Length > 0) { <span class="hj-head-place">@_photo.Place</span> }</span>
     <h1>ITMartin – Martin Hvidberg</h1>
     <p class="hj-intro">Jeg hjælper dig med IT – enkelt, ærligt og uden reklamer.</p>
     <div class="hj-head-btns">
@@ -106,6 +107,7 @@
 </CascadingValue>
 
 @code {
+    private readonly MartinPhotos.Photo _photo = MartinPhotos.SoloNow;
     // Old "Chat med Martin" buttons point at /#chat (the box that was here until 2026-10-21) - send them to the chat page.
     protected override async Task OnAfterRenderAsync(bool first)
     {
