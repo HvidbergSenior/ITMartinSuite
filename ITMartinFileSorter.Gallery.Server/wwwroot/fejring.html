@@ -605,7 +605,7 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:30px 16px}
     const years = [...groups.keys()].sort((a, b) => a - b);
 
     const sections = [];
-    if (undated.length) sections.push({ key: 'album', label: '📚', items: undated, undated: true });
+    if (undated.length || hidden.undated) sections.push({ key: 'album', label: '📚', items: undated, undated: true });
     years.forEach(y => sections.push({ key: 'y' + y, label: String(y), year: y, items: groups.get(y) }));
 
     flat = sections.flatMap(s => s.items);
