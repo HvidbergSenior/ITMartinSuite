@@ -438,10 +438,15 @@
         return ShopShelves.All.FirstOrDefault(s => s.Name == vis).Types is [var first, ..] && ShopFamilies.For(first) is { } g ? g.Path : null;
     }
 
+    // Kept a minute for everyone (2026-11-23): going from one shop to the next no longer starts with an empty page.
+    private static (ShopOverview Overview, DateTime At)? _overviewCache;
+
     private async Task LoadOverview()
     {
+        if (_overviewCache is { } c && DateTime.UtcNow - c.At < TimeSpan.FromMinutes(1)) { (_overview, _error) = (c.Overview, null); return; }
         var (overview, error) = await Shop.OverviewAsync(3);
         (_overview, _error) = (overview, error);
+        if (overview is not null) _overviewCache = (overview, DateTime.UtcNow);
     }
 
     /// <summary>How many priced things a shop has (its categories' shelves).</summary>
@@ -612,7 +617,7 @@
         _query = _text.Trim();
         if (_query == "") { await ClearSearch(); return; }
         (_sub, _batch, _genre) = (null, null, null);
-        await Address(Here());
+        await Address(Here(), scroll: false);   // stay where you are (user 2026-11-23: "on search the screen goes up")
         await Load(reset: true);
     }
 
@@ -626,12 +631,12 @@
     private Task More() { _page++; return Load(reset: false); }
 
     // The address follows (a shared link opens the same), without a navigation - that redrew the page. Back at the top of the list.
-    private async Task Address(string url)
+    private async Task Address(string url, bool scroll = true)
     {
         try
         {
             await JS.InvokeVoidAsync("hjem.setAddress", url);
-            await JS.InvokeVoidAsync("hjem.scrollToId", "alle");
+            if (scroll) await JS.InvokeVoidAsync("hjem.scrollToId", "alle");
         }
         catch (JSException) { }
         catch (InvalidOperationException) { }
@@ -640,7 +645,9 @@
     private async Task Load(bool reset)
     {
         _loading = true;
-        if (reset) { _page = 0; _market = null; _items.Clear(); }
+        // The old list stays on screen until the new one has arrived - emptying it first made the page shrink and jump
+        // (user 2026-11-23: "still a lot of refresh when navigating the shops").
+        if (reset) _page = 0;
         // A-Z (user 2026-10-31: "all products need to have alphateci order"); only the shop's categories, or the subcategory's.
         var rare = Family == ShopFamilies.Rare;
         IReadOnlyCollection<string>? cats = Family is null || rare ? null : _sub?.Category is { } c ? [c] : Family.Types;
@@ -649,6 +656,7 @@
         _loading = false;
         _error = error;
         if (market is null) return;
+        if (reset) _items.Clear();
         _items.AddRange(market.Items);
         _market = market;
         _verdicts = await Market.VerdictsAsync(_items.Select(i => i.Id).ToList());
