@@ -30,7 +30,17 @@ public static class MartinPhotos
 
     /// <summary>Front page: ONE photo of just Martin (user 2026-11-23: "I just want one picture showing me... The other like
     /// julemanden and lakridspibe should be in Om mig" - they are in the Om mig gallery). Cropped so nobody else is in it.</summary>
-    public static readonly Photo Front = new("/martin/martin-20250724-solo.jpg", "");
+    public static readonly IReadOnlyList<Photo> Front =
+    [
+        new("/martin/martin-20250724-solo.jpg", ""),
+        // User 2026-11-23 picked these from the demo gallery: "20180715 110420 is ok ... and this 6-Juli ... and the next December".
+        new("/martin/martin-20180715.jpg", ""),
+        new("/martin/martin-20220713.jpg", ""),   // a person behind the shoulder is blurred
+        new("/martin/martin-20221224.jpg", ""),
+    ];
+
+    /// <summary>The front-page photo now - changes every minute, same for prerender and live render.</summary>
+    public static Photo FrontNow => Front[(int)(DateTime.UtcNow.Ticks / TimeSpan.TicksPerMinute % Front.Count)];
 
     /// <summary>Personal photos only on Om mig and the Per pages (user 2026-11-23: "a little too personal ... in om mig instead").</summary>
     public static bool ShowOn(string? path)
