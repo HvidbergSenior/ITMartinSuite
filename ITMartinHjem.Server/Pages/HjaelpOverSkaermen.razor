@@ -1,31 +1,17 @@
 @page "/hjaelp-over-skaermen"
 
-@* Remote help as a product (user 2026-11-12: "remote will be 1 hour -> 200 kr", "There should be an instructions and Formål on
-   each"). Se med = semed.itmartin.dk (photoserver semed-web; Martin starts it in Kontrol before a session). *@
+@* Remote help (Se med = semed.itmartin.dk, Martin starts it in Kontrol before a session). Short since 2026-11-23 (user: "too much text.
+   i want people to contact me... opret dig som interessent. A chat is created. We can talk about my help") - the how and the payment
+   are talked about in the room. *@
 <PageTitle>Hjælp over skærmen · ITMartin</PageTitle>
 
 <PageHead Title="Hjælp over skærmen" Tag="Også i weekenden" Line="Jeg kigger med på din pc-skærm og hjælper dig – mens du sidder hjemme." />
 
 <section class="k-card">
-    <h2 class="k-card-title">Formål</h2>
-    <p>Du skal ikke vente på, at nogen har tid til at komme forbi. Har du et problem med din pc – stort eller lille – så løser vi det
-        sammen, mens du ser med. Du lærer det undervejs, så du kan selv næste gang.</p>
+    <p>Stort eller lille problem med din pc – vi løser det sammen, mens du ser med. Du skal ikke installere noget.</p>
+    <p class="k-help">Kun på pc (computer eller bærbar) – ikke på telefon eller tablet.</p>
 </section>
 
-<section class="k-card">
-    <h2 class="k-card-title">Sådan gør vi</h2>
-    <ol>
-        <li>Skriv eller ring til mig, og fortæl kort, hvad der driller. Så aftaler vi en tid.</li>
-        <li>Når tiden kommer, sender jeg dig en kode.</li>
-        <li>Åbn <b>semed.itmartin.dk</b> og skriv koden. Så kan jeg se din skærm. Du skal ikke installere noget.</li>
-        <li>Vi løser det sammen – til du er tilfreds. Du kan når som helst lukke, så kan jeg ikke se mere.</li>
-    </ol>
-    <p><b>Kun på pc</b> (en almindelig computer eller bærbar) – ikke på telefon eller tablet.</p>
-    <p>Også i weekenden. Intet ur, der tikker – vi bliver ved, til du er tilfreds.</p>
-    <PaymentInfo />
-    <div class="hj-offer-btns">
-        <a class="k-btn k-btn-primary" href="/chat-med-martin">Skriv til mig</a>
-        <a class="k-btn" href="tel:+4531194730">Ring 31 19 47 30</a>
-        <a class="k-btn" href="https://semed.itmartin.dk">Jeg har fået en kode</a>
-    </div>
-</section>
+<InterestedChat Service="Hjælp over skærmen" Topic="Hjælp på min skærm" Placeholder="Hvad driller? (kan springes over)" />
+
+<p class="k-help">Har du allerede fået en kode af mig? <a href="https://semed.itmartin.dk">Åbn semed.itmartin.dk</a></p>

@@ -123,6 +123,34 @@ window.hjem = (function () {
             return false;
         },
 
+        // Service pages (2026-11-23): sign up as interested + own Snak room in one press, then straight into the room.
+        kontaktStart: function (form) {
+            var btn = form.querySelector('button[type=submit]'), err = form.querySelector('.hj-snak-fejl');
+            var navn = form.navn.value.trim(), label = btn.textContent;
+            err.hidden = true; btn.disabled = true; btn.textContent = 'Opretter dig og laver dit rum …';
+            fetch('/api/kontakt/start', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ydelse: form.ydelse.value, emne: form.emne.value, navn: navn, mail: form.mail.value.trim(),
+                    samtykke: form.samtykke.checked, besked: form.besked.value.trim() })
+            }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+              .then(function (x) {
+                  if (x.ok && x.j.link) {
+                      var to = x.j.link + '?navn=' + encodeURIComponent(navn);
+                      try { window.top.location.href = to; } catch (e) { location.href = to; }
+                      return;
+                  }
+                  if (x.ok && x.j.besked) { err.textContent = x.j.besked; err.hidden = false; btn.textContent = 'Du er skrevet op'; return; }
+                  var msg = (x.j && x.j.fejl) || '';
+                  if (x.j && x.j.forslag) msg += ' Mente du ' + x.j.forslag + '?';
+                  throw new Error(msg);
+              })
+              .catch(function (e) {
+                  err.textContent = e.message || 'Det virkede ikke lige nu. Prøv igen om lidt – eller ring 31 19 47 30.';
+                  err.hidden = false; btn.disabled = false; btn.textContent = label;
+              });
+            return false;
+        },
+
         pushTest: async function () {
             await fetch('/api/push/test', { method: 'POST' });
         }

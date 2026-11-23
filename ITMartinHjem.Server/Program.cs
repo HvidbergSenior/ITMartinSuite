@@ -454,6 +454,15 @@ app.MapPost("/api/snak/start", async (SnakStartRequest req, HttpContext ctx, Sna
     return r.Link is { } link ? Results.Ok(new { link }) : Results.BadRequest(new { fejl = r.Error });
 }).DisableAntiforgery();
 
+// Service pages: "Opret dig som interesseret" = Kunder sign-up + own Snak room in one press (user 2026-11-23).
+app.MapPost("/api/kontakt/start", async (InterestedChatRequest req, HttpContext ctx, InterestedChatUseCases uc) =>
+{
+    var r = await uc.StartAsync(req.Ydelse ?? "", req.Emne, req.Navn, req.Mail, req.Samtykke, req.Besked, ClientIp(ctx), ctx.RequestAborted);
+    return r.Link is { } link ? Results.Ok(new { link, nummer = r.Code })
+        : r.Code.Length > 0 ? Results.Ok(new { nummer = r.Code, besked = r.Error })
+        : Results.BadRequest(new { fejl = r.Error, forslag = r.Suggestion });
+}).DisableAntiforgery();
+
 app.MapPost("/api/push/test",async (HttpContext ctx, PushUseCases push) =>
     ctx.User.IsOwner() ? Results.Ok(await push.SendToOwnerAsync("Martin Hvidberg", "Beskeder virker ✅ – her kommer spørgsmål fra din side.", "/admin")) : Results.Unauthorized())
     .DisableAntiforgery();
@@ -489,4 +498,5 @@ static string LoginPage(bool owner, bool err) => $$"""
 
 public sealed record SubRequest(string Endpoint, string P256dh, string Auth);
 public sealed record SnakStartRequest(string? Navn, string? Besked);
+public sealed record InterestedChatRequest(string? Ydelse, string? Emne, string? Navn, string? Mail, bool Samtykke, string? Besked);
 public sealed record VisitorSubRequest(string VisitorKey, string Endpoint, string P256dh, string Auth);

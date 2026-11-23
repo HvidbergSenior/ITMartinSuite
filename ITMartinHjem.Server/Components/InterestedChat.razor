@@ -1,0 +1,27 @@
+@using ITMartinHjem.Domain
+@* "Opret dig som interesseret" on the service pages (user 2026-11-23: "too much text. i want people to contact me... opret dig som
+   interessent. A chat is created. We can talk about my help"). One press: kundenummer (Kunder) + own Snak room -> straight into it.
+   A plain form posted by wwwroot/hjem.js kontaktStart, like SnakStart. *@
+<section class="k-card hj-interested" id="kontakt">
+    <h2 class="k-card-title">Opret dig som interesseret</h2>
+    <p>Så får vi vores eget rum, hvor vi snakker om, hvad du har brug for. Det er gratis og forpligter ikke.</p>
+    <form onsubmit="return hjem.kontaktStart(this)">
+        <input type="hidden" name="ydelse" value="@Service" />
+        <input type="hidden" name="emne" value="@Topic" />
+        <input class="k-input k-mt" name="navn" required maxlength="@SnakStartRules.MaxName" placeholder="Dit navn" aria-label="Dit navn" autocomplete="name" />
+        <input class="k-input k-mt" name="mail" type="email" required maxlength="@TrialRules.MaxEmail" placeholder="Din e-mail" aria-label="Din e-mail" autocomplete="email" />
+        <textarea class="k-input k-textarea k-mt" name="besked" maxlength="@SnakStartRules.MaxText" placeholder="@Placeholder" aria-label="Kort om det, du vil have hjælp til"></textarea>
+        <label class="sp-optin k-mt"><input type="checkbox" name="samtykke" required /> <span>@TrialRules.ConsentText</span></label>
+        <button type="submit" class="k-btn k-btn-primary k-btn-block k-mt">Opret mig og start snakken</button>
+        <p class="k-help hj-snak-fejl" role="alert" hidden></p>
+    </form>
+    <p class="k-help">Vil du hellere ringe? <span class="hj-phone">31 19 47 30</span></p>
+</section>
+
+@code {
+    /// <summary>The help they came from - first words in the room and in Kunder (e.g. "Hjælp over skærmen").</summary>
+    [Parameter, EditorRequired] public string Service { get; set; } = "";
+    /// <summary>One of TrialRules.Topics, so Kunder shows the same tick as Skriv mig op.</summary>
+    [Parameter] public string Topic { get; set; } = "";
+    [Parameter] public string Placeholder { get; set; } = "Kort om det, du vil have hjælp til (kan springes over)";
+}

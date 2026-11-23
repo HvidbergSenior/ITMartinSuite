@@ -1,66 +1,13 @@
 @page "/din-hjemmeside"
-
-@* The homepage product (user 2026-11-12): the first page is free; you only pay for the weeks it is switched on - 10 / 30 / 40 kr a week
-   (Selv / Sammen / Fuld hjælp, incl. moms); not in use for a while -> Martin switches it off and it costs nothing. Compared with
-   one.com, Wix, Simply.com and freelancers ("they are generic ... like mine ... the personal feel"). Later 12.11: "compare prices to other
-   sites and I can easily transfer from existing ones... Subscription compare" -> the same unit for all (kr. pr. år after the cheap first
-   year, and a season of 3 months), what you save, and "Flyt din side". Market prices checked 12.11.2026 (TechRadar one.com review +
-   sponsored 2026 piece: builder Portfolio 79->119, Booking 99->159 kr/md after year 1 - user 12.11 "one.com? why so low?": the 49-79 was the bare webhotel, not a builder; Shopify DK on Wix ca. 200 kr/md; quasa.io Simply 22.10.2026;
-   Handyhand freelancer bids) - check again yearly.
-   Payment: Stripe link (card/MobilePay) or bank transfer (Jyske Bank) - see PaymentInfo. *@
+@* The homepage product: made with the customer, own pictures and words, on Martin's server in Denmark, nightly backup, the domain is
+   theirs; moving from one.com/Wix/Simply is possible. Short since 2026-11-23 (user: "too much text ... opret dig som interessent.
+   A chat is created. We can talk about my help") - price, moving and /ret are talked about in the room. *@
 <PageTitle>Din egen hjemmeside · ITMartin</PageTitle>
 
-@* THE sales argument (user 2026-11-12: "You only pay for the time you want. I HATE subscriptions!!!"). *@
-@* Price rule (user 2026-11-13: "I charge 50 pct of what you pay and/or what you find") - replaced the 10/30/40 kr a week list. *@
 <PageHead Title="Din egen hjemmeside" Tag="Lavet til dig" Line="Jeg laver den sammen med dig – med dine egne billeder og ord." />
 
 <section class="k-card">
-    <h2 class="k-card-title">Formål</h2>
-    <p>En hjemmeside, der ligner <b>dig</b> – ikke en skabelon. Til din forening, din lille virksomhed eller dig selv. Jeg laver den,
-        som du vil have den, med dine egne billeder og dine egne ord. Uden reklamer og uden sporing.</p>
-    <p>Siden ligger på min egen server i Danmark og bliver taget backup af hver nat. Domænet er dit, og du kan altid få hele siden
-        med dig som en zip-fil.</p>
+    <p>En side, der ligner dig – ikke en skabelon. Uden reklamer og sporing, på min egen server i Danmark. Har du allerede en side, kan jeg flytte den.</p>
 </section>
 
-<section class="k-card" data-fold-closed>
-    <h2 class="k-card-title">Hvad får du?</h2>
-    <ul>
-        <li><b>En side, der er din.</b> Den er lavet til dig – ikke valgt i en liste med skabeloner.</li>
-        <li><b>Et menneske, du kan ringe til.</b> Ingen chatbot og ingen supportkø – du skriver eller ringer til mig.</li>
-        <li><b>Den virker.</b> Jeg holder den opdateret, sikker og i gang, og der bliver taget backup hver nat.</li>
-    </ul>
-</section>
-
-<section class="k-card" data-fold-closed>
-    <h2 class="k-card-title">Har du allerede en hjemmeside? Jeg flytter den</h2>
-    <p>Du behøver ikke starte forfra. Jeg flytter din side fra one.com, Wix, Simply eller et andet sted – tekst, billeder og domæne.</p>
-    @* User 2026-11-12: "the move ... should be a session like the other task -> 500" - same as Billeder fra skyen: one session until done. *@
-    <div class="hj-offer"><div class="hj-offer-top"><b>Flyt din side</b></div>
-        <p>Én gang sammen over skærmen, til den er flyttet og virker.</p></div>
-    <ol>
-        @* User 2026-11-13: "send a screenshot of your existing website -> what are you happy about, what not.. And how many visit". *@
-        <li>Send mig adressen og et <b>skærmbillede</b> af din side nu – og fortæl mig:
-            <ul>
-                <li>Hvad er du <b>glad</b> for ved den?</li>
-                <li>Hvad er du <b>ikke</b> glad for?</li>
-                <li>Hvor mange <b>besøger</b> den? (Ved du det ikke, finder vi ud af det sammen.)</li>
-            </ul></li>
-        <li>Vi tager en session sammen over skærmen: jeg laver den hos mig, og du ser den, før noget bliver skiftet.</li>
-        <li>Domænet flytter med. Du beder din gamle udbyder om en <b>flyttekode</b> (hedder ofte "auth-kode" eller "EPP-kode") – jeg
-            hjælper dig, hvis du ikke kan finde den.</li>
-        <li>Først når den nye side virker, siger du dit gamle abonnement op. Så er du aldrig uden side.</li>
-    </ol>
-    <div class="hj-offer-btns"><a class="k-btn k-btn-primary" href="/chat-med-martin">Skriv til mig – flyt min side</a></div>
-</section>
-
-<section class="k-card">
-    <h2 class="k-card-title">Sådan gør vi</h2>
-    <ol>
-        <li>Skriv til mig, hvad siden skal handle om – og send gerne tekst og billeder. Har du en side i forvejen: send et
-            skærmbillede, og fortæl hvad du er glad for, hvad du ikke er glad for, og hvor mange der besøger den.</li>
-        <li>Jeg laver den første side, og du ser den, før den kommer ud.</li>
-        <li>Du retter selv, eller du får hjælp af mig – også i weekenden. Du kan slukke eller stoppe, når du vil.</li>
-        <li>Vil du rette selv: skriv <b>/ret</b> efter adressen (fx minside.dk/ret) og din kode. Gik noget galt, trykker du Fortryd.</li>
-    </ol>
-    <div class="hj-offer-btns"><a class="k-btn k-btn-primary" href="/chat-med-martin">Skriv til mig</a></div>
-</section>
+<InterestedChat Service="Din egen hjemmeside" Topic="Fra idé til virksomhed og hjemmeside" Placeholder="Hvad skal siden handle om? Har du en i forvejen? (kan springes over)" />
