@@ -43,7 +43,7 @@ public static class News
         new(4, "Billeder og erindringer", "Lav et digitalt album til dine minder.",
             "Se på mulighederne for at samle billeder, finde dubletter og gemme historierne bag fotografierne.",
             "Minder skal være til at finde igen – ikke gemt væk i digitalt rod.",
-            [("Se et eksempel", "https://gallery.itmartin.dk/facebook-demo"), ("Billeder og film hjem", "/billeder-fra-skyen")],
+            [("Billeder og film hjem", "/billeder-fra-skyen")],
             [("Derfor forlader jeg Facebook", "/farvel-facebook")]),
         new(5, "Fakta, nyheder og manipulation", "Lav din egen \"fakta eller fup\"-hjælper.",
             "Vi taler om sociale medier, falske billeder og videoer, manipulation, store teknologivirksomheder og de data, vi deler.",
