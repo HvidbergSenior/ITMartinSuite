@@ -1178,3 +1178,7 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 .hj-me-gallery li { display: grid; gap: 6px; margin: 0; }
 .hj-me-gallery img { width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; border-radius: 14px; display: block; }
 .hj-me-gallery span { font-size: .85rem; color: var(--k-muted, inherit); line-height: 1.3; }
+
+/* itmartin.dk + bogshoppen.dk: no "Læg på telefonen / skrivebordet" at all (user 2026-11-23: "put om skrivebordet away for itmartin and bogshoppen").
+   The pop-up was already off (data-install="quiet"); this hides the footer link that opened the same guide. */
+.k-footer-install, #k-install { display: none !important; }
