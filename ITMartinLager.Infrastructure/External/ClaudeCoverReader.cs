@@ -104,7 +104,11 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
           " – ": "Kasket Karl – Med på den værste", "The Walking Dead – Two Day Special".
         - Titler læses hele - forkort aldrig med "..." eller "…". Er en del skjult, så skriv det, der kan ses, uden prikker.
         - kind - vælg ud fra hvad det ER:
-          * "Anders And-blad": ugebladet Anders And & Co.: serie "Anders And & Co.", nummer og år fra forsiden.
+          * "Anders And-blad": ugebladet Anders And & Co.: serie "Anders And & Co.". Det VIGTIGSTE er NUMMER og ÅR - læs dem
+            først. De står øverst ved logoet: "Nr. 23", "23/1987", "Uge 23", "4. juni 1987", ofte småt. title = "Anders And & Co."
+            (eller særudgavens navn, fx "Anders And Ekstra", "Påske-ekstra", "Sommerlæsning"). Teksterne på forsiden - nederst og i
+            venstre side, fx "Dusørjagten – sidste nyt", "Ønskeseddel-konkurrencen", "96 sider" - er kun TILLÆG: skriv dem i note,
+            ALDRIG i title. confidence handler om nummer og år: kan de ikke læses sikkert, så confidence højst 0.4.
           * "Jumbobog": KUN når der står "Jumbobog" på den. Nummer fra ryggen/forsiden.
           * "Superhelteblad": superheltehæfter - Marvel og DC (X-Men, Spider-Man, Batman, Superman ...), også de danske
             udgaver (Fantastic Four, Superman-bladet). Nummer fra forsiden.
