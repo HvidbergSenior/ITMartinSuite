@@ -43,12 +43,13 @@
             }
         </div>
     }
-    @if (!Prices.On && _overview is not null)
+    @* Shown with prices on too (user 2026-11-23: "priser kommer løbende"). *@
+    @if (_overview is not null)
     {
         var shown = _overview.Shelves.Sum(sh => sh.Count);
         <div class="bs-progress" role="status">
             <b>Vi har lagt @shown.ToString("N0", Da) produkter ind – der mangler @Math.Max(0, PricesShown.Goal - shown).ToString("N0", Da).</b>
-            <span>Priserne kommer, når vi er nået længere. Kig dig bare omkring.</span>
+            <span>Der kommer nye varer og priser løbende. Kig dig bare omkring.</span>
         </div>
     }
     @if (Family is not null)
@@ -733,7 +734,7 @@
                 <h3>@i.Line</h3>
                 @if (i.ForShow) { <p class="bs-forshow">Kun til visning</p> }
                 else if (i.Assess) { <p class="bs-shop-noprice bs-assess">@ShopDeals.AssessText</p> }
-                else if (!Prices.On) { <p class="bs-shop-noprice">Prisen kommer</p> }
+                else if (!Prices.On) { <p class="bs-shop-noprice">Prisen kommer løbende</p> }
                 else if (ShopDeals.Named(i.Deal) is { } deal)
                 {
                     @if (deal.Steps is [{ Count: 1 } one]) { <p class="bs-shop-price"><b>@one.Kr kr</b></p> }

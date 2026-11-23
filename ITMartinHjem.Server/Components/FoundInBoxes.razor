@@ -21,7 +21,7 @@
                         @if (i.Interest != "") { <p>@i.Interest</p> }
                         <p>
                             @if (i.ForShow) { <span class="bs-forshow">Kun til visning</span> }
-                            else if (!Prices.On) { <span>Prisen kommer</span> }
+                            else if (!Prices.On) { <span>Prisen kommer løbende</span> }
                             else if (i.BuyNowKr is { } kr) { <span>Hos os: <b>@kr kr</b></span> }
                             else if (i.ExpectKr is { } ex) { <span>Andre steder omkring @ex kr – hos os efter aftale</span> }
                             else { <span>Pris efter aftale</span> }
