@@ -62,6 +62,10 @@ public static class PriceList
         new("Undervisning i AI og IT",
             "Jeg underviser hold, foreninger og arbejdspladser – roligt og i jeres tempo. Ingen forkundskaber.",
             "", "Sådan gør vi", "/undervisning"),
+        // User 2026-11-23: "my interest in Pc, servers, old machines" -> picked "Nyt liv til gamle pc'er": repair + reuse, not buy new.
+        new("Nyt liv til gamle pc'er",
+            "Jeg gør din gamle pc, bærbar eller server hurtig og brugbar igen – så du ikke behøver at købe ny.",
+            "", "Sådan gør vi", "/gamle-pcer"),
         new("Bøger, tegneserier, film og musik",
             "Brugte ting fra Bogshoppen – med billede.",
             "", "Gå til Bogshoppen", "https://bogshoppen.dk"),
