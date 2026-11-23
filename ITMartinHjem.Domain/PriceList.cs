@@ -51,8 +51,8 @@ public static class PriceList
             // intet abonnement, også weekenden, fixed price - is ONE line above the tiles (SharedTerms); each tile says only its own.
             "Jeg kigger med på din skærm og hjælper dig, mens du sidder hjemme. Kun på pc.",
             "", "Sådan gør vi", "/hjaelp-over-skaermen", ""),
-        new("Billeder og film fra Facebook, Instagram og Snapchat – sorteret",
-            "Jeg henter alle dine billeder og film, og vi sorterer dem efter år i ét galleri – uanset hvor mange der er.",
+        new("Alle jeres billeder og film – samlet ét sted",
+            "Facebook, iPhone, Google, gamle harddiske – fra hele familien. Sorteret efter år i ét galleri, uanset hvor mange der er.",
             "", "Sådan gør vi", "/billeder-fra-skyen", ""),
         new("Din egen hjemmeside – som du vil have den",
             // User 2026-11-13: first version with one page free, then half of what you pay today; help 200 kr/time also weekends.
