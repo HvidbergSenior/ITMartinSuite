@@ -176,7 +176,8 @@
         // A site can say <html data-install="quiet"> (itmartin.dk + bogshoppen.dk, user 2026-11-05: no pop-up there) -
         // then no bar and no floating button; the footer link "Læg på telefonen" still opens the same guide.
         var quiet = document.documentElement.getAttribute('data-install') === 'quiet';
-        var bar = !quiet && Date.now() - later > 14 * 864e5;
+        // PC: never the bar (user 2026-11-23: "It annoys when on pc so all should be gone from that") - the footer link still opens the guide.
+        var bar = !quiet && !dev.pc && Date.now() - later > 14 * 864e5;
         box.innerHTML =
             (bar ? '<div class="k-install-bar" role="region" aria-label="' + T('Læg på ', 'Add to ') + where + '">' +
                 '<b>' + T('Læg ' + appName + ' på ' + where, 'Add ' + appName + ' to ' + where) + '</b>' +
