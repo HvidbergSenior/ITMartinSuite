@@ -58,6 +58,10 @@ public static class PriceList
             // User 2026-11-13: first version with one page free, then half of what you pay today; help 200 kr/time also weekends.
             "Jeg laver den sammen med dig – med dine egne billeder og ord. Har du allerede en side, flytter jeg den.",
             "", "Sådan gør vi", "/din-hjemmeside"),
+        // User 2026-11-23: "Undervisning should be a sales item as well" - for groups, associations and workplaces, not only LOF.
+        new("Undervisning i AI og IT",
+            "Jeg underviser hold, foreninger og arbejdspladser – roligt og i jeres tempo. Ingen forkundskaber.",
+            "", "Sådan gør vi", "/undervisning"),
         new("Bøger, tegneserier, film og musik",
             "Brugte ting fra Bogshoppen – med billede.",
             "", "Gå til Bogshoppen", "https://bogshoppen.dk"),
