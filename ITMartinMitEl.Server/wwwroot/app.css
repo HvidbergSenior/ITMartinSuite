@@ -433,3 +433,9 @@ details.card.fold[open] > summary { margin-bottom: 8px; }
 .more-grid { display: grid; gap: 8px; }
 .more-btn { display: grid; gap: 2px; text-align: left; justify-items: start; white-space: normal; }
 .more-btn span { color: var(--muted); font-size: .88rem; font-weight: 500; }
+
+/* Phone (2026-11-19): the demo/advisor bar stacks - three narrow columns ("Du ser / en / demo") were hard to read. */
+@media (max-width: 520px) {
+    .advisor-bar { display: block; }
+    .advisor-bar a { display: inline-block; margin-top: 4px; }
+}

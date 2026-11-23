@@ -11,14 +11,14 @@ public sealed class PushService
 {
     private readonly VapidDetails _vapid;
     private readonly WebPushClient _client = new();
-    private readonly HouseholdStore _store;
+
     private readonly ILogger<PushService> _logger;
 
     public string PublicKey => _vapid.PublicKey;
 
-    public PushService(IConfiguration config, HouseholdStore store, ILogger<PushService> logger)
+    public PushService(IConfiguration config, ILogger<PushService> logger)
     {
-        _store = store;
+
         _logger = logger;
         var dataDir = config["DataDir"] ?? "/data";
         var path = Path.Combine(dataDir, "vapid.json");
@@ -39,15 +39,16 @@ public sealed class PushService
 
     public sealed record Message(string Title, string Body, string Url = "/");
 
-    // Returns false when the endpoint is gone (410/404) - the caller drops it.
-    public async Task<bool> SendAsync(PushSubscriber to, Message msg, CancellationToken ct = default)
+    // Returns false when the endpoint is gone (410/404) - it is removed. `store` = the household the subscriber belongs
+    // to (2026-11-19: it used to be fixed at start, so a singleton wrote to the empty throwaway household).
+    public async Task<bool> SendAsync(HouseholdStore store, PushSubscriber to, Message msg, CancellationToken ct = default)
     {
         var sub = new PushSubscription(to.Endpoint, to.P256dh, to.Auth);
         var payload = JsonSerializer.Serialize(new { title = msg.Title, body = msg.Body, url = msg.Url });
         try
         {
             await _client.SendNotificationAsync(sub, payload, _vapid, ct);
-            _store.Update(d =>
+            store.Update(d =>
             {
                 var s = d.Subscribers.FirstOrDefault(x => x.Id == to.Id);
                 if (s is null) return;
@@ -59,13 +60,13 @@ public sealed class PushService
         catch (WebPushException ex) when (ex.StatusCode is System.Net.HttpStatusCode.Gone or System.Net.HttpStatusCode.NotFound)
         {
             _logger.LogInformation("Subscriber {Name} is gone ({Status}), removing", to.Name, ex.StatusCode);
-            _store.Update(d => d.Subscribers.RemoveAll(x => x.Id == to.Id));
+            store.Update(d => d.Subscribers.RemoveAll(x => x.Id == to.Id));
             return false;
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Push to {Name} failed", to.Name);
-            _store.Update(d =>
+            store.Update(d =>
             {
                 var s = d.Subscribers.FirstOrDefault(x => x.Id == to.Id);
                 if (s is not null) s.Failures++;

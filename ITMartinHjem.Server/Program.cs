@@ -372,6 +372,8 @@ app.MapGet("/bliv-pilot", () => Results.Redirect("/om-itmartin", permanent: true
 app.MapPost("/pilot/send.php", () => Results.Redirect("/om-itmartin")).DisableAntiforgery();
 app.MapPost("/bliv-pilot/send.php", () => Results.Redirect("/om-itmartin")).DisableAntiforgery();
 app.MapGet("/rejsedemo", () => Results.Redirect("/rejsedemo/", permanent: true));
+// Easy short link to the "Fra galaksen til broccolien" artifact (user 2026-11-23). Not permanent, so the target can change.
+app.MapGet("/broccoli", () => Results.Redirect("https://claude.ai/artifact/Q9oNRWWQ6npyv1M3FTJ88k"));
 
 // ── The site menu for hand-made pages in wwwroot (pilot): wwwroot/nav.js draws it from this.
 // Birthday day on the hand-made pages (wwwroot/nav.js draws the strip when this says on).

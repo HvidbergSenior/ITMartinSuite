@@ -246,6 +246,21 @@
         // apps with their own install card (ElPriser/MinElpris), where it did nothing (user 2026-09-28).
         var sheet = document.getElementById('k-install');
         document.querySelectorAll('.k-footer-install').forEach(function (a) { a.hidden = installed() || !sheet; });
+        showOpenTab();
+        setTimeout(showOpenTab, 500);   // again once the styles are in - before that the tabs still "fit"
+    }
+    window.addEventListener('load', function () { setTimeout(showOpenTab, 200); });
+
+    // Phone (2026-11-19): when the header tabs scroll sideways, the open tab is scrolled into view - once per page, so
+    // the user's own swipe is not undone.
+    // The mark sits on the bar itself: Blazor draws the header again after the first load (a new element, scrolled back to 0).
+    function showOpenTab() {
+        document.querySelectorAll('.k-header-actions').forEach(function (bar) {
+            var tab = bar.querySelector('.active');
+            if (!tab || bar.scrollWidth <= bar.clientWidth || bar.dataset.kTab === location.pathname) return;
+            bar.dataset.kTab = location.pathname;
+            bar.scrollLeft = Math.max(0, tab.offsetLeft - bar.offsetLeft - (bar.clientWidth - tab.offsetWidth) / 2);
+        });
     }
     new MutationObserver(function () { if (!queued) { queued = true; requestAnimationFrame(run); } })
         .observe(document.documentElement, { childList: true, subtree: true });
