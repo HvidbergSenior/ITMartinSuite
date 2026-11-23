@@ -188,7 +188,8 @@ public sealed class ItemRepository(IDbContextFactory<LagerDb> dbf) : IItemReposi
     // deal). With the box: a test box = only for show (Box.IsTest).
     private static IQueryable<Item> ForSale(LagerDb db) =>
         db.Items.Include(i => i.Box).Where(i => (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg) && i.Quantity > 0 && i.Title != ""
-            && i.Kind != Kinds.Vhs);   // no VHS on bogshoppen.dk (user 2026-11-21 "remove vhs")
+            && i.Kind != Kinds.Vhs   // no VHS on bogshoppen.dk (user 2026-11-21 "remove vhs")
+            && i.Kind != Kinds.Strik && i.Kind != Kinds.Ting);   // Strikkeshop + Tingshop "not now" (user 2026-11-24: "hide these for later")
 
     private static readonly string BladeDeal = ShopDeals.Blade.Name;
 

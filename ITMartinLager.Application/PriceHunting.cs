@@ -28,6 +28,59 @@ public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository pr
     {
         var item = await items.GetAsync(itemId, ct);
         if (item is null) return 0;
+        var (answers, similar) = await SearchAsync(item, ct);
+
+        var now = clock.GetUtcNow().UtcDateTime;
+        var result = HuntResult.From(itemId, answers, now, similar, Pricing.DanishOnly(item), item.Kind);
+        result.ApplyTo(item, now);
+        // What really sells (SalesCalibration): 1 until a kind has enough sales of its own.
+        item.PriceHint = SalesCalibration.Apply(item.PriceHint is > 0 ? (int)item.PriceHint.Value : null,
+            SalesCalibration.Factor(await items.SalesWithHintAsync(ct), item.Kind));
+        // Fixed price per kind (user 2026-11-24): an ordinary thing keeps its kind's price; clearly higher = Martin sets it.
+        item.PriceHint = FixedPrice.Hint(item, result.Finds, item.PriceHint);
+        await CompareCoversAsync(item, result.Finds, ct);
+        await prices.ReplaceAsync(itemId, result.Checks, result.Finds, ct);
+        await items.UpdateAsync([item], ct);
+        return result.Answered;
+    }
+
+    /// <summary>Fixed price per kind on everything for sale, from the listings already found (no new searches) - user 2026-11-24.
+    /// Returns how many hints changed and how many things now wait for Martin's own price.</summary>
+    public async Task<(int Changed, int NeedsOwnPrice, int Checked)> ApplyFixedPricesAsync(CancellationToken ct = default)
+    {
+        var all = (await items.AllListedAsync(ct)).Where(i => i.PricesAt is not null && FixedPrice.Applies(i)).ToList();
+        var finds = await prices.FindsForAsync(all.Select(i => i.Id).ToList(), ct);
+        var changed = new List<Item>();
+        var own = 0;
+        foreach (var i in all)
+        {
+            var f = finds.TryGetValue(i.Id, out var l) ? l : [];
+            var hint = FixedPrice.Hint(i, f, i.PriceHint);
+            if (FixedPrice.NeedsOwnPrice(i, f)) own++;
+            if (hint != i.PriceHint) { i.PriceHint = hint; changed.Add(i); }
+        }
+        if (changed.Count > 0) await items.UpdateAsync(changed, ct);
+        return (changed.Count, own, all.Count);
+    }
+
+    /// <summary>The price app Pris (2026-11-21, user: "take pictures ... get prices immediately"): the same search for a thing that is
+    /// NOT ours (a genbrugsplads, a loppemarked) - nothing is saved. Our shop price, the market it came from and the best links.</summary>
+    public async Task<PriceQuote> QuoteAsync(Item item, IReadOnlyList<GoldEntry> gold, CancellationToken ct = default)
+    {
+        item.Confidence = Math.Max(item.Confidence, Pricing.MinConfidence);
+        var (answers, similar) = await SearchAsync(item, ct);
+        var now = clock.GetUtcNow().UtcDateTime;
+        var result = HuntResult.From(0, answers, now, similar, Pricing.DanishOnly(item), item.Kind);
+        result.ApplyTo(item, now);
+        item.PriceHint ??= Pricing.FromAds(item, result.Finds);
+        var links = Shop.Proof(result.Finds, 6).Select(Shop.ProofView).ToList();
+        var newShop = Shop.NewReference(result.Finds);
+        return new PriceQuote(item.PriceHint is > 0 ? (int)item.PriceHint.Value : null, result.Normal, Shop.Badge(gold, item),
+            Shop.StandardFor(item.Kind, item.Category), links, newShop, result.Answered);
+    }
+
+    private async Task<(List<SourceAnswer> Answers, List<SourceAnswer>? Similar)> SearchAsync(Item item, CancellationToken ct)
+    {
         var isbn = Pricing.Isbn(item.Barcode);
         var answers = await AskAllAsync(item, Pricing.TitleFor(item), isbn, ct);
         if (isbn == "" && answers.All(a => a.Result is not { Count: > 0 }) && Pricing.AlternativeTitleFor(item) is { } alt)
@@ -53,17 +106,7 @@ public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository pr
                     // One issue each ("Basserne 246") - not "Basserne blade sælges, hundrede vis" or a gift album.
                     (r.Ambiguous ? r.Broad : r.All).Where(o => ListingParse.Words(o.Name).Any(ListingParse.IsNumber)).ToList(), r.Url), a.Source) } : a)
                 .ToList();
-
-        var now = clock.GetUtcNow().UtcDateTime;
-        var result = HuntResult.From(itemId, answers, now, similar, Pricing.DanishOnly(item), item.Kind);
-        result.ApplyTo(item, now);
-        // What really sells (SalesCalibration): 1 until a kind has enough sales of its own.
-        item.PriceHint = SalesCalibration.Apply(item.PriceHint is > 0 ? (int)item.PriceHint.Value : null,
-            SalesCalibration.Factor(await items.SalesWithHintAsync(ct), item.Kind));
-        await CompareCoversAsync(item, result.Finds, ct);
-        await prices.ReplaceAsync(itemId, result.Checks, result.Finds, ct);
-        await items.UpdateAsync([item], ct);
-        return result.Answered;
+        return (answers, similar);
     }
 
     /// <summary>The free picture matching (user 2026-11-04): for a thing a person prices (CoverPrints.Worth), each listing picture
@@ -102,3 +145,8 @@ public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository pr
     public Task<List<int>> NextAsync(int count, CancellationToken ct = default) =>
         items.NextToHuntAsync(Pricing.HuntedKinds, clock.GetUtcNow().UtcDateTime - Pricing.StaleAfter, count, ct);
 }
+
+/// <summary>What Pris gets back for one thing (2026-11-21): our shop price (null = nothing found), the market middle it came from,
+/// the gold mark ("" = none), the kind's standard price, the best links, the new price and how many sites answered.</summary>
+public sealed record PriceQuote(int? ShopKr, int? MarketKr, string Badge, int? StandardKr, List<ITMartinVarer.Contracts.ShopProof> Links,
+    ITMartinVarer.Contracts.ShopProof? NewShop, int Answered);
