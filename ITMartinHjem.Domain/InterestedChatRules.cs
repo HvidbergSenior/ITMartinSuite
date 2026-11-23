@@ -3,6 +3,9 @@ namespace ITMartinHjem.Domain;
 /// <summary>Texts for "Opret dig som interesseret" on the service pages (user 2026-11-23): sign-up + a chat room in one go.</summary>
 public static class InterestedChatRules
 {
+    public const string Bogshoppen = "Bogshoppen";
+    public static bool IsBogshoppen(string? service) => string.Equals((service ?? "").Trim(), Bogshoppen, StringComparison.OrdinalIgnoreCase);
+
     /// <summary>The first message in the room: which help they came from, then their own words (or a plain default).</summary>
     public static string FirstMessage(string service, string? message)
     {

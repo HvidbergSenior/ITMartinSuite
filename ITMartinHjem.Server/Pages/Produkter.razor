@@ -30,13 +30,14 @@
     <NicePhoto />
     <h1>Produkter</h1>
     <p>Vælg en butik: Bogshoppen, Tegneserieshoppen, Filmshoppen og Musikshoppen@(Prices.On ? " – med billede og vores pris." : " – med billede. Priserne kommer senere.")</p>
-    <p class="hj-head-note"><b>Sådan gør du:</b> tryk på en butik for at se alt i den, eller søg i dem alle på én gang. I butikken trykker du på en underkategori, fx <b>DVD</b> eller <b>Serieblade</b>.</p>
+    @* "Sådan gør du" line hidden 2026-11-23 (user: only relevant things). *@
 </header>
 
 <MarketNotice />
 
 @* Status + what people look for (user 2026-11-19) - this is bogshoppen.dk's front page. *@
-<BogshoppenStatus />
+@* Status box ("Mange leder efter noget bestemt") hidden 2026-11-23 (user); only "Mine ønsker" stays. *@
+<section class="k-card bs-card"><MyWishes /></section>
 
 @* "Det samler vi på" (one button per group to its community) moved off this page (user 2026-10-29 "these should be elsewhere"):
    it comes back as its own Fællesskaber tab when Kolibri Fællesskab is live - until then its links would go nowhere. *@
@@ -46,6 +47,7 @@
 <ProductList />
 
 @* The sign-up lives here now - bogshoppen.dk is only products (2026-11-03); "Skriv dig op" in the menu jumps to it. *@
-<AuctionTeaser />
+@* Sign-up = "Opret dig som interesseret" + own chat room with Martin, like itmartin.dk (user 2026-11-23). AuctionTeaser kept in code. *@
+<InterestedChat Service="@InterestedChatRules.Bogshoppen" Id="foelg" Class="bs-card" Placeholder="Hvad leder du efter? (kan springes over)" />
 
 @* "Leder du efter noget bestemt?" is a field in the sign-up box above (2026-11-03: one box, not two). *@

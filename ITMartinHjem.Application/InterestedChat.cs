@@ -19,7 +19,11 @@ public sealed class InterestedChatUseCases(Customers customers, SnakStartUseCase
         if (SnakStartRules.Check(n, text) is { } bad) return new(null, "", bad);
 
         var topics = topic is { Length: > 0 } t ? new[] { t } : [];
-        var signUp = await customers.RequestTrialAsync(TrialRules.FrontPage, n, email, consent, topics, InterestedChatRules.Note(service, message), ct);
+        // bogshoppen.dk (user 2026-11-23): a Bogshoppen customer (FollowBogshoppen), not an itmartin.dk trial.
+        var note = InterestedChatRules.Note(service, message);
+        var signUp = InterestedChatRules.IsBogshoppen(service)
+            ? await customers.FollowBogshoppenAsync(n, email, [], note, consent, ct)
+            : await customers.RequestTrialAsync(TrialRules.FrontPage, n, email, consent, topics, note, ct);
         if (signUp.Error is not null) return new(null, "", signUp.Error, signUp.Suggestion);
 
         var room = await snak.StartAsync(n, text, address, ct);

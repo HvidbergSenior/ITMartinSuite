@@ -2,7 +2,7 @@
 @* "Opret dig som interesseret" on the service pages (user 2026-11-23: "too much text. i want people to contact me... opret dig som
    interessent. A chat is created. We can talk about my help"). One press: kundenummer (Kunder) + own Snak room -> straight into it.
    A plain form posted by wwwroot/hjem.js kontaktStart, like SnakStart. *@
-<section class="k-card hj-interested" id="kontakt">
+<section class="k-card hj-interested @Class" id="@Id">
     <h2 class="k-card-title">Opret dig som interesseret</h2>
     <p>Så får vi vores eget rum, hvor vi snakker om, hvad du har brug for. Det er gratis og forpligter ikke.</p>
     <form onsubmit="return hjem.kontaktStart(this)">
@@ -24,4 +24,7 @@
     /// <summary>One of TrialRules.Topics, so Kunder shows the same tick as Skriv mig op.</summary>
     [Parameter] public string Topic { get; set; } = "";
     [Parameter] public string Placeholder { get; set; } = "Kort om det, du vil have hjælp til (kan springes over)";
+    /// <summary>Anchor - bogshoppen.dk's menu "Skriv dig op" jumps to #foelg.</summary>
+    [Parameter] public string Id { get; set; } = "kontakt";
+    [Parameter] public string Class { get; set; } = "";
 }

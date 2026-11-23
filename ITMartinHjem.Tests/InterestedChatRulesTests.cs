@@ -34,4 +34,11 @@ public class InterestedChatRulesTests
         InterestedChatRules.SignedUpButNoRoom("12345678", null).Should().StartWith("Du er skrevet op – dit nummer er 12345678.");
         InterestedChatRules.SignedUpButNoRoom("", "Snak svarer ikke").Should().StartWith("Du er skrevet op. ");
     }
+
+    [Test]
+    public void Bogshoppen_is_recognised_as_its_own_sign_up()
+    {
+        InterestedChatRules.IsBogshoppen(" bogshoppen ").Should().BeTrue();
+        InterestedChatRules.IsBogshoppen("Hjælp over skærmen").Should().BeFalse();
+    }
 }
