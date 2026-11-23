@@ -93,14 +93,9 @@
     @* Like a flea market (user 2026-11-21): "products are new and used ... risk of being not perfect ... take a picture ...
        another thing in return", "we do not pay money back, but you are allowed to see, feel and try it out before", "even see the
        products live on my stream", "you see what it is and we find prices". The law line stays: ITMartin sells as a business. *@
-    <details class="bs-used" data-remember="bs-used">
-        <summary><b>Se det, før du køber</b></summary>
-        @* User 2026-11-21: "You can of course see it if you like. Via... but if it is not as you want you can get new products instead". *@
-        <p>Du kan selvfølgelig se tingen først, hvis du vil – kom forbi, eller se den live på min stream.</p>
-        <p>Vi sælger både nye og brugte ting. En brugt ting kan have lidt slid, en ridse eller et mærke. Det står under <b>Mere om den</b>, hvis vi har set noget.</p>
-        <p><b>Er den ikke, som du ville have den?</b> Så får du bare en anden ting i stedet. Tag et billede, skriv hvad der er galt, og send det til os. Vi giver ikke penge tilbage.</p>
-        <p class="k-help">Dine rettigheder efter loven gælder altid.</p>
-    </details>
+    @* Not a box people must open, but one line everyone sees (user 2026-11-23: "Se det, før du køber not a box but a way to make
+       people know it"). Same promise as before: see/try first, a swap instead of money back, the law line stays (B2C). *@
+    <p class="bs-seeit" role="note"><b>Se det, før du køber</b> – kom forbi, eller se det live på min stream. Er det ikke, som du ville have det, får du en anden ting i stedet. <span class="k-help">Dine rettigheder efter loven gælder altid.</span></p>
 
     <form class="bs-search" @onsubmit="Search" @onsubmit:preventDefault>
         <input class="k-input" type="search" aria-label="Søg efter en titel" placeholder="@(Family is null ? "Søg i alle butikker, fx Barnaby" : $"Søg i {Family.Name}")" @bind="_text" />

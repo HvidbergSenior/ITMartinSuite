@@ -1182,3 +1182,8 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 /* itmartin.dk + bogshoppen.dk: no "Læg på telefonen / skrivebordet" at all (user 2026-11-23: "put om skrivebordet away for itmartin and bogshoppen").
    The pop-up was already off (data-install="quiet"); this hides the footer link that opened the same guide. */
 .k-footer-install, #k-install { display: none !important; }
+
+/* bogshoppen.dk 2026-11-23: "Se det, før du køber" as one always-visible line, not a box; Mine ønsker box shows its own heading once */
+.bs-seeit { margin: 10px 0 14px; padding: 10px 14px; border-left: 4px solid var(--k-accent, #c8102e); background: var(--k-surface-2, rgba(0,0,0,.03)); border-radius: 8px; line-height: 1.45; }
+.bs-seeit .k-help { display: inline; }
+.bs-wishbox .bs-mywishes > h3.bs-status-h:first-child { display: none; }
