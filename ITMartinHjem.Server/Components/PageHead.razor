@@ -5,9 +5,11 @@
    emoji on top, pill tag, heading, optional line. A title that starts with an emoji ("Hvad laver …") gives the top emoji.
    On bogshoppen.dk it takes Bogshoppen's colours. *@
 @* Martin's photo on every itmartin.dk tab, like the front page (user 2026-10-27: "the picture should be on all tabs"). *@
-<header class="@(Bogshoppen ? "bs-head bs-head-page bs-head-me" : "hj-head hj-head-page hj-head-me" + (Calm ? " hj-head-calm" : ""))" data-emoji="@Emoji">
+@* Martin's personal photos only on Om mig (+ the Per pages' father photo) - user 2026-11-23: "the pictures are being a little too
+   personal ... They should be in om mig instead". Other tabs: no photo, no sun. *@
+<header class="@(Bogshoppen ? "bs-head bs-head-page bs-head-me" : "hj-head hj-head-page " + (ShowPhoto ? "hj-head-me" : "hj-head-nophoto") + (Calm ? " hj-head-calm" : ""))" data-emoji="@Emoji">
     @if (Bogshoppen) { <BogshoppenPhoto /> }
-    @if (!Bogshoppen) { <span class="hj-head-photo"><img src="@_photo.Src" alt="Martin Hvidberg@(_photo.Place.Length > 0 ? " – " + _photo.Place : "")" width="150" height="150" />@if (_photo.Place.Length > 0) { <span class="hj-head-place">@_photo.Place</span> }</span> }
+    @if (!Bogshoppen && ShowPhoto) { <span class="hj-head-photo"><img src="@_photo.Src" alt="Martin Hvidberg@(_photo.Place.Length > 0 ? " – " + _photo.Place : "")" width="150" height="150" />@if (_photo.Place.Length > 0) { <span class="hj-head-place">@_photo.Place</span> }</span> }
     @if (Tag.Length > 0) { <span class="@(Bogshoppen ? "bs-tag" : "hj-tagline")">@NoEmoji.Strip(Tag)</span> }
     <h1>@Text</h1>
     @if (Line.Length > 0) { <p class="@(Bogshoppen ? "" : "hj-intro")">@Line</p> }
@@ -38,6 +40,7 @@
     // No emojis on the sites (2026-10-12): nothing on top, and none in the title or tag.
     private string Emoji => "";
     private string Text => NoEmoji.Strip(Split().Text);
+    private bool ShowPhoto => MartinPhotos.ShowOn(new Uri(Nav.Uri).AbsolutePath);
     private MartinPhotos.Photo _photo => _fixed ??= MartinPhotos.ForPage(new Uri(Nav.Uri).AbsolutePath);
     private MartinPhotos.Photo? _fixed;
 }

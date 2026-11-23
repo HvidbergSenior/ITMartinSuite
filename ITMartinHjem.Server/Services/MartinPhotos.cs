@@ -28,6 +28,13 @@ public static class MartinPhotos
 
     public static Photo Now => All[(int)(DateTime.UtcNow.Ticks / TimeSpan.TicksPerMinute % All.Count)];
 
+    /// <summary>Personal photos only on Om mig and the Per pages (user 2026-11-23: "a little too personal ... in om mig instead").</summary>
+    public static bool ShowOn(string? path)
+    {
+        var p = (path ?? "").Trim('/').ToLowerInvariant();
+        return p is "om-itmartin" or "per" || p.StartsWith("per/");
+    }
+
     /// <summary>The Per pages always show the father picture (user 2026-10-30: "this picture should be there always (he knew my father)").</summary>
     public static Photo ForPage(string? slug) =>
         (slug ?? "").Trim('/').ToLowerInvariant() is "per" or ['p', 'e', 'r', '/', ..] ? Father : Now;

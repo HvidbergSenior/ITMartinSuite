@@ -18,6 +18,17 @@
     </div>
 </PageHead>
 
+@* All of Martin's photos live here now - not on the other tabs (user 2026-11-23). *@
+<section class="k-card hj-page hj-sec">
+    <h2>Billeder af mig</h2>
+    <ul class="hj-me-gallery">
+        @foreach (var p in MartinPhotos.All)
+        {
+            <li><img src="@p.Src" alt="Martin Hvidberg@(p.Place.Length > 0 ? " – " + p.Place : "")" width="150" height="150" loading="lazy" />@if (p.Place.Length > 0) { <span>@p.Place</span> }</li>
+        }
+    </ul>
+</section>
+
 <CascadingValue Name="Plain" Value="true">
 @* Every part its own box again, like the boxes around them (user 2026-10-29: "all these should also be in the boxes over them");
    was one calm card with rows since 2026-10-27. "Hvem er ITMartin?" open, the rest closed until opened (remembered per phone). *@

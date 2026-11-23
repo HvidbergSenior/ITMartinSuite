@@ -21,8 +21,8 @@
 @* SUPER SIMPLE front page (user 2026-11-12: "I need to make my itmartin.dk super simple ... What do I sell -> prices"):
    who I am, what I sell with the price, how to reach me. The prices live in the Domain (ITMartinHjem.Domain/PriceList).
    "Nyt", "Vidste du ..." and the market notice are gone from here - they are on the Om mig / topic tabs. *@
-<header class="hj-head hj-head-me hj-wide">
-    <span class="hj-head-photo"><img src="@_photo.Src" alt="Martin Hvidberg@(_photo.Place.Length > 0 ? " – " + _photo.Place : "")" width="150" height="150" />@if (_photo.Place.Length > 0) { <span class="hj-head-place">@_photo.Place</span> }</span>
+@* No personal photo on the front page (user 2026-11-23: "too personal ... in om mig instead"). *@
+<header class="hj-head hj-head-nophoto hj-wide">
     <h1>ITMartin – Martin Hvidberg</h1>
     <p class="hj-intro">Jeg hjælper dig med IT – enkelt, ærligt og uden reklamer.</p>
     <div class="hj-head-btns">
@@ -126,7 +126,6 @@
     private static DateTime Today => TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/Copenhagen").Date;
     private bool _family, _owner;
     private int _waiting;   // Martin only: chats without an answer + Kritik not answered or shown
-    private readonly MartinPhotos.Photo _photo = MartinPhotos.Now;
 
     // Facts for the open "Vidste du …" box. The small, concrete everyday help comes FIRST and the box always starts on one of
     // those (user 2026-10-27: "Facebook bæredygtighed etc should not be dominant... The concrete examples should"); the

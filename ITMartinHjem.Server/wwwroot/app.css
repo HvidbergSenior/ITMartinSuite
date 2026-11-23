@@ -1168,3 +1168,13 @@ button.hj-tile { font: inherit; text-align: left; cursor: pointer; width: 100%; 
 /* Hvad syntes du? (2026-11-21) */
 .bs-verdict { margin: 6px 0 0; }
 .bs-verdict-form { display: grid; gap: 6px; margin-top: 6px; }
+
+/* No personal photo outside Om mig (2026-11-23): plain head, no sun, no photo gap */
+.hj-head.hj-head-nophoto { padding-left: 20px; min-height: 0; }
+.hj-head.hj-head-nophoto::before { content: none; display: none; }
+
+/* Om mig: all of Martin's photos (2026-11-23) */
+.hj-me-gallery { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+.hj-me-gallery li { display: grid; gap: 6px; margin: 0; }
+.hj-me-gallery img { width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; border-radius: 14px; display: block; }
+.hj-me-gallery span { font-size: .85rem; color: var(--k-muted, inherit); line-height: 1.3; }
