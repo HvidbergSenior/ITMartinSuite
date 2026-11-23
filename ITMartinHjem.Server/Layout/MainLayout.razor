@@ -60,7 +60,8 @@ else
     @* No emojis anywhere on the sites (user 2026-10-12) - shared components read this. *@
     <CascadingValue Name="Plain" Value="true">@Body</CascadingValue>
     @* Not on the front page (user 2026-11-23: "mørk visning should not be on Forside"); the phone's own light/dark still applies. *@
-    @if (_bs && !IsBsFront)
+    @* No light/dark button anywhere on bogshoppen.dk (user 2026-11-23: "mørk visning from all shops"). *@
+    @if (false && _bs && !IsBsFront)
     {
         <p class="bs-theme"><button id="themeToggleBtn" class="k-btn k-btn-sm" type="button" data-long="1" title="Skift lys/mørk visning">Lys/mørk visning</button></p>
     }
