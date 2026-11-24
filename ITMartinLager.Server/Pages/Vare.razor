@@ -105,6 +105,12 @@ else
                 <label>Note <input class="k-input" @bind="_item.Note" /></label>
             </div>
             <label class="lg-interest-label">Det interessante (vises i butikken – kun hvis den er speciel for en samler) <textarea class="k-input lg-interest" rows="2" @bind="_item.Interest" placeholder="fx 1. udgave, signeret, med plakat"></textarea></label>
+            @* Din pris right here (user 2026-11-24: "im not sure what should be filled out" -> "yes" to a price field on this page).
+               Empty = the suggestion / the fixed price of the kind is used. Your own price always wins. *@
+            <label class="lg-price-label">Din pris (kr)
+                <input class="k-input lg-price" type="number" min="0" step="5" inputmode="numeric" @bind="_item.Price" placeholder="@PricePlaceholder" />
+            </label>
+            <p class="k-help">@PriceHelp</p>
             <label class="lg-check"><input type="checkbox" @bind="_item.Rare" /> Sjælden – vurderes manuelt (ud af 3 kr-kassen, pris sættes i Priser)</label>
         </details>
         <div class="lg-row">
@@ -238,6 +244,13 @@ else
     private string? _auctionOff;
     private string _code = "";
     private decimal _start;
+
+    // The suggestion under "Din pris": the price search's hint (a "vurderes" price) or the kind's fixed price.
+    private int? Standard => _item is null ? null : ITMartinLager.Domain.FixedPrice.StandardOf(_item);
+    private string PricePlaceholder => _item?.PriceHint is > 0 ? $"{_item.PriceHint:0}" : Standard is { } s ? $"{s}" : "";
+    private string PriceHelp => _item is null ? "" : (_item.PriceHint is > 0 ? $"Forslag fra prissøgningen: {_item.PriceHint:0} kr. " : "")
+        + (Standard is { } st ? $"Standardpris for {_item.Kind}: {st} kr. " : "")
+        + "Tomt = forslaget eller standardprisen bruges. Din pris gælder altid først.";
     private int _lot = 1;
     private bool _busy;
     private long _photoVer = DateTime.UtcNow.Ticks;

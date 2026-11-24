@@ -135,3 +135,7 @@
 
 /* Fotoliste (2026-11-24) */
 .lg-fotoliste { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
+
+/* Din pris on the item page (2026-11-24) */
+.lg-price-label { display: grid; gap: 4px; font-weight: 600; margin-top: 8px; }
+.lg-price { max-width: 10em; font-size: 1.1rem; }
