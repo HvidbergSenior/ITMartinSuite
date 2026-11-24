@@ -199,7 +199,22 @@ footer span { color: var(--fg); user-select: all; }
         { id: 'g-web-aktivitet', t: 'Begræns Web- og appaktivitet', p: 'myactivity.google.com → <b>Web- og appaktivitet</b> → <b>Slet automatisk</b> efter 3 måneder.' },
         { id: 'g-placering', t: 'Tjek din placeringshistorik', p: '<b>Google Maps</b> → din profil → <b>Din tidslinje</b>. Slå den fra, eller slet det, du ikke vil gemme.' },
         { id: 'g-enheder', t: 'Log ud af apparater, du ikke kender', p: '<b>myaccount.google.com</b> → <b>Sikkerhed</b> → <b>Dine enheder</b>.' },
-        { id: 'g-yt-uden-login', t: 'Se YouTube uden at være logget ind', p: 'Brug et privat vindue eller din "Facebook"-profil fra trin 4½ – medmindre du har brug for dine abonnementer.' }
+        { id: 'g-yt-uden-login', t: 'Se YouTube uden at være logget ind', p: 'Brug et privat vindue eller din "Facebook"-profil fra trin 4½ – medmindre du har brug for dine abonnementer.' },
+        { id: 'g-tredjepart', t: 'Fjern apps og sider, der har adgang til din Google-konto', p: '<b>myaccount.google.com</b> → <b>Sikkerhed</b> → <b>Dine forbindelser til tredjepartsapps og -tjenester</b>. Fjern dem, du ikke bruger mere.' },
+        { id: 'g-privatlivstjek', t: 'Kør Googles privatlivstjek til sidst', p: '<b>myaccount.google.com/privacycheckup</b> – det samler det hele på én side, så du kan se, at alt står, som du har sat det.' }
+      ] },
+
+    { id: 'apple', title: 'Ryd op hos Apple', short: 'Apple',
+      why: 'Apple tjener mindre på annoncer end Google og Meta, men iPhonen deler stadig en del, hvis du ikke selv slår det fra. Alt her gøres på telefonen under Indstillinger – og alt er gratis.',
+      tasks: [
+        { id: 'a-reklamer', t: 'Slå tilpassede reklamer fra Apple fra', p: '<b>Indstillinger</b> → <b>Anonymitet og sikkerhed</b> → <b>Apple-reklamer</b> → <b>Tilpassede reklamer</b> fra.' },
+        { id: 'a-sporing', t: 'Lad ingen apps spørge om at følge dig', p: 'Indstillinger → Anonymitet og sikkerhed → <b>Sporing</b> → <b>Tillad apps at anmode om sporing</b> fra. Se også listen nedenunder, og slå de apps fra, der allerede har fået lov.' },
+        { id: 'a-analyse', t: 'Stop deling af analysedata', p: 'Indstillinger → Anonymitet og sikkerhed → <b>Analyse og forbedringer</b> → slå det hele fra.' },
+        { id: 'a-lokaliteter', t: 'Tjek, hvor telefonen husker, du har været', p: 'Indstillinger → Anonymitet og sikkerhed → <b>Lokalitetstjenester</b> → <b>Systemtjenester</b> → <b>Betydningsfulde lokaliteter</b>. Ryd historikken, og slå det fra, hvis du ikke bruger det. Gå også listen over apps igennem: "Når appen bruges" i stedet for "Altid".' },
+        { id: 'a-siri', t: 'Slet din Siri-historik', p: 'Indstillinger → <b>Siri</b> → <b>Siri- og dikteringshistorik</b> → <b>Slet</b>.' },
+        { id: 'a-enheder', t: 'Fjern apparater, du ikke har mere', p: 'Indstillinger → <b>[dit navn]</b> → rul ned til listen over enheder. Tryk på en gammel enhed → <b>Fjern fra konto</b>.' },
+        { id: 'a-log-ind', t: 'Ryd op i "Log ind med Apple"', p: 'Indstillinger → [dit navn] → <b>Log ind og sikkerhed</b> → <b>Log ind med Apple</b>. Stop brugen for de apps og sider, du ikke bruger mere.' },
+        { id: 'a-mail-safari', t: 'Skjul dig i Mail og Safari', p: 'Indstillinger → <b>Apps</b> → <b>Mail</b> → <b>Beskyttelse af anonymitet</b> → <b>Beskyt Mail-aktivitet</b> til. Og Apps → <b>Safari</b> → <b>Avanceret</b> → beskyttelse mod sporing og fingeraftryk: <b>Al browsing</b>.' }
       ] },
 
     { id: 'sig-fra', title: 'Sig fra skriftligt', short: 'Sig fra',
@@ -289,7 +304,8 @@ footer span { color: var(--fg); user-select: all; }
       ['Din færden uden for Meta', ['uden-for-meta'], 'Koblet fra fremover.', 'Andre sider og apps fortæller stadig Meta, hvad du gør.'],
       ['Dine kontakter', ['kontakter'], 'Bliver ikke længere uploadet.', 'Din telefonbog kan blive uploadet.'],
       ['Din browser', ['log-ud-browser', 'egen-profil'], 'Meta kan ikke følge dig rundt på resten af nettet.', 'Meta kan koble dine besøg på andre sider til din konto.'],
-      ['Google og YouTube', ['g-adcenter', 'g-yt-historik'], 'Ingen personlige annoncer, og historikken sletter sig selv.', 'Google bygger stadig en profil på det, du ser og søger.'],
+      ['Google og YouTube', ['g-adcenter', 'g-yt-historik', 'g-tredjepart'], 'Ingen personlige annoncer, og historikken sletter sig selv.', 'Google bygger stadig en profil på det, du ser og søger.'],
+      ['Apple og din iPhone', ['a-reklamer', 'a-sporing', 'a-analyse', 'a-lokaliteter'], 'Ingen tilpassede reklamer, ingen sporing, og telefonen husker kun det, du vil.', 'Telefonen deler og husker mere, end den behøver.'],
       ['Din konto', ['enheder'], 'Kun dine egne apparater er logget ind.', 'Tjek, hvem der er logget ind.'],
       ['Din opmærksomhed', ['notifikationer'], 'Kun de beskeder, du vil have.', 'Appen kalder stadig på dig.'],
       ['AI og markedsføring', ['ai', 'brev'], 'Du har sagt fra skriftligt.', 'Dine opslag kan bruges til AI og annoncer.'],
