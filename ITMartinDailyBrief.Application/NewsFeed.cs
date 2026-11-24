@@ -31,7 +31,7 @@ public sealed class NewsFeed(IFeedReader reader, TimeProvider clock)
     public async Task<List<NewsItem>> FrontPageAsync(ReaderChoice choice, CancellationToken ct = default)
     {
         var lists = await Task.WhenAll(choice.ActiveSources.Select(s => SourceAsync(s, ct)));
-        return NewsItem.FrontPage(lists, choice.MaxItems);
+        return NewsItem.FrontPage(lists, choice.MaxItems, choice.Topics);
     }
 
     public NewsItem? Find(string id) => _seen.GetValueOrDefault(id);

@@ -5,7 +5,7 @@ using Microsoft.JSInterop;
 namespace ITMartinDailyBrief.Server;
 
 // The reader's choice lives in their own browser (localStorage), under the same keys as always:
-// brief_max_items, brief_source_<id> = true/false, brief_custom_sources = [{Id, Name, Url}].
+// brief_max_items, brief_source_<id> = true/false, brief_custom_sources = [{Id, Name, Url}], brief_topics = "Trump, Ukraine".
 public static class BrowserChoice
 {
     private sealed record Custom(string Id, string Name, string Url);
@@ -24,7 +24,7 @@ public static class BrowserChoice
         var switches = new Dictionary<string, bool>();
         foreach (var s in NewsSource.Presets.Concat(custom))
             if (await Get(js, $"brief_source_{s.Id}") is { } raw) switches[s.Id] = raw == "true";
-        return new ReaderChoice(max, switches, custom);
+        return new ReaderChoice(max, switches, custom, TopicFilter.Parse(await Get(js, "brief_topics")));
     }
 
     public static async Task SaveAsync(IJSRuntime js, ReaderChoice choice)
@@ -34,6 +34,7 @@ public static class BrowserChoice
             await js.InvokeVoidAsync("localStorage.setItem", $"brief_source_{id}", on ? "true" : "false");
         await js.InvokeVoidAsync("localStorage.setItem", "brief_custom_sources",
             JsonSerializer.Serialize(choice.CustomSources.Select(c => new Custom(c.Id, c.Name, c.RssUrl))));
+        await js.InvokeVoidAsync("localStorage.setItem", "brief_topics", choice.Topics.AsText);
     }
 
     private static async Task<string?> Get(IJSRuntime js, string key) => await js.InvokeAsync<string?>("localStorage.getItem", key);

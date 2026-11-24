@@ -7,12 +7,26 @@
 <section class="nh-intro">
     <h1>Nyheder</h1>
     <p class="k-help">De nyeste nyheder fra dine kilder, nyeste først – og så er listen færdig. Tryk på en nyhed for at læse den.
-        Tryk <b>Kilder</b> øverst for at vælge kilder og antal.</p>
+        Vil du kun læse om ét emne, så skriv det i boksen herunder. Tryk <b>Kilder</b> øverst for at vælge kilder og antal.</p>
     @if (!_loading && _items.Count > 0)
     {
-        <p class="k-muted">@_items.Count nyheder fra @_sourceCount @(_sourceCount == 1 ? "kilde" : "kilder")</p>
+        <p class="k-muted">@_items.Count nyheder fra @_sourceCount @(_sourceCount == 1 ? "kilde" : "kilder")@(_topics.Length > 0 ? $" – kun om {_topics}" : "")</p>
     }
 </section>
+
+<div class="k-card nh-topics" data-fold-closed>
+    <div class="k-card-title">Kun nyheder om …</div>
+    <p class="k-help">Skriv det, du vil læse om, fx <b>Trump</b>. Flere emner: sæt komma imellem (fx <b>Trump, Ukraine</b>).
+        Tom = alle nyheder. Gemmes kun på denne telefon eller computer.</p>
+    <form class="nh-topic-row" @onsubmit="ShowTopicsAsync">
+        <input class="k-input" placeholder="fx Trump" aria-label="Emner" @bind="_topicInput" @bind:event="oninput" />
+        <button class="k-btn k-btn-primary" type="submit" disabled="@_loading">Vis</button>
+    </form>
+    @if (_topics.Length > 0)
+    {
+        <button class="k-btn k-btn-sm k-btn-ghost k-mt" disabled="@_loading" @onclick="ClearTopicsAsync">Vis alle nyheder igen</button>
+    }
+</div>
 
 <ProblemPurposeBanner
     Problem="Doomscrolling - vi kan ikke styre det, og nu er TV2 også begyndt."
@@ -21,6 +35,14 @@
 @if (_loading)
 {
     <div class="k-card" data-nofold><p class="k-muted">Henter de nyeste nyheder…</p></div>
+}
+else if (_items.Count == 0 && _topics.Length > 0)
+{
+    <div class="k-card" data-nofold>
+        <div class="k-card-title">Ingen nyheder om @_topics lige nu</div>
+        <p class="k-help">Ingen af de nyeste nyheder fra dine kilder handler om det. Prøv et andet ord, eller slå flere kilder til under Kilder.</p>
+        <button class="k-btn" @onclick="ClearTopicsAsync">Vis alle nyheder</button>
+    </div>
 }
 else if (_items.Count == 0)
 {
@@ -59,13 +81,35 @@ else
     private List<NewsItem> _items = [];
     private bool _loading = true;
     private int _sourceCount;
+    private ReaderChoice? _choice;
+    private string _topics = "", _topicInput = "";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        var choice = await BrowserChoice.LoadAsync(JS);
-        _sourceCount = choice.ActiveSources.Count();
-        _items = await News.FrontPageAsync(choice);
+        _choice = await BrowserChoice.LoadAsync(JS);
+        _topicInput = _choice.Topics.AsText;
+        await LoadAsync();
+    }
+
+    private async Task ShowTopicsAsync()
+    {
+        if (_choice is null) return;
+        _choice.SetTopics(_topicInput);
+        _topicInput = _choice.Topics.AsText;
+        await BrowserChoice.SaveAsync(JS, _choice);
+        await LoadAsync();
+    }
+
+    private async Task ClearTopicsAsync() { _topicInput = ""; await ShowTopicsAsync(); }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        _sourceCount = _choice!.ActiveSources.Count();
+        _topics = _choice.Topics.AsText;
+        _items = await News.FrontPageAsync(_choice);
         _loading = false;
         StateHasChanged();
     }

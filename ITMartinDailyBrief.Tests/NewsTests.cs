@@ -139,4 +139,41 @@ public class NewsTests
             """);
         RssFeedReader.Parse(doc, new NewsSource("x", "X", "https://x.dk/feed"), T0).Single().Url.Should().Be("https://x.dk/a");
     }
+
+    private static NewsItem News(string title, string desc = "") =>
+        new(title, "u-" + title, desc, "", "", "DR", NewsSource.Grey, T0);
+
+    [Test]
+    public void Topics_keep_only_matching_news_and_a_surname_is_enough()
+    {
+        var f = TopicFilter.Parse("Donald Trump, ukraine");
+        f.Topics.Should().Equal("Donald Trump", "ukraine");
+        f.Matches(News("Trumps nye toldsatser rammer Danmark")).Should().BeTrue();
+        f.Matches(News("Donald Trump taler i Kongressen")).Should().BeTrue();
+        f.Matches(News("Vejret", "Krigen i Ukraine fylder i EU")).Should().BeTrue();
+        f.Matches(News("Atrumpet er ikke et ord")).Should().BeFalse();
+        f.Matches(News("Storm over Sjælland")).Should().BeFalse();
+        new TopicFilter().Matches(News("Hvad som helst")).Should().BeTrue();
+        TopicFilter.Parse(" ,  ,").IsEmpty.Should().BeTrue();
+        TopicFilter.Parse(string.Join(",", Enumerable.Range(1, 20).Select(i => $"emne{i}"))).Topics.Should().HaveCount(TopicFilter.MaxTopics);
+    }
+
+    [Test]
+    public void Front_page_with_a_topic_still_ends_at_the_readers_number()
+    {
+        var items = new[] { News("Trump 1"), News("Storm"), News("Trump 2"), News("Trump 3") };
+        NewsItem.FrontPage([items], 2, TopicFilter.Parse("Trump")).Should().HaveCount(2).And.OnlyContain(i => i.Title.StartsWith("Trump"));
+        var c = new ReaderChoice();
+        c.SetTopics("Trump");
+        c.Topics.AsText.Should().Be("Trump");
+    }
+
+    [Test]
+    public void Summary_text_is_read_from_the_text_block_whatever_comes_first()
+    {
+        ClaudeSummaryWriter.TextOf("""{"content":[{"type":"thinking","thinking":"..."},{"type":"text","text":" Kort fortalt. "}]}""")
+            .Should().Be("Kort fortalt.");
+        ClaudeSummaryWriter.TextOf("""{"content":[]}""").Should().BeEmpty();
+        ClaudeSummaryWriter.TextOf("ikke json").Should().BeEmpty();
+    }
 }

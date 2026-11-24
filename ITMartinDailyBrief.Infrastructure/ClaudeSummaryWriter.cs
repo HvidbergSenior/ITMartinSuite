@@ -24,7 +24,7 @@ public sealed class ClaudeSummaryWriter(HttpClient http, IConfiguration cfg, ILo
             Skriv et fyldigt dansk resumé (150-200 ord) af denne nyhedsartikel.
             Dæk: hvad skete, hvem er involveret, hvorfor det skete, hvad sker der nu.
             Rolig, neutral journalistisk tone. Ingen kildehenvisninger.
-            {(!hasDesc ? "Kun titlen er tilgængelig — brug din viden om denne nyhed til at skrive et fyldigt resumé." : "")}
+            {(!hasDesc ? "Kun titlen er tilgængelig. Skriv 2-3 rolige sætninger om, hvad titlen fortæller – find ikke på detaljer." : "Brug kun det, der står i titlen og beskrivelsen – find ikke på detaljer.")}
 
             Titel: {item.Title}
             Kilde: {item.SourceName}
@@ -44,9 +44,10 @@ public sealed class ClaudeSummaryWriter(HttpClient http, IConfiguration cfg, ILo
             req.Headers.Add("anthropic-version", "2023-06-01");
             using var res = await http.SendAsync(req, ct);
             var raw = await res.Content.ReadAsStringAsync(ct);
-            if (!res.IsSuccessStatusCode) { log.LogWarning("Claude summary {Status}", res.StatusCode); return ""; }
-            using var doc = JsonDocument.Parse(raw);
-            return doc.RootElement.GetProperty("content")[0].GetProperty("text").GetString()?.Trim() ?? "";
+            if (!res.IsSuccessStatusCode) { log.LogWarning("Claude summary {Status}: {Body}", res.StatusCode, Cut(raw)); return ""; }
+            var text = TextOf(raw);
+            if (text.Length == 0) log.LogWarning("Claude summary without text: {Body}", Cut(raw));
+            return text;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -54,6 +55,25 @@ public sealed class ClaudeSummaryWriter(HttpClient http, IConfiguration cfg, ILo
             return "";
         }
     }
+
+    private const string Blank = "\n\n";
+
+    // The answer is a list of blocks; only "text" blocks are the summary (2026-11-24: content[0] was not always text -> no summary).
+    public static string TextOf(string raw)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(raw);
+            if (!doc.RootElement.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.Array) return "";
+            return string.Join(Blank, content.EnumerateArray()
+                .Where(b => b.TryGetProperty("type", out var t) && t.GetString() == "text" && b.TryGetProperty("text", out _))
+                .Select(b => b.GetProperty("text").GetString()?.Trim() ?? "")
+                .Where(t => t.Length > 0));
+        }
+        catch (JsonException) { return ""; }
+    }
+
+    private static string Cut(string s) => s.Length > 300 ? s[..300] : s;
 }
 
 public static class DailyBriefInfrastructure

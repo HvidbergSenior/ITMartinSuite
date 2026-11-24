@@ -8,7 +8,7 @@
 
 <section class="nh-intro">
     <h1>Dine kilder</h1>
-    <p class="k-help">Vælg hvor mange nyheder du vil se, og hvilke kilder de kommer fra. Tryk <b>Gem</b> nederst.
+    <p class="k-help">Vælg emner, hvor mange nyheder du vil se, og hvilke kilder de kommer fra. Tryk <b>Gem</b> nederst.
         Valget gemmes kun på denne telefon eller computer – ikke hos os.</p>
 </section>
 
@@ -18,6 +18,12 @@
 }
 else
 {
+    <div class="k-card">
+        <div class="k-card-title">Kun nyheder om …</div>
+        <p class="k-help">Skriv det, du vil læse om, fx <b>Trump</b>. Flere emner: sæt komma imellem. Tom = alle nyheder.</p>
+        <input class="k-input" placeholder="fx Trump, Ukraine" aria-label="Emner" value="@_choice.Topics.AsText" @onchange="e => _choice.SetTopics(e.Value as string)" />
+    </div>
+
     <div class="k-card">
         <div class="k-card-title">Antal nyheder</div>
         <p class="k-help">Listen slutter efter dette antal – så bliver du færdig.</p>

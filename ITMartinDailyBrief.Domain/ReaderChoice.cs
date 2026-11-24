@@ -1,6 +1,6 @@
 namespace ITMartinDailyBrief.Domain;
 
-// What one reader has chosen: how many news, which sources (presets on/off + their own RSS addresses).
+// What one reader has chosen: how many news, which sources (presets on/off + their own RSS addresses), which topics.
 // Kept in the reader's own browser - nothing about the reader is stored on the server.
 public sealed class ReaderChoice
 {
@@ -13,8 +13,12 @@ public sealed class ReaderChoice
 
     public int MaxItems { get; private set; }
 
-    public ReaderChoice(int? maxItems = null, IDictionary<string, bool>? enabled = null, IEnumerable<NewsSource>? custom = null)
+    public TopicFilter Topics { get; private set; }
+
+    public ReaderChoice(int? maxItems = null, IDictionary<string, bool>? enabled = null, IEnumerable<NewsSource>? custom = null,
+        TopicFilter? topics = null)
     {
+        Topics = topics ?? new TopicFilter();
         MaxItems = maxItems is { } m && Counts.Contains(m) ? m : DefaultCount;
         _enabled = new(enabled ?? new Dictionary<string, bool>());
         _custom = (custom ?? []).Where(c => IsFeedAddress(c.RssUrl)).Take(MaxCustom).Select(c => c with { IsPreset = false }).ToList();
@@ -28,6 +32,7 @@ public sealed class ReaderChoice
     public IEnumerable<NewsSource> ActiveSources => AllSources.Where(IsOn);
 
     public void SetCount(int n) { if (Counts.Contains(n)) MaxItems = n; }
+    public void SetTopics(string? text) => Topics = TopicFilter.Parse(text);
     public void Switch(NewsSource s, bool on) => _enabled[s.Id] = on;
     public IReadOnlyDictionary<string, bool> Switches => AllSources.ToDictionary(s => s.Id, IsOn);
 

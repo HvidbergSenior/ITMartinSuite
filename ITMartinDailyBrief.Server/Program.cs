@@ -12,16 +12,17 @@ builder.Services.AddKolibri(k =>
     k.About =
     [
         "Nyheder samler det nyeste fra de kilder, du selv vælger (TV 2, DR, Politiken …), ét sted – nyeste først.",
-        "Listen har en ende: du vælger 5, 10 eller 15 nyheder, og så er du opdateret. Ingen reklamer, ingen uendelig scroll.",
+        "Listen har en ende: du vælger 5, 10, 15 eller 25 nyheder, og så er du opdateret. Ingen reklamer, ingen uendelig scroll.",
         "Tryk på en nyhed for at læse den – og få et kort resumé lavet af AI, hvis du vil.",
     ];
     k.HowTo =
     [
         "Åbn siden – forsiden er de nyeste nyheder fra dine kilder.",
+        "Vil du kun læse om ét emne? Åbn boksen Kun nyheder om …, skriv fx Trump og tryk Vis. Flere emner: komma imellem.",
         "Tryk Kilder for at slå kilder til og fra, vælge antal eller tilføje din egen (en RSS-adresse). Valget gemmes kun på din egen telefon.",
         "Tryk på en nyhed og derefter Lav resumé for at få den kort fortalt.",
     ];
-    k.Version = "2026.10";
+    k.Version = "2026.11";
     k.ThemeColor = "#f4f6f5";
 });
 

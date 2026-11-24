@@ -38,7 +38,8 @@ public sealed record NewsItem(string Title, string Url, string Description, stri
         return Published.ToString("d. MMM");
     }
 
-    // The front page: newest first across all sources, the same story only once, cut at the reader's number.
-    public static List<NewsItem> FrontPage(IEnumerable<IEnumerable<NewsItem>> perSource, int max) =>
-        perSource.SelectMany(x => x).DistinctBy(i => i.Id).OrderByDescending(i => i.Published).Take(max).ToList();
+    // The front page: newest first across all sources, the same story only once, only the reader's topics, cut at the reader's number.
+    public static List<NewsItem> FrontPage(IEnumerable<IEnumerable<NewsItem>> perSource, int max, TopicFilter? topics = null) =>
+        perSource.SelectMany(x => x).DistinctBy(i => i.Id).Where(i => topics?.Matches(i) ?? true)
+            .OrderByDescending(i => i.Published).Take(max).ToList();
 }
