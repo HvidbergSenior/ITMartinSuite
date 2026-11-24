@@ -1206,3 +1206,12 @@ html[data-theme="dark"] .lav-bar > i { background: color-mix(in srgb, var(--k-ac
 .lav-how { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--k-border); border-radius: 12px; background: var(--k-card); }
 .lav-how > summary { cursor: pointer; }
 .lav-how ol { margin: 4px 0 8px; padding-left: 1.3em; }
+
+/* 2026-11-24: a date poll's explanation stands out above the dates (DatePollPage .datepoll-howto). */
+.datepoll-howto {
+    background: var(--k-accent-soft); border-left: 4px solid var(--k-accent);
+    border-radius: var(--k-radius, 12px); padding: var(--k-space-3) var(--k-space-4);
+}
+.datepoll-howto .poll-body { font-size: 1.1rem; font-weight: 600; line-height: 1.5; }
+.datepoll-howto .poll-body ul { margin: 0.4em 0 0; padding-left: 1.2em; }
+.datepoll-howto .poll-body li { margin: 0.25em 0; }

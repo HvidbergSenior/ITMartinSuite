@@ -43,7 +43,11 @@
 
                 @if (!string.IsNullOrEmpty(_poll.Description))
                 {
-                    <PollText Text="@_poll.Description" />
+                    @* 2026-11-24 (user): the maker's explanation (how to answer, when we meet) must be seen before the dates -
+                       shown as a coloured box, not grey body text under the title. *@
+                    <div class="datepoll-howto">
+                        <PollText Text="@_poll.Description" />
+                    </div>
                 }
 
                 @if (_poll.Deadline.HasValue)
