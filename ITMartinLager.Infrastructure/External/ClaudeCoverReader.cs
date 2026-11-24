@@ -12,7 +12,7 @@ namespace ITMartinLager.Infrastructure.External;
 // daily cap (Lager:MaxAiCallsPerDay) counted in the database, so a restart or a loop cannot run up the bill.
 public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<LagerDb> dbf, ILogger<ClaudeCoverReader> log) : ICoverReader
 {
-        private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true };
+        private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true, Converters = { new LenientIntConverter() } };
     private static readonly SemaphoreSlim CapGate = new(1, 1);
 
     private string Model => cfg["Lager:AiModel"] ?? "claude-haiku-4-5";

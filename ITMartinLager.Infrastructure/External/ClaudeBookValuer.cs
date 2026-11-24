@@ -11,7 +11,7 @@ namespace ITMartinLager.Infrastructure.External;
 // kolofons and writing collector texts moved to Vareinfo at the split (2026-10-12).
 public sealed class ClaudeBookValuer(IConfiguration cfg, IDbContextFactory<LagerDb> dbf, ILogger<ClaudeBookValuer> log) : IBookValuer
 {
-    private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true };
+    private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true, Converters = { new LenientIntConverter() } };
     private static readonly SemaphoreSlim CapGate = new(1, 1);
 
     private string Model => cfg["Lager:AiModel"] ?? "claude-haiku-4-5";
