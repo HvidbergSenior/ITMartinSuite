@@ -179,6 +179,16 @@ app.MapStockApi();
 app.MapVurderingApi();   // Vurdering (step 2)
 app.MapTjekApi();        // Vareinfo's Tjek answers (2026-11-10)
 
+// Same cover or another edition (2026-11-24): compare our front covers with up to `max` listing pictures, then work the prices out
+// again. Behind the Lager PIN. Run it again until "tilbage" is 0.
+app.MapPost("/api/priser/omslag", async (int? max, CoverMatchUseCases covers, PriceHuntUseCases hunt, CancellationToken ct) =>
+{
+    var run = await covers.RunAsync(Math.Clamp(max ?? 200, 1, 1000), null, ct);
+    var (changed, own, all) = await hunt.ApplyFixedPricesAsync(ct);
+    return Results.Ok(new { sammenlignet = run.Compared, sammeOmslag = run.SameCover, andenUdgave = run.OtherEdition, ikkeHentet = run.NotFetched,
+        tilbage = run.Left, prisAendret = changed, skalVurderes = own });
+}).DisableAntiforgery();
+
 // Fixed price per kind on everything for sale (user 2026-11-24) - behind the Lager PIN like every /api route.
 app.MapPost("/api/priser/fast", async (PriceHuntUseCases hunt, CancellationToken ct) =>
 {

@@ -73,7 +73,7 @@ public static class FixedPrice
     {
         // A CD with only the artist as title has no album to look for - no listing proves anything (Stikprøve rule 2).
         if (i is not null && ListingMatch.NoAlbum(i)) return [];
-        var used = finds.Where(f => !f.IsNew && !f.Similar && f.Kr > 0 && !SpecialVersion(f.Name, i)
+        var used = finds.Where(f => !f.IsNew && !f.Similar && f.Kr > 0 && !SpecialVersion(f.Name, i) && !CoverMatch.OtherEdition(f)
             && (i is null || (!OtherIssue(i, f.Name) && !ListingMatch.Wrong(i, f.Name)))).ToList();
         if (i is not null && ListingMatch.UnknownIssue(i, used.Select(f => f.Name))) return [];
         var others = used.Where(f => Sources.Contains(f.Source)).Select(f => f.Kr).ToList();

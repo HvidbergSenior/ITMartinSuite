@@ -31,6 +31,7 @@ public static class DependencyInjection
         services.AddHttpClient<IBarcodeLookup, BarcodeLookup>(c => c.Timeout = TimeSpan.FromSeconds(12));
         services.AddHttpClient<IGenreSource, GenreLookup>(c => c.Timeout = TimeSpan.FromSeconds(15));
         services.AddHttpClient<ICoverPrinter, External.CoverPrinter>(c => c.Timeout = TimeSpan.FromSeconds(10));
+        services.AddHttpClient<ICoverMatcher, External.OpenCvCoverMatcher>(c => c.Timeout = TimeSpan.FromSeconds(15));
         services.AddHttpClient<IComicCatalog, GcdCatalog>(c => c.Timeout = TimeSpan.FromSeconds(15));
         services.AddHttpClient<IVareinfoGateway, VareinfoLink>(c => c.Timeout = TimeSpan.FromSeconds(30));
         // Helpers log in with their kundenummer (Kunder__Url / Kunder__ApiKey, user 2026-10-24).

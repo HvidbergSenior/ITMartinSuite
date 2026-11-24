@@ -31,6 +31,13 @@ public interface IBookValuer
 
 /// <summary>Claude: reads piles of covers and kolofons, writes collector texts - batched, under the daily cap.</summary>
 /// <summary>Free cover fingerprints (2026-11-04): our picture and a listing's picture, compared by CoverPrints. Null = no picture.</summary>
+/// <summary>How many points of our cover photo are found in the same place on a listing's picture (OpenCV). Null = could not compare
+/// (picture not fetched or unreadable) - never an error.</summary>
+public interface ICoverMatcher
+{
+    Task<int?> MatchAsync(byte[] ourCover, string listingImageUrl, CancellationToken ct);
+}
+
 public interface ICoverPrinter
 {
     CoverPrint? Of(byte[] jpeg);

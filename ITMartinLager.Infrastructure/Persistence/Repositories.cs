@@ -554,6 +554,23 @@ public sealed class PriceRepository(IDbContextFactory<LagerDb> dbf) : IPriceRepo
         await db.SaveChangesAsync(ct);
     }
 
+    public async Task<List<PriceFind>> FindsWithoutCoverAsync(IReadOnlyCollection<int> itemIds, int max, CancellationToken ct)
+    {
+        if (itemIds.Count == 0) return [];
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        var ids = itemIds.ToHashSet();
+        var all = await db.PriceFinds.Where(f => f.Cover == null && !f.IsNew && !f.Similar && f.Kr > 0 && f.Image.StartsWith("https")).ToListAsync(ct);
+        return all.Where(f => ids.Contains(f.ItemId)).OrderBy(f => f.ItemId).Take(max).ToList();
+    }
+
+    public async Task SetCoverAsync(int findId, int points, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        if (await db.PriceFinds.FindAsync([findId], ct) is not { } f) return;
+        f.Cover = points;
+        await db.SaveChangesAsync(ct);
+    }
+
     public async Task<List<ListingVerdict>> AllVerdictsAsync(CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);

@@ -101,6 +101,9 @@ public interface IPriceRepository
     Task<List<ListingVerdict>> AllVerdictsAsync(CancellationToken ct) => Task.FromResult(new List<ListingVerdict>());
     /// <summary>Things that have used, exact listings (candidates for a spot check).</summary>
     Task<List<int>> ItemsWithUsedFindsAsync(CancellationToken ct) => Task.FromResult(new List<int>());
+    /// <summary>Used listings with a picture whose cover is not compared yet, for these things.</summary>
+    Task<List<PriceFind>> FindsWithoutCoverAsync(IReadOnlyCollection<int> itemIds, int max, CancellationToken ct) => Task.FromResult(new List<PriceFind>());
+    Task SetCoverAsync(int findId, int points, CancellationToken ct) => Task.CompletedTask;
 }
 
 public interface IBookCheckRepository

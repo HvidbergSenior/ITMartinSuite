@@ -164,7 +164,7 @@ public static class LagerDbInitializer
             if (Convert.ToInt32(cmd.ExecuteScalar()) == 0)
                 db.Database.ExecuteSqlRaw("ALTER TABLE Boxes ADD COLUMN Kind TEXT NOT NULL DEFAULT ''");
         }
-        foreach (var (col, type) in new[] { ("Image", "TEXT NOT NULL DEFAULT ''"), ("Look", "INTEGER NULL") })
+        foreach (var (col, type) in new[] { ("Image", "TEXT NOT NULL DEFAULT ''"), ("Look", "INTEGER NULL"), ("Cover", "INTEGER NULL") })
         {
             // The free picture matching (2026-11-04): the listing's picture and how alike it looks to our cover.
             using var cmd = conn.CreateCommand();

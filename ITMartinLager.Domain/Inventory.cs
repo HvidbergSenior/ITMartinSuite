@@ -455,6 +455,8 @@ public sealed class PriceFind
     /// <summary>The listing's own picture, and how alike it looks to our cover, 0-100 (CoverPrints; null = not compared).</summary>
     public string Image { get; set; } = "";
     public int? Look { get; set; }
+    /// <summary>Matching points between our front cover and the listing picture (CoverMatch; null = not compared).</summary>
+    public int? Cover { get; set; }
 }
 
 // AI calls per day - the hard cap on spend lives in the database, so a restart does not reset it.
