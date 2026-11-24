@@ -75,6 +75,7 @@ public static class FixedPrice
         if (i is not null && ListingMatch.NoAlbum(i)) return [];
         var used = finds.Where(f => !f.IsNew && !f.Similar && f.Kr > 0 && !SpecialVersion(f.Name, i)
             && (i is null || (!OtherIssue(i, f.Name) && !ListingMatch.Wrong(i, f.Name)))).ToList();
+        if (i is not null && ListingMatch.UnknownIssue(i, used.Select(f => f.Name))) return [];
         var others = used.Where(f => Sources.Contains(f.Source)).Select(f => f.Kr).ToList();
         return others.Count > 0 ? others : used.Where(f => f.Source == Dba).Select(f => f.Kr).ToList();
     }

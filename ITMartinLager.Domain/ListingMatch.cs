@@ -74,12 +74,25 @@ public static partial class ListingMatch
 
     // ---------- 2b. a numbered blad: the listing must name OUR number ----------
     // Round 2 (2026-11-24): "Sølvpil 1978" / "SØLVPIL 1978, Tegneserie" for our Sølvpil nr. 48 from 1978 - could be any of that year's issues.
+    // Round 4: jumbobøger too (Jumbobog 484 got "Jumbobog 31", "214", "Anders And Jumbobog fra Egmont" ...).
     public static bool NoIssueNumber(Item i, string listing)
     {
         var n = i.Number.Trim().TrimStart('0');
-        if (!FixedPrice.Magazines.Contains(i.Kind) || n == "" || !n.All(char.IsDigit)) return false;
+        if (!Numbered(i) || n == "" || !n.All(char.IsDigit)) return false;
         return !Regex.IsMatch(listing, $@"(?<!\d)0*{n}(?!\d)");
     }
+
+    private static bool Numbered(Item i) => FixedPrice.Magazines.Contains(i.Kind) || i.Kind == Kinds.Jumbobog;
+
+    /// <summary>Round 4 (2026-11-24): a blad/jumbobog WITHOUT its own number ("Juleparade") whose listings name two or more different
+    /// issues (Klassikere nr. 11, 14, 17, 27) - we can't tell which one ours is, so no listing counts. One-off albums (Rael, Tom Puss
+    /// nr. 1) keep their listings.</summary>
+    public static bool UnknownIssue(Item i, IEnumerable<string> listings) =>
+        Numbered(i) && i.Number.Trim() == "" && listings.SelectMany(IssueNumbers).Distinct().Count() >= 2;
+
+    /// <summary>"nr. 14", "Nr.1", "nummer 17", "#27" -> 14, 1, 17, 27.</summary>
+    public static IEnumerable<string> IssueNumbers(string listing) =>
+        Regex.Matches(listing ?? "", @"(?:\bnr\.?|\bnummer|#)\s*(\d+)", RegexOptions.IgnoreCase).Select(m => m.Groups[1].Value.TrimStart('0'));
 
     // ---------- 2c. a sequel ----------
     // Round 3 (2026-11-24): "Anugama - Shamanic Dream II" is not our "Shamanic Dream". Right after our title the listing has a

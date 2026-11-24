@@ -46,7 +46,28 @@ public class StikproeveRound2Tests
     public void Our_own_part_two_is_right() => Counts(new Item { Kind = Kinds.Dvd, Title = "The Hangover Part II" },
         "The Hangover Part II (DVD)").Should().BeTrue();
 
-    // ...and these were marked Rigtig - they must still count.
+    // Round 4.
+    [TestCase("Jumbobog 31 - Anders And på et hængende hår 2. oplag")]
+    [TestCase("Anders And Jumbobog fra Egmont")]
+    [TestCase("Anders And Jumbobog 214 fra Walt Disney")]
+    public void Jumbobog_needs_its_own_number(string l) =>
+        Counts(new Item { Kind = Kinds.Jumbobog, Title = "Jumbobog", Number = "484" }, l).Should().BeFalse();
+
+    [Test]
+    public void Jumbobog_with_its_number_is_right() =>
+        Counts(new Item { Kind = Kinds.Jumbobog, Title = "Jumbobog", Number = "484" }, "Anders And Jumbobog 484 - Kæmpe-kaos").Should().BeTrue();
+
+    [Test]
+    public void A_blad_without_a_number_and_listings_for_several_issues_gets_no_listing_price() =>
+        ListingMatch.UnknownIssue(new Item { Kind = Kinds.Tegneserie, Title = "Juleparade" },
+            ["Walt Disney's Klassikere 1979 nr. 17. Juleparade", "Walt Disney'S Klassikere 1977 Nr. 11 Juleparade"]).Should().BeTrue();
+
+    [Test]
+    public void A_one_off_album_keeps_its_listings() =>
+        ListingMatch.UnknownIssue(new Item { Kind = Kinds.Tegneserie, Title = "Tom Puss og Hr. Brumme" },
+            ["Tom Puss 1983 nummer 1 Tom Puss og Hr. Brumme", "Tom Puss 1983 Nr.1 Og Hr. Brumme"]).Should().BeFalse();
+
+        // ...and these were marked Rigtig - they must still count.
     [TestCase("Da Svend Asmussen ville være tandlæge", "23", "Kong Kylie 1949 Nr. 23")]
     [TestCase("Hvorfor er havet salt", "27", "Kong Kylie 1949 Nr. 27")]
     public void Kong_Kylie_found_by_series_and_number(string title, string nr, string l) =>
