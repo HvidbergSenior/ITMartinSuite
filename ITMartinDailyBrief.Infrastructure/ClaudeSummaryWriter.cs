@@ -11,7 +11,8 @@ namespace ITMartinDailyBrief.Infrastructure;
 // One article -> 150-200 words of calm Danish, with Haiku (cheap). No key = no summaries ("").
 public sealed class ClaudeSummaryWriter(HttpClient http, IConfiguration cfg, ILogger<ClaudeSummaryWriter> log) : ISummaryWriter
 {
-    private const string Model = "claude-haiku-4-5-20251001";
+    // Newest cheap model (2026-11-24, user wanted a better summary; same price class).
+    private const string Model = "claude-haiku-5-5";
 
     public async Task<string> SummarizeAsync(NewsItem item, CancellationToken ct)
     {

@@ -4,8 +4,9 @@ namespace ITMartinDailyBrief.Domain;
 // Kept in the reader's own browser - nothing about the reader is stored on the server.
 public sealed class ReaderChoice
 {
-    public static readonly int[] Counts = [5, 10, 15];
-    public const int DefaultCount = 10, MaxCustom = 20;
+    // 25 and as default (user 2026-11-24: "able to see like 25 latest news"). The list still ENDS - no endless feed.
+    public static readonly int[] Counts = [5, 10, 15, 25];
+    public const int DefaultCount = 25, MaxCustom = 20;
 
     private readonly Dictionary<string, bool> _enabled;
     private readonly List<NewsSource> _custom;

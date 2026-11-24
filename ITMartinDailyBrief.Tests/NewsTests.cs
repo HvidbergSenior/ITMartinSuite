@@ -46,14 +46,17 @@ public class NewsTests
     }
 
     [Test]
-    public void Choice_defaults_to_ten_and_all_presets_on_and_refuses_odd_counts()
+    public void Choice_defaults_to_25_and_all_presets_on_and_refuses_odd_counts()
     {
+        // 25 latest as default since 2026-11-24 (user: "able to see like 25 latest news").
         var c = new ReaderChoice(maxItems: 7);
-        c.MaxItems.Should().Be(10);
+        c.MaxItems.Should().Be(25);
         c.ActiveSources.Should().HaveCount(NewsSource.Presets.Length);
         c.SetCount(15);
         c.SetCount(1000);
         c.MaxItems.Should().Be(15);
+        c.SetCount(25);
+        c.MaxItems.Should().Be(25);
     }
 
     [Test]
