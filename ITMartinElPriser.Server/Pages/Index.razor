@@ -197,30 +197,32 @@ else
                     // The hour right after "nu" stays blank, so "nu" never runs into "9" or "15".
                     // Midnight says where tomorrow starts (user 2026-11-24: more intuitive).
                     var label = h.IsNow ? "nu" : i == 1 && strip[0].IsNow ? "" : h.Start.Hour == 0 ? "i morgen" : h.Start.Hour % 3 == 0 ? h.Start.Hour.ToString() : "";
-                    <span>@label</span>
+                    <span class="@(label.Length > 2 ? "axis-word" : "")">@label</span>
                 }
             </div>
             <div class="k-muted small u-mt6 u-center">Hver søjle er én time. Lav og grøn = billig · høj, rød og stribet = dyr. Det skraverede felt er den billigste periode at køre @(Current.Run)en i (@Hours(m.Hours)) – tryk på en søjle for at se en anden starttid.</div>
             @* Each column's numbers in words (user 2026-11-24: "each column, how much"): the tapped hour, or now. *@
-            @{ var shown = picked ?? strip.FirstOrDefault(h => h.IsNow); }
+            @* Start time and the whole run first; the hour's own kWh price last (user 2026-11-24: "20-21?" was confusing). *@
+            @{ var shown = picked ?? strip.FirstOrDefault(h => h.IsNow); var shownRun = picked is null ? run : pickedRun;
+               var from = picked is null ? QuarterNow() : start; }
             @if (shown is not null)
             {
                 <div class="small u-mt6 u-center">
-                    <b>@(shown.IsNow ? "Lige nu" : $"{When(shown.Start)}–{shown.Start.AddHours(1):HH}")</b>: @Kr(shown.KrPerKwh) kr pr. kWh
-                    @{ var shownRun = picked is null ? run : pickedRun; }
                     @if (shownRun is null)
                     {
-                        <text> · priserne dækker ikke hele @(Current.Run)en endnu</text>
+                        <text><b>Start @(picked is null ? "nu" : StartAt(from))</b>: priserne dækker ikke hele @(Current.Run)en endnu.</text>
                     }
                     else
                     {
-                        <text> · én @Current.Run startet @(shown.IsNow ? "nu" : $"kl. {shown.Start:HH:mm}") kører til kl. @((picked is null ? QuarterNow() : start).AddHours(m.Hours).ToString("HH:mm")) og koster <b>@Kr(shownRun.CostKr) kr</b></text>
+                        <text><b>Start @(picked is null ? "nu" : StartAt(from))</b> – færdig kl. @from.AddHours(m.Hours).ToString("HH:mm") – koster <b>@Kr(shownRun.CostKr) kr</b></text>
                         @if (picked is not null && run is not null)
                         {
                             var diff = shownRun.CostKr - run.CostKr;
-                            <text> – <b>@(Math.Abs(diff) < 0.01 ? "det samme som nu" : diff < 0 ? $"{Kr(-diff)} kr billigere end nu" : $"{Kr(diff)} kr dyrere end nu")</b></text>
+                            <text>, <b>@(Math.Abs(diff) < 0.01 ? "det samme som nu" : diff < 0 ? $"{Kr(-diff)} kr billigere end nu" : $"{Kr(diff)} kr dyrere end nu")</b></text>
                         }
+                        <text>.</text>
                     }
+                    <span class="k-muted"> Strømmen i timen @(shown.IsNow ? "lige nu" : When(shown.Start)) koster @Kr(shown.KrPerKwh) kr pr. kWh.</span>
                 </div>
             }
             <div class="k-muted small u-mt6 u-center">@(picked is null ? "Tryk på en søjle for at se prisen i den time." : "Tryk på søjlen igen for at gå tilbage til nu.")</div>
