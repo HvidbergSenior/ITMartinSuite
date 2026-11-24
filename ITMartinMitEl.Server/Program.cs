@@ -130,6 +130,8 @@ builder.Services.AddAuthorization(options =>
 });
 
 var app = builder.Build();
+// Start loading every grid company's tariff (Energinet, ~1 min) now, not on the first visitor's click.
+app.Services.GetRequiredService<GridTariffs>();
 app.MapKolibri();
 
 // First start after the accounts change: household.json becomes household #1.

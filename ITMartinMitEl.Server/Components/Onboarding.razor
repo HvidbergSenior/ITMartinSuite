@@ -102,7 +102,7 @@ else if (!_seen)
             Step($"✅ Måler fundet: {mp.Address}");
 
             Step("🗺️ Finder netselskab og prisområde ud fra adressen…");
-            if (await Grids.ResolveAsync(mp.Address) is { } place && await Grids.FindAtAsync(place.Lat, place.Lon) is { } g)
+            if (await Grids.ResolveAsync(mp.Address) is { } place && await Grids.FindAtAsync(place) is { } g)
             {
                 Store.Update(d => { d.Settings.GridSupplierId = g.Id; d.Settings.GridName = g.Name; d.Settings.PriceArea = g.PriceArea; d.Settings.PostalCode = place.PostalCode; });
                 Step($"✅ Netselskab: {g.Name} · {g.PriceArea}");

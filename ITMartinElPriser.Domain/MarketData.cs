@@ -1,6 +1,6 @@
 namespace ITMartinElPriser.Domain;
 
-// The data the outside services deliver (Energinet, Strømligning, elpris.dk), as plain domain types.
+// The data the outside services deliver (Energinet, Green Power Denmark, elpris.dk), as plain domain types.
 // The services themselves live in ITMartinElPriser.Infrastructure.
 
 // How much CO2 one kWh from the Danish grid carries, in grams, per 5 minutes.
@@ -30,7 +30,15 @@ public sealed record GridCompany(string Id, string Name, string Company, string 
 
 // Where the household is: a readable label, its postcode and the point used to find the
 // ONE grid company that serves it (postcodes can be shared by two).
-public sealed record Place(string Label, string PostalCode, double Lat, double Lon);
+// Region = ISO 3166-2 code from the address ("DK-85" Sjælland) - it decides the price area DK1/DK2.
+public sealed record Place(string Label, string PostalCode, double Lat, double Lon, string Region = "");
+
+// GridSupplierId values: the Energinet DataHub owner name ("Konstant Net A/S - 151", "Cerius A/S") since
+// 2026-11-24. Strømligning-era ids ("konstant_c") have no space - they are re-matched from the saved name.
+public static class GridIds
+{
+    public static bool IsLegacy(string id) => id.Length > 0 && !id.Contains(' ');
+}
 
 // One electricity product from one supplier. Money is ex VAT, as the source gives it.
 public sealed record SupplierProduct(

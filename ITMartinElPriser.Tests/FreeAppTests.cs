@@ -173,8 +173,8 @@ public class FrontPageUseCaseTests
     }
 
     private static readonly Place Aarhus = new("Vej 1, 8000 Aarhus C", "8000", 56.15, 10.2);
-    private static readonly GridCompany Konstant = new("konstant_c", "Konstant", "Konstant", "DK1");
-    private static readonly GridCompany Radius = new("radius_c", "Radius", "Radius", "DK2");
+    private static readonly GridCompany Konstant = new("Konstant Net A/S - 151", "Konstant", "Konstant Net A/S", "DK1");
+    private static readonly GridCompany Radius = new("Radius Elnet A/S", "Radius", "Radius Elnet A/S", "DK2");
 
     private static (FrontPageUseCases Front, MemoryPrefs Prefs, Mock<IGridTariffSource> Grids) Make()
     {
@@ -188,7 +188,7 @@ public class FrontPageUseCaseTests
     {
         var (front, prefs, grids) = Make();
         grids.Setup(g => g.ResolveAsync("Vej 1, 8000")).ReturnsAsync(Aarhus);
-        grids.Setup(g => g.FindAtAsync(Aarhus.Lat, Aarhus.Lon)).ReturnsAsync(Konstant);
+        grids.Setup(g => g.FindAtAsync(Aarhus)).ReturnsAsync(Konstant);
         (await front.FindAddressAsync(" Vej 1, 8000 ")).Should().BeOfType<HomeAnswer.Saved>();
         (prefs.S.PostalCode, prefs.S.GridName, prefs.S.PriceArea).Should().Be(("8000", "Konstant", "DK1"));
         (await front.FindAddressAsync("80")).Should().BeOfType<HomeAnswer.Problem>();
@@ -201,7 +201,7 @@ public class FrontPageUseCaseTests
         prefs.S.GridSupplierId = Konstant.Id;
         var kbh = new Place("København", "2100", 55.7, 12.57);
         grids.Setup(g => g.ReverseAsync(kbh.Lat, kbh.Lon)).ReturnsAsync(kbh);
-        grids.Setup(g => g.FindAtAsync(kbh.Lat, kbh.Lon)).ReturnsAsync(Radius);
+        grids.Setup(g => g.FindAtAsync(kbh)).ReturnsAsync(Radius);
         (await front.AtLocationAsync(kbh.Lat, kbh.Lon, askingForNew: false)).Should().BeOfType<HomeAnswer.AskSwitch>();
         prefs.S.GridSupplierId.Should().Be(Konstant.Id);
         (await front.AtLocationAsync(kbh.Lat, kbh.Lon, askingForNew: true)).Should().BeOfType<HomeAnswer.Saved>();

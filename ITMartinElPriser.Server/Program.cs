@@ -18,7 +18,7 @@ builder.Services.AddKolibri(k =>
         // Short and plain (user 2026-11-12: "The formål description need to be shorter and more understandable"); details live in HowTo.
         "Se, hvornår strømmen er billigst i dag og i morgen – så du kan vaske, tage opvask og lade bilen i de billige timer.",
         "Det er gratis og kræver ingen konto. Vil du have en besked, før de billige timer starter, så skriv dig op gratis.",
-        "Kort og adresser: © OpenStreetMap-bidragydere. Nettariffer: Strømligning.",
+        "Kort og adresser: © OpenStreetMap-bidragydere. Netselskab: Green Power Denmark. Nettariffer og elpriser: Kilde: Energinet.",
     ];
     k.HowTo =
     [
@@ -35,7 +35,7 @@ builder.Services.AddKolibri(k =>
 
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddHttpContextAccessor();
-// Energinet / Strømligning / elpris.dk behind the Application ports (ITMartinElPriser.Infrastructure). Singletons with
+// Energinet / Green Power Denmark / elpris.dk behind the Application ports (ITMartinElPriser.Infrastructure). Singletons with
 // their own HttpClient: they cache (prices 30 min, suppliers a day) - per-request instances would throw the cache away.
 builder.Services.AddElPriserSources();
 // The free app's own adapters (who wants a message, Web Push, PDF text) and its use cases. Settings live in a cookie on
@@ -47,6 +47,8 @@ builder.Services.AddScoped<IHouseholdPrefs>(sp => sp.GetRequiredService<PrefsSer
 builder.Services.AddHostedService<NotificationJob>();
 
 var app = builder.Build();
+// Start loading every grid company's tariff (Energinet, ~1 min) now, not on the first visitor's click.
+app.Services.GetRequiredService<GridTariffs>();
 
 if (!app.Environment.IsDevelopment())
 {

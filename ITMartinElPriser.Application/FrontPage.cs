@@ -106,7 +106,7 @@ public sealed class FrontPageUseCases(IPriceSource prices, IHouseholdPrefs prefs
         if (text.Trim().Length < 4) return new HomeAnswer.Problem("Skriv en adresse eller et postnummer (4 cifre).");
         if (await grids.ResolveAsync(text.Trim()) is not { } place)
             return new HomeAnswer.Problem("Vi kunne ikke finde den adresse. Prøv med vej, husnummer og postnummer – eller kun postnummeret.");
-        if (await grids.FindAtAsync(place.Lat, place.Lon) is not { } g)
+        if (await grids.FindAtAsync(place) is not { } g)
             return new HomeAnswer.Problem("Vi kunne ikke finde netselskabet lige nu. Prøv igen om lidt.");
         await SaveHomeAsync(place, g);
         return new HomeAnswer.Saved(g);
@@ -120,9 +120,9 @@ public sealed class FrontPageUseCases(IPriceSource prices, IHouseholdPrefs prefs
         if (await grids.ReverseAsync(lat, lon) is not { } place)
             return new HomeAnswer.Problem("Du ser ud til at være uden for Danmark. ElPriser viser danske elpriser – dit netselskab findes, når du er hjemme igen."
                 + (saved.GridName.Length > 0 ? $" Vi bruger stadig {saved.GridName}." : " Indtil da vises priserne uden din nettarif."));
-        if (await grids.FindAtAsync(place.Lat, place.Lon) is not { } g)
+        if (await grids.FindAtAsync(place) is not { } g)
             return new HomeAnswer.Problem("Vi kunne ikke finde netselskabet for din placering lige nu. Prøv igen om lidt.");
-        if (saved.GridSupplierId.Length > 0 && saved.GridSupplierId != g.Id && !askingForNew) return new HomeAnswer.AskSwitch(place, g);
+        if (saved.GridSupplierId.Length > 0 && !GridIds.IsLegacy(saved.GridSupplierId) && saved.GridSupplierId != g.Id && !askingForNew) return new HomeAnswer.AskSwitch(place, g);
         await SaveHomeAsync(place, g);
         return new HomeAnswer.Saved(g);
     }

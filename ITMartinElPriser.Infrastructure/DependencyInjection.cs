@@ -15,7 +15,13 @@ public static class DependencyInjection
         services.AddSingleton(sp => new ElectricityPriceService(new HttpClient(), sp.GetRequiredService<ILogger<ElectricityPriceService>>()));
         services.AddSingleton(sp => new Co2Service(new HttpClient(), sp.GetRequiredService<ILogger<Co2Service>>()));
         services.AddSingleton(sp => new SupplierCatalog(new HttpClient { Timeout = TimeSpan.FromSeconds(30) }, sp.GetRequiredService<ILogger<SupplierCatalog>>()));
-        services.AddSingleton(sp => new GridTariffs(new HttpClient { Timeout = TimeSpan.FromSeconds(30) }, sp.GetRequiredService<ILogger<GridTariffs>>()));
+        services.AddSingleton(sp =>
+        {
+            // 120 s: the daily tariff list is one large Energi Data Service answer.
+            var g = new GridTariffs(new HttpClient { Timeout = TimeSpan.FromSeconds(120) }, sp.GetRequiredService<ILogger<GridTariffs>>());
+            g.Warm();
+            return g;
+        });
         services.AddSingleton<IPriceSource>(sp => sp.GetRequiredService<ElectricityPriceService>());
         services.AddSingleton<ICo2Source>(sp => sp.GetRequiredService<Co2Service>());
         services.AddSingleton<ISupplierSource>(sp => sp.GetRequiredService<SupplierCatalog>());

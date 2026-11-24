@@ -10,8 +10,8 @@ public sealed class HouseholdSettings
     public bool ShowAllIn { get; set; } = true;
     public string GridCompanyId { get; set; } = "n1";
 
-    // Set from the postcode (Strømligning grid id, e.g. "konstant_c"). When set, the exact
-    // published tariff per quarter-hour replaces the GridCompanyId preset bands.
+    // Set from the address (Energinet DataHub owner, e.g. "Konstant Net A/S - 151", see GridIds). When set, the
+    // exact published tariff per hour replaces the GridCompanyId preset bands.
     public string PostalCode { get; set; } = "";
     public string GridSupplierId { get; set; } = "";
     public string GridName { get; set; } = "";
