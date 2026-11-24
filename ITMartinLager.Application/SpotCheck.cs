@@ -9,11 +9,21 @@ public sealed class SpotCheckUseCases(IItemRepository items, IPriceRepository pr
 {
     public sealed record Row(Item Item, List<PriceFind> Finds, Dictionary<string, bool> Marks, int? Standard);
 
-    public async Task<List<Row>> SampleAsync(int count = 20, CancellationToken ct = default)
+    /// <summary>A new random sample - or the same things again (ids from the address), so going back from a product keeps the list.</summary>
+    public async Task<List<Row>> SampleAsync(int count = 20, IReadOnlyCollection<int>? same = null, CancellationToken ct = default)
     {
-        var withFinds = (await prices.ItemsWithUsedFindsAsync(ct)).ToHashSet();
-        var listed = (await items.AllListedAsync(ct)).Where(i => withFinds.Contains(i.Id) && i.Kind != Kinds.Ting && i.Kind != Kinds.Strik).ToList();
-        var pick = listed.OrderBy(_ => Random.Shared.Next()).Take(count).ToList();
+        List<Item> pick;
+        if (same is { Count: > 0 })
+        {
+            var order = same.ToList();
+            pick = (await items.ByIdsAsync(order, ct)).OrderBy(i => order.IndexOf(i.Id)).ToList();
+        }
+        else
+        {
+            var withFinds = (await prices.ItemsWithUsedFindsAsync(ct)).ToHashSet();
+            var listed = (await items.AllListedAsync(ct)).Where(i => withFinds.Contains(i.Id) && i.Kind != Kinds.Ting && i.Kind != Kinds.Strik).ToList();
+            pick = listed.OrderBy(_ => Random.Shared.Next()).Take(count).ToList();
+        }
         var ids = pick.Select(i => i.Id).ToList();
         var verdicts = (await prices.VerdictsForAsync(ids, ct)).ToLookup(v => v.ItemId);
         var rows = new List<Row>();
