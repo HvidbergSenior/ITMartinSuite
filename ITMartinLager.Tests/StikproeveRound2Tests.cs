@@ -37,6 +37,15 @@ public class StikproeveRound2Tests
     [TestCase("JULEFROKOSTEN. Mick Øgendahl. BYD.")]
     public void Dvd_titled_only_by_the_artist(string l) => Counts(new Item { Kind = Kinds.Dvd, Title = "Mick Øgendahl", Artist = "Mick Øgendahl" }, l).Should().BeFalse();
 
+    // Round 3.
+    [Test]
+    public void A_sequel_is_another_album() => Counts(new Item { Kind = Kinds.Cd, Title = "Shamanic Dream – Anugama", Artist = "Anugama" },
+        "Anugama - Shamanic Dream II (2000) – 23 til salg").Should().BeFalse();
+
+    [Test]
+    public void Our_own_part_two_is_right() => Counts(new Item { Kind = Kinds.Dvd, Title = "The Hangover Part II" },
+        "The Hangover Part II (DVD)").Should().BeTrue();
+
     // ...and these were marked Rigtig - they must still count.
     [TestCase("Da Svend Asmussen ville være tandlæge", "23", "Kong Kylie 1949 Nr. 23")]
     [TestCase("Hvorfor er havet salt", "27", "Kong Kylie 1949 Nr. 27")]

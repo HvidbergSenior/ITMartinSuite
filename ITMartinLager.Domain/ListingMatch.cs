@@ -19,6 +19,7 @@ public static partial class ListingMatch
         if (Films.IsSeason(i.Kind, i.Title) && !SameSeason(i.Title, listing)) return true;
         if (Bundle(listing, i)) return true;
         if (NoIssueNumber(i, listing)) return true;
+        if (Sequel(i, listing)) return true;
         return !TitleWordsIn(i, listing);
     }
 
@@ -78,6 +79,28 @@ public static partial class ListingMatch
         var n = i.Number.Trim().TrimStart('0');
         if (!FixedPrice.Magazines.Contains(i.Kind) || n == "" || !n.All(char.IsDigit)) return false;
         return !Regex.IsMatch(listing, $@"(?<!\d)0*{n}(?!\d)");
+    }
+
+    // ---------- 2c. a sequel ----------
+    // Round 3 (2026-11-24): "Anugama - Shamanic Dream II" is not our "Shamanic Dream". Right after our title the listing has a
+    // part marker (II, 2, part 2, vol 2, del 2) that our own title does not have.
+    private static readonly HashSet<string> PartMarks = ["ii", "iii", "iv", "vi", "vii", "viii", "ix", "2", "3", "4", "5", "6", "7", "8", "9", "part", "vol", "del", "volume"];
+
+    public static bool Sequel(Item i, string listing)
+    {
+        var ours = Words(i.Title).ToList();
+        var key = ours.Where(w => w.Length >= 3 && !Stop.Contains(w) && !w.All(char.IsDigit)).ToHashSet();
+        if (key.Count == 0) return false;
+        var theirs = Words(listing).ToList();
+        for (var k = 0; k < theirs.Count - 1; k++)
+        {
+            var mark = theirs[k + 1];
+            if (!key.Contains(theirs[k]) || !PartMarks.Contains(mark) || ours.Contains(mark)) continue;
+            // "Emancipation (3 x CD Album)" / "2 cd" is a count of discs, not part 3.
+            if (mark.All(char.IsDigit) && k + 2 < theirs.Count && theirs[k + 2] is "x" or "cd" or "cds" or "disc" or "discs" or "stk" or "dvd") continue;
+            return true;
+        }
+        return false;
     }
 
     // ---------- 3. several things at once ----------
