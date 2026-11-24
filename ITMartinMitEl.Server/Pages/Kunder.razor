@@ -51,10 +51,10 @@ else
                 <div class="k-muted small" style="margin-top:6px">
                     @Summary(c.HouseholdId)
                 </div>
-                <span style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+                <div class="k-row k-mt">
                     <a class="k-btn k-btn-primary" href="@($"/vaelg/{c.HouseholdId}")">Åbn @c.HouseholdName</a>
                     <a class="k-btn" href="@($"/kunder/{c.HouseholdId}")">Opsætning @Setup.Progress(c.HouseholdId)</a>
-                </span>
+                </div>
             </section>
         }
     }

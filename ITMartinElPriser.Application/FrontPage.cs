@@ -10,8 +10,8 @@ public sealed class NowView(HouseholdSettings settings, List<PricePoint> raw, Pr
     public PriceSnapshot Snapshot { get; } = snapshot;
     public bool HasPrices => raw.Count > 0;
 
-    /// <summary>The machine the visitor chose (dishwasher or washing machine) with its own hours and kWh.</summary>
-    public HomeMachine Machine => (Settings.Machine == HomeMachine.WashKind ? Settings.Wash : Settings.Dish).Clean();
+    /// <summary>The machine the visitor chose (dishwasher or washing machine), always with the standard hours and kWh.</summary>
+    public HomeMachine Machine => HomeMachine.Fixed(Settings.Machine);
 
     /// <summary>The machine started at this quarter, priced quarter by quarter while it runs. Null = not all prices known.</summary>
     public RunOption? RunAt(DateTime start) => raw.Count == 0 ? null : PriceModel.CostOfRun(raw, Settings, Machine.ToAppliance(), start);
@@ -51,33 +51,18 @@ public sealed class FrontPageUseCases(IPriceSource prices, IHouseholdPrefs prefs
     {
         var today = DateOnly.FromDateTime(DkTime.Now);
         var raw = await prices.GetRangeAsync(today.AddDays(-30), today.AddDays(1), s.PriceArea, ct);
-        var machine = (s.Machine == HomeMachine.WashKind ? s.Wash : s.Dish).Clean();
+        var machine = HomeMachine.Fixed(s.Machine);
         return Hindsight.For(raw, s, machine.ToAppliance(), today);
     }
 
     /// <summary>What the prices are worked out with, for Besked: "DK1 · N1 · NRGi Time".</summary>
     public string Describe() => HouseholdText.Describe(prefs.Get());
 
-    // ---- the machine (kept in the cookie on the phone) ----
+    // ---- the machine: only which one (dishwasher / washing machine) is kept in the cookie ----
 
     public Task PickMachineAsync(HouseholdSettings s, string kind)
     {
         s.Machine = kind == HomeMachine.WashKind ? HomeMachine.WashKind : HomeMachine.DishKind;
-        return prefs.SaveAsync(s);
-    }
-
-    public Task SetMachineAsync(HouseholdSettings s, double? hours, double? kwh)
-    {
-        var m = s.Machine == HomeMachine.WashKind ? s.Wash : s.Dish;
-        if (hours is > 0) m.Hours = hours.Value;
-        if (kwh is > 0) m.Kwh = kwh.Value;
-        m.Clean();
-        return prefs.SaveAsync(s);
-    }
-
-    public Task ResetMachineAsync(HouseholdSettings s)
-    {
-        if (s.Machine == HomeMachine.WashKind) s.Wash = HomeMachine.WashingMachine(); else s.Dish = HomeMachine.Dishwasher();
         return prefs.SaveAsync(s);
     }
 

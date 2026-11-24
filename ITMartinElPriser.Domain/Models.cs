@@ -20,7 +20,9 @@ public sealed class HouseholdSettings
     [System.Text.Json.Serialization.JsonIgnore]
     public Func<DateTime, double?>? NettarifLookup { get; set; }
     public double CustomNettarifOre { get; set; } = 25;
-    public string SupplierId { get; set; } = "nrgi-time";
+    // Default = "Typisk elselskab" (median markup, see SupplierPreset.Typical). Was "nrgi-time" (Martin's own) until
+    // 2026-11-24 - every new visitor was told they had NRGi Time.
+    public string SupplierId { get; set; } = "typisk";
     public double CustomTillaegOre { get; set; }
     // Hours nobody would start a machine anyway - windows are not suggested
     // inside them, so "cheapest" is cheapest when someone is actually up.
@@ -225,11 +227,18 @@ public sealed class HomeMachine
     public string Kind { get; set; } = DishKind;
     public double Hours { get; set; } = 2;
     public double Kwh { get; set; } = 1;
+    /// <summary>The real machine the standard numbers come from, shown in the free app (user 2026-11-24). "" = none yet.</summary>
+    public string Model { get; set; } = "";
 
     // Dishwasher: Bosch SMD6TCX00E, energy class A, 54 kWh / 100 Eco cycles (EU energy label, EPREL).
-    public static HomeMachine Dishwasher() => new() { Kind = DishKind, Hours = 2, Kwh = 0.54 };
-    // Washing machine: a normal 40 °C wash, about 1 kWh.
-    public static HomeMachine WashingMachine() => new() { Kind = WashKind, Hours = 2, Kwh = 1.0 };
+    public static HomeMachine Dishwasher() => new() { Kind = DishKind, Hours = 2, Kwh = 0.54, Model = "Bosch SMD6TCX00E, Eco-program" };
+    // Washing machine: Bosch Serie 6 WGG244RASN, 9 kg, energy class A - EU label (Bosch da-DK spec sheet, read 2026-11-24):
+    // 46 kWh / 100 Eco 40-60 cycles = 0.46 kWh a wash, Eco 40-60 runs 3:48 at full load (3.75 h on the quarter grid).
+    public static HomeMachine WashingMachine() => new() { Kind = WashKind, Hours = 3.75, Kwh = 0.46, Model = "Bosch WGG244RASN, Eco 40-60" };
+
+    /// <summary>The free ElPriser's machine: always the standard one, never the visitor's own numbers (user 2026-11-24:
+    /// "Ret tid og strøm should not be changeable" - own machines are MinElpris).</summary>
+    public static HomeMachine Fixed(string kind) => kind == WashKind ? WashingMachine() : Dishwasher();
 
     public bool IsWash => Kind == WashKind;
     public string Name => IsWash ? "Vaskemaskine" : "Opvaskemaskine";

@@ -209,14 +209,16 @@ public class FrontPageUseCaseTests
     }
 
     [Test]
-    public async Task The_machine_is_kept_within_its_limits()
+    public async Task The_free_machine_is_always_the_standard_one()
     {
         var (front, prefs, _) = Make();
         await front.PickMachineAsync(prefs.S, HomeMachine.WashKind);
-        await front.SetMachineAsync(prefs.S, 1.5, 99);
-        (prefs.S.Machine, prefs.S.Wash.Hours, prefs.S.Wash.Kwh).Should().Be((HomeMachine.WashKind, 1.5, HomeMachine.MaxKwh));
-        await front.ResetMachineAsync(prefs.S);
-        prefs.S.Wash.Kwh.Should().Be(1.0);
+        prefs.S.Machine.Should().Be(HomeMachine.WashKind);
+        // Own numbers saved in an old cookie are ignored (user 2026-11-24).
+        prefs.S.Wash = new HomeMachine { Kind = HomeMachine.WashKind, Hours = 1.5, Kwh = 3 };
+        var view = new NowView(prefs.S, [], null!);   // the machine does not need prices
+        (view.Machine.Hours, view.Machine.Kwh, view.Machine.Model).Should().Be((3.75, 0.46, "Bosch WGG244RASN, Eco 40-60"));
+        HomeMachine.Fixed(HomeMachine.DishKind).Kwh.Should().Be(0.54);
     }
 
     [Test]

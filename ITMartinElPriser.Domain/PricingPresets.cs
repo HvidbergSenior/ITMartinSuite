@@ -73,8 +73,17 @@ public sealed class SupplierPreset
         Name = "Andet (indtast selv)",
     };
 
+    // The default for someone who does not know their elselskab (user 2026-11-24: "a default like the models"): the
+    // MEDIAN of the 136 private spot products on elpris.dk for grid area 151 (Konstant), 24.11.2026 - 7.4 øre/kWh and
+    // 19 kr/md, both ex VAT. Range was 0-40 øre, so for one wash the difference is at most ~0.27 kr.
+    public static readonly SupplierPreset Typical = new()
+    {
+        Id = "typisk", Name = "Typisk elselskab (gennemsnit)", MarkupOreExVat = 7.4, MonthlySubscriptionKr = 19,
+    };
+
     public static readonly IReadOnlyList<SupplierPreset> All =
     [
+        Typical,
         // NRGi Time: 9 øre/kWh inkl. moms tillæg, 29 kr/md (Sept 2026 aftale page).
         new() { Id = "nrgi-time", Name = "NRGi Time", MarkupOreExVat = 7.2, MonthlySubscriptionKr = 23.2 },
         new() { Id = "norlys-flexel", Name = "Norlys FlexEl", MarkupOreExVat = 9.70, MonthlySubscriptionKr = 29 },

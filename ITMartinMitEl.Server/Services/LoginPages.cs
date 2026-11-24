@@ -31,7 +31,6 @@ public static class LoginPages
         title: "Glemt adgangskode",
         body: $"""
         <form method="post" action="/glemt">
-            <div class="logo">🔑</div>
             <h1>Glemt adgangskoden?</h1>
             <p class="sub">Skriv din mail. Så sender vi et link, hvor du vælger en ny adgangskode.</p>
             {(sent ? Message(null, "Tjek din mail. Har du en konto med den mail, får du et link om et øjeblik. Linket virker i 1 time. Kig også i spam/uønsket post.") : "")}
@@ -47,7 +46,6 @@ public static class LoginPages
     public static string Reset(string token, bool linkWorks, string? error) => !linkWorks
         ? Page(title: "Linket virker ikke", body: $"""
             <form method="get" action="/glemt">
-                <div class="logo">⏰</div>
                 <h1>Linket virker ikke længere</h1>
                 <p class="sub">Et link til ny adgangskode holder 1 time og kan kun bruges én gang.</p>
                 <button type="submit">Bed om et nyt link</button>
@@ -56,7 +54,6 @@ public static class LoginPages
             """)
         : Page(title: "Ny adgangskode", body: $"""
             <form method="post" action="/nulstil">
-                <div class="logo">🔑</div>
                 <h1>Vælg ny adgangskode</h1>
                 <p class="sub">Skriv den samme adgangskode to gange. Bagefter logger du ind med den.</p>
                 {Message(error, null)}

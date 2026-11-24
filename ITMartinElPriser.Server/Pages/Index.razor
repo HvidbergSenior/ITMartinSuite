@@ -34,17 +34,20 @@
     @* The elselskab (user 2026-10-21 "chip on the front"): it is on the bill, and its markup makes the price here the person's own. *@
     <section class="k-card">
         <h2 class="k-card-title">Dit elselskab</h2>
-        <p>Elselskabet lægger sit eget tillæg oven i strømprisen. Vælg dit, så er prisen her din egen pris. Navnet står øverst på din elregning.</p>
-        <select class="field" @bind="_supplierPick" aria-label="Elselskab">
+        <p>Elselskabet lægger sit eget tillæg oven i strømprisen. Ved du ikke, hvilket du har, så brug „Typisk elselskab“ – det er gennemsnittet, og for én vask er forskellen højst ca. 25 øre. Navnet står øverst på din elregning.</p>
+        @* Kolibri controls (user 2026-11-24: no browser-default look), and nothing preselected - no one is told they have NRGi. *@
+        <label class="k-label" for="supplier">Elselskab</label>
+        <select id="supplier" class="k-input" @bind="_supplierPick">
+            <option value="" disabled>Vælg dit elselskab</option>
             @foreach (var sp in Front.Suppliers) { <option value="@sp.Id">@sp.Name</option> }
         </select>
         @if (_supplierPick == SupplierPreset.Custom.Id)
         {
-            <label class="small u-mt8">Dit elselskabs tillæg, øre pr. kWh uden moms (står på regningen)</label>
-            <input class="field" type="number" min="0" max="300" step="0.1" @bind="_customOre" />
+            <label class="k-label" for="custom-ore">Dit elselskabs tillæg, øre pr. kWh uden moms (står på regningen)</label>
+            <input id="custom-ore" class="k-input" type="number" min="0" max="300" step="0.1" @bind="_customOre" />
         }
-        <div class="btn-row">
-            <button class="k-btn k-btn-primary" @onclick="SaveSupplierAsync">Gem elselskab</button>
+        <div class="k-row k-mt">
+            <button class="k-btn k-btn-primary" disabled="@(_supplierPick.Length == 0)" @onclick="SaveSupplierAsync">Gem elselskab</button>
             <button class="k-btn" @onclick="() => _askSupplier = false">Fortryd</button>
         </div>
     </section>
@@ -59,7 +62,7 @@
         <h2 class="k-card-title">Nyt hjem?</h2>
         <p class="u-mb8">Du er ved <b>@pend.Place.Label</b>, hvor netselskabet er <b>@pend.Grid.Name</b>. Er det dit nye hjem?</p>
         <p class="k-muted u-mb8">Priserne skal regnes med netselskabet, hvor du bor – ikke hvor du er lige nu.</p>
-        <div class="btn-row">
+        <div class="k-row k-mt">
             <button class="k-btn k-btn-primary" @onclick="() => SaveHomeAsync(pend.Place, pend.Grid)">Ja, skift til @pend.Grid.Name</button>
             <button class="k-btn" @onclick="() => _pending = null">Nej, behold @_gridName</button>
         </div>
@@ -68,19 +71,7 @@
 
 @* How to put ElPriser on the phone: the shared Kolibri install button (kolibri.js), like every other app. *@
 
-<PageHelp Key="help-nu">
-    <ul>
-        <li><b>Dit hjem og dit elselskab</b> øverst i boksen: tryk på dem for at skifte. Elselskabet står øverst på din elregning, og med det bliver prisen din egen.</li>
-        <li><b>Vælg maskine</b> øverst i boksen: opvaskemaskine eller vaskemaskine.</li>
-        <li><b>Det store tal</b> er hvad én opvask eller vask koster, hvis du starter den nu – kvarter for kvarter, så længe maskinen kører. Alt inkl. moms, elafgift og nettarif.</li>
-        <li><b>Din egen maskine:</b> tryk <b>Ret tid og strøm</b> og vælg, hvor længe dit program kører, og hvor mange kWh det bruger (står i manualen eller på energimærket). Det gemmes på din egen telefon. Ved du det ikke, så brug det, der står: opvask 0,54 kWh (Eco), vask 1 kWh (40 grader).</li>
-        <li><b>Farven:</b> grøn = billigt, gul = middel, rød = dyrt – i forhold til resten af samme dag. Dyre timer er også stribede, og den billigste time er mærket „billigst“, så du kan se det uden at skelne farverne.</li>
-        <li><b>Søjlerne</b> er prisen time for time fra nu og frem til i morgen. Tryk på en søjle, så viser det store tal hvad opvasken koster hvis den starter der. Tryk igen for at gå tilbage til nu.</li>
-        <li><b>Start kl. … – det er billigst</b> er det starttidspunkt inden for de næste 12 timer, hvor maskinen koster mindst – også om natten. Er det om natten, står der også det billigste tidspunkt mellem kl. 6 og 23, hvis du ikke vil have den kørende, mens I sover.</li>
-        <li><b>Kan du tidsindstille maskinen?</b> Mange maskiner har <b>senere start</b> (et ur eller en knap med en lille klokke). Der står, hvor mange timer du skal sætte den til – så starter den selv på det billigste tidspunkt, også mens du sover. Morgendagens priser kommer ca. kl. 13.</li>
-        <li>Flere maskiner (tørretumbler, ovn, elbil) finder du i <a href="https://minelpris.itmartin.dk" target="_blank" rel="noopener">MinElpris</a>.</li>
-    </ul>
-</PageHelp>
+@* "Hvad viser siden?" removed 2026-11-24 (user): the front page explains itself. *@
 
 @if (_view is null)
 {
@@ -105,11 +96,12 @@ else
     var allHours = (_snap.Today?.Hours ?? []).Concat(_snap.Tomorrow?.Hours ?? []).ToList();
     var min = allHours.Count > 0 ? allHours.Min(h => h.KrPerKwh) : 0;
     var span = allHours.Count > 0 ? allHours.Max(h => h.KrPerKwh) - min : 0;
-    var cheapest = strip.MinBy(h => h.KrPerKwh);
     var picked = _selected is { } sel ? strip.FirstOrDefault(h => h.Start == sel) : null;
     var start = picked?.Start ?? QuarterNow();
-    var run = picked is null ? now : _view.RunAt(start);
-    double? rank = picked is null ? _snap.NowRank01 : picked.Rank01;
+    // The big number is ALWAYS "start now" (user 2026-11-24); a tapped column is shown under the chart with the difference.
+    var run = now;
+    var pickedRun = picked is null ? null : _view.RunAt(start);
+    double? rank = _snap.NowRank01;
     var lvl = Level(rank);
     // The cheapest start from now on (user 2026-10-19: "change it to cheapest"), night included (2026-10-20: "also at
     // night"), said as one sentence: "Start i nat kl. 02:00 – det er billigst". The best start while you are up comes under it.
@@ -120,19 +112,21 @@ else
     <section class="k-card now-tile @lvl">
         <h2 class="k-card-title">Prisen nu</h2>
         @* Home, not "where the phone is": asked once (location if you are home, or your address). Tap to change. *@
-        <button class="area-chip" title="Skift dit hjem" @onclick="() => _askHome = !_askHome" disabled="@_searching">
+        <button class="area-chip" title="Netselskabet ejer ledningerne på din vej og kan ikke vælges – ret kun adressen, hvis den er forkert" @onclick="() => _askHome = !_askHome" disabled="@_searching">
             @if (_searching) { <text>Finder dig…</text> }
-            else if (_gridName.Length > 0) { <text>@_postal <small>@_gridName</small> · skift</text> }
+            else if (_gridName.Length > 0) { <text>Netselskab i @_postal: <b>@_gridName</b> · ret adresse</text> }
             else { <text>Hvor bor du?</text> }
         </button>
         <button class="area-chip" title="Skift elselskab" @onclick="OpenSupplier">
-            @(FrontPageUseCases.SupplierName(_s) is { Length: > 0 } sn ? $"Elselskab: {sn} · skift" : "Vælg dit elselskab")
+            @if (_s.SupplierId == SupplierPreset.Typical.Id) { <text>Elselskab: <b>typisk</b> (gennemsnit) · vælg dit</text> }
+            else if (FrontPageUseCases.SupplierName(_s) is { Length: > 0 } sn) { <text>Dit elselskab: <b>@sn</b> · skift</text> }
+            else { <text>Vælg dit elselskab <small>(prisen er uden elselskabets tillæg)</small></text> }
         </button>
         <div class="chips chips-small" role="group" aria-label="Vælg maskine">
             <button class="chip @(m.IsWash ? "" : "on")" aria-pressed="@(!m.IsWash)" @onclick="() => PickMachineAsync(HomeMachine.DishKind)">Opvaskemaskine</button>
             <button class="chip @(m.IsWash ? "on" : "")" aria-pressed="@m.IsWash" @onclick="() => PickMachineAsync(HomeMachine.WashKind)">Vaskemaskine</button>
         </div>
-        <div class="now-device">Én @m.Run · @Kwh(m.Kwh) kWh · @Hours(m.Hours) · start @(picked is null ? "nu" : When(start))</div>
+        <div class="now-device">Én @m.Run@(m.Model.Length > 0 ? $" ({m.Model})" : "") · @Kwh(m.Kwh) kWh · @Hours(m.Hours) · start nu</div>
         <div class="now-price @lvl">@(run is null ? "–" : Kr(run.CostKr)) KR</div>
         @if (run is not null)
         {
@@ -144,20 +138,23 @@ else
         {
             @* One colour, and the answer said in words - not red/green on one line. *@
             <div class="now-best">
+                @* Wording user 2026-11-24 ("needs more intuitive descriptions"): the answer first, then what it saves, then
+                   exactly what to press on the machine. *@
                 @if (best.Start <= QuarterNow())
                 {
-                    <b>Start nu – det er billigst.</b>
+                    <b>Start den nu – det bliver ikke billigere de næste 12 timer.</b>
                 }
                 else
                 {
-                    <b>Start @StartAt(best.Start) – det er billigst.</b>
-                    <span>Den koster @Kr(best.CostKr) kr@(run.CostKr - best.CostKr >= 0.01 ? $" – du sparer {Kr(run.CostKr - best.CostKr)} kr i forhold til nu" : "").</span>
+                    @* The cheapest PERIOD within the next 12 hours, start to finish (user 2026-11-24). *@
+                    <b>Billigst de næste 12 timer: start @StartAt(best.Start) – færdig kl. @best.Start.AddHours(m.Hours).ToString("HH:mm")</b>
+                    <span>Så koster den @Kr(best.CostKr) kr@(run.CostKr - best.CostKr >= 0.01 ? $" i stedet for {Kr(run.CostKr)} kr nu – du sparer {Kr(run.CostKr - best.CostKr)} kr" : "").</span>
                     @* User 2026-10-21: "Har maskinen senere start: sæt den til 14½ timer. Something like. Hvis du kan tidsindstille". *@
-                    <span>Kan du tidsindstille maskinen? Sæt den til <b>@Delay(best.Start)</b>.</span>
+                    <span>Har maskinen <b>senere start</b> (et lille ur på knapperne)? Sæt den til <b>@Delay(best.Start)</b> nu – så starter den selv kl. @best.Start.ToString("HH:mm").</span>
                 }
                 @if (awake is not null && _view.IsQuiet(best.Start) && awake.Start != best.Start)
                 {
-                    <span class="k-muted small">Ikke om natten? Mellem kl. 6 og 23 er det billigst @(awake.Start <= QuarterNow() ? "lige nu" : StartAt(awake.Start)) – @Kr(awake.CostKr) kr.</span>
+                    <span class="k-muted small">Vil du ikke have den kørende om natten? Bedst mellem kl. 6 og 23: @(awake.Start <= QuarterNow() ? "start nu" : StartAt(awake.Start)) for @Kr(awake.CostKr) kr.</span>
                 }
             </div>
         }
@@ -165,45 +162,30 @@ else
         {
             <div class="k-muted small u-center">Morgendagens priser kommer ca. kl. 13.</div>
         }
-        <button class="linkish small" @onclick="() => _editMachine = !_editMachine">@(_editMachine ? "Luk" : "Ret tid og strøm")</button>
-        @if (_editMachine)
-        {
-            @* The household's own programme (user 2026-10-20: the Asko runs 1.5 hours). Kept in the cookie on the phone. *@
-            <div class="row2 u-mt8">
-                <label class="small">Kører i
-                    <select class="k-input" value="@m.Hours.ToString(CultureInfo.InvariantCulture)" @onchange="SetHoursAsync">
-                        @foreach (var h in HourChoices) { <option value="@h.ToString(CultureInfo.InvariantCulture)">@Hours(h)</option> }
-                    </select>
-                </label>
-                <label class="small">Bruger (kWh)
-                    <input class="k-input" type="number" inputmode="decimal" min="0.1" max="5" step="0.1"
-                           value="@m.Kwh.ToString(CultureInfo.InvariantCulture)" @onchange="SetKwhAsync" />
-                </label>
-            </div>
-            <div class="k-muted small u-mt6">Står i manualen eller på energimærket. Gemmes kun på din telefon.</div>
-            <button class="linkish small" @onclick="ResetMachineAsync">Brug standard (@(m.IsWash ? "1 kWh, 2 timer" : "0,54 kWh, 2 timer"))</button>
-        }
-        @if (picked is not null)
-        {
-            <button class="linkish small" @onclick="() => _selected = null">↺ Tilbage til nu</button>
-        }
     </section>
 
     @if (strip.Count > 0)
     {
         <section class="k-card">
             <h2 class="k-card-title">Time for time</h2>
+            @* The hours the machine runs in are shaded, so a 2-hour run shows as more than one column (user 2026-11-24). *@
+            @* Shaded: the tapped start's run - or, with nothing tapped, the cheapest period (user 2026-11-24). *@
+            @{ var runFrom = picked is not null ? start : best is not null ? best.Start : start; var runTo = runFrom.AddHours(m.Hours); }
             <div class="bars">
                 @foreach (var h in strip)
                 {
+                    var inRun = h.Start < runTo && h.Start.AddHours(1) > runFrom;
                     var pct = span > 0 ? 15 + 85 * (h.KrPerKwh - min) / span : 50;
                     @* The whole column is the tap target: it moves the machine's start to that hour. *@
-                    <div class="bar-col @(_selected == h.Start ? "sel" : "")" title="@When(h.Start) · @Kr(h.KrPerKwh) kr/kWh"
+                    <div class="bar-col @(_selected == h.Start ? "sel" : "") @(inRun ? "in-run" : "")" title="@When(h.Start) · @Kr(h.KrPerKwh) kr/kWh"
                          @onclick="() => _selected = _selected == h.Start || h.IsNow ? null : h.Start">
                         <div class="bar @Band(h.Rank01) @(h.IsNow ? "now" : "") @(h.Start.Hour == 0 ? "midnight" : "")"
                              style="--h:@pct.ToString("0", CultureInfo.InvariantCulture)%">
                             @* Said in words too, not only in green (user is a bit colour-blind). *@
-                            @if (h == cheapest) { <span class="bar-tip">billigst</span> }
+                            @* The tag sits where the advice says to START (the whole run's cheapest start), not on the single
+                               cheapest hour - two different "billigst" confused (user 2026-11-24). *@
+                            @if (best is not null && best.Start > QuarterNow() && h.Start <= best.Start && best.Start < h.Start.AddHours(1))
+                            { <span class="bar-tip">billigst kl. @best.Start.ToString("HH:mm")</span> }
                         </div>
                     </div>
                 }
@@ -213,12 +195,35 @@ else
                 {
                     var h = strip[i];
                     // The hour right after "nu" stays blank, so "nu" never runs into "9" or "15".
-                    var label = h.IsNow ? "nu" : i == 1 && strip[0].IsNow ? "" : h.Start.Hour % 3 == 0 ? h.Start.Hour.ToString() : "";
+                    // Midnight says where tomorrow starts (user 2026-11-24: more intuitive).
+                    var label = h.IsNow ? "nu" : i == 1 && strip[0].IsNow ? "" : h.Start.Hour == 0 ? "i morgen" : h.Start.Hour % 3 == 0 ? h.Start.Hour.ToString() : "";
                     <span>@label</span>
                 }
             </div>
-            <div class="k-muted small u-mt6 u-center">Høje, stribede søjler er dyre timer – lave er billige.</div>
-            <div class="k-muted small u-mt6 u-center">Tryk på en søjle – så viser det store tal prisen, hvis @(Current.Run)en starter der.</div>
+            <div class="k-muted small u-mt6 u-center">Hver søjle er én time. Lav og grøn = billig · høj, rød og stribet = dyr. Det skraverede felt er den billigste periode at køre @(Current.Run)en i (@Hours(m.Hours)) – tryk på en søjle for at se en anden starttid.</div>
+            @* Each column's numbers in words (user 2026-11-24: "each column, how much"): the tapped hour, or now. *@
+            @{ var shown = picked ?? strip.FirstOrDefault(h => h.IsNow); }
+            @if (shown is not null)
+            {
+                <div class="small u-mt6 u-center">
+                    <b>@(shown.IsNow ? "Lige nu" : $"{When(shown.Start)}–{shown.Start.AddHours(1):HH}")</b>: @Kr(shown.KrPerKwh) kr pr. kWh
+                    @{ var shownRun = picked is null ? run : pickedRun; }
+                    @if (shownRun is null)
+                    {
+                        <text> · priserne dækker ikke hele @(Current.Run)en endnu</text>
+                    }
+                    else
+                    {
+                        <text> · én @Current.Run startet @(shown.IsNow ? "nu" : $"kl. {shown.Start:HH:mm}") kører til kl. @((picked is null ? QuarterNow() : start).AddHours(m.Hours).ToString("HH:mm")) og koster <b>@Kr(shownRun.CostKr) kr</b></text>
+                        @if (picked is not null && run is not null)
+                        {
+                            var diff = shownRun.CostKr - run.CostKr;
+                            <text> – <b>@(Math.Abs(diff) < 0.01 ? "det samme som nu" : diff < 0 ? $"{Kr(-diff)} kr billigere end nu" : $"{Kr(diff)} kr dyrere end nu")</b></text>
+                        }
+                    }
+                </div>
+            }
+            <div class="k-muted small u-mt6 u-center">@(picked is null ? "Tryk på en søjle for at se prisen i den time." : "Tryk på søjlen igen for at gå tilbage til nu.")</div>
         </section>
     }
 
@@ -243,12 +248,15 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1)
         <h2 class="k-card-title">Hvad havde du sparet?</h2>
         <div class="now-price lvl-cheap">@hs.SavedKr.ToString("0", Da) kr</div>
         <div class="now-unit">på de sidste @hs.Days dage – ca. @Round10(hs.PerYearKr) kr om året</div>
-        <div class="now-compare">Med én @Current.Run om dagen (@Kwh(Current.Kwh) kWh, @Hours(Current.Hours)): startet kl. 18 hver dag havde den kostet <b>@Kr(hs.UsualKr) kr</b>. Startet på dagens billigste tid havde den kostet <b>@Kr(hs.CheapestKr) kr</b>. Alt inkl. moms, afgifter og @(_gridName.Length > 0 ? _gridName : "nettarif").</div>
+        @* Split into short lines (user 2026-11-24: more intuitive). *@
+        <div class="now-compare">Hvis du hver dag havde startet én @Current.Run på dagens billigste tid – i stedet for kl. 18.</div>
+        <div class="now-compare">Kl. 18 hver dag: <b>@Kr(hs.UsualKr) kr</b> · Billigste tid: <b>@Kr(hs.CheapestKr) kr</b></div>
+        <div class="k-muted small">Med moms, afgifter og @(_gridName.Length > 0 ? (_gridName.EndsWith('s') ? _gridName + "'" : _gridName + "s") + " nettarif" : "nettarif").</div>
         @if (_gridName.Length == 0)
         {
             <div class="k-muted small u-mt6">Vi kender ikke dit netselskab endnu – skriv hvor du bor øverst, så bliver tallet præcist.</div>
         }
-        <div class="k-muted small u-mt6">MinElpris regner det på <b>dit eget forbrug</b> fra måleren – for alle dine maskiner og elbilen – og siger til, når du skal starte.</div>
+        <div class="k-muted small u-mt6">Vil du have det regnet på <b>jeres egen elmåler</b> – for alle maskiner og elbilen? Det gør MinElpris.</div>
     </section>
 }
 
@@ -277,8 +285,6 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1)
     // The free app prices one machine at a time: the dishwasher or the washing machine (user 2026-10-20), with the
     // household's own hours and kWh from the cookie, each quarter at its own price.
     private HomeMachine Current => _view?.Machine ?? HomeMachine.Dishwasher();
-    private bool _editMachine;
-    private static readonly double[] HourChoices = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3.5, 4];
 
     // "kl. 22:45", "i nat kl. 02:00", "i morgen kl. 13:15".
     private string StartAt(DateTime t) => $"{When(t)}:{t:mm}";
@@ -304,27 +310,6 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1)
         _ = InvokeAsync(LoadHindsightAsync);   // "Hvad havde du sparet?" follows the machine
     }
 
-    private async Task SetHoursAsync(ChangeEventArgs e)
-    {
-        if (double.TryParse(e.Value?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var h))
-            await MachineChangedAsync(Front.SetMachineAsync(_s, h, null));
-    }
-
-    private async Task SetKwhAsync(ChangeEventArgs e)
-    {
-        // A phone may send "1,5" or "1.5".
-        if (double.TryParse(e.Value?.ToString()?.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var k))
-            await MachineChangedAsync(Front.SetMachineAsync(_s, null, k));
-    }
-
-    private Task ResetMachineAsync() => MachineChangedAsync(Front.ResetMachineAsync(_s));
-
-    private async Task MachineChangedAsync(Task save)
-    {
-        await save;
-        _ = InvokeAsync(LoadHindsightAsync);
-    }
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
@@ -335,7 +320,14 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1)
 
     private static string Kwh(double v) => v.ToString("0.##", Da);
     private static string Round10(double kr) => (Math.Round(kr / 10) * 10).ToString("#,##0", Da);
-    private static string Hours(double h) => h == 1 ? "1 time" : h < 1 ? $"{h * 60:0} min" : $"{h.ToString("0.##", Da)} timer";
+    // "2 timer", "3 t 45 min", "45 min"
+    private static string Hours(double h)
+    {
+        var whole = (int)h;
+        var min = (int)Math.Round((h - whole) * 60);
+        if (min == 0) return whole == 1 ? "1 time" : $"{whole} timer";
+        return whole == 0 ? $"{min} min" : $"{whole} t {min} min";
+    }
 
     private DateTime QuarterNow()
     {
@@ -371,7 +363,7 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1)
 
     private void OpenSupplier()
     {
-        _supplierPick = _s.SupplierId.Length > 0 ? _s.SupplierId : Front.Suppliers.FirstOrDefault()?.Id ?? "";
+        _supplierPick = _s.SupplierId;   // "" = "Vælg dit elselskab", never a guess
         _customOre = _s.CustomTillaegOre;
         _askSupplier = !_askSupplier;
     }

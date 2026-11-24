@@ -5,6 +5,7 @@
 
 <PageTitle>Opsætning – MinElpris</PageTitle>
 
+@* Kolibri classes only - no inline styles, no emojis (user 2026-11-24). *@
 @if (!_loaded)
 {
     <p class="k-muted">Henter…</p>
@@ -17,63 +18,64 @@ else if (_facts is null)
 else
 {
     <h1>Opsætning · @_facts.HouseholdName</h1>
-    <p class="k-muted small" style="margin:4px 0 12px">
+    <p class="k-muted">
         Det her gør du sammen med kunden – ved besøget eller over Snak/telefon. Det meste krydser sig selv af, når kundens
         data er på plads; resten krydser du af. Til sidst får kunden overdragelsesarket.
     </p>
 
-    <div class="k-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-            <b>@_done af @_total klar</b>
-            <span style="display:flex;gap:8px;flex-wrap:wrap">
+    <section class="k-card">
+        <div class="k-row between">
+            <span class="k-tag">@_done af @_total klar</span>
+            <div class="k-row">
                 <a class="k-btn k-btn-sm" href="@($"/vaelg/{Id}")">Åbn kundens app</a>
                 <a class="k-btn k-btn-primary k-btn-sm" href="@($"/kunder/{Id}/overdragelse")">Overdragelsesark</a>
-            </span>
-        </div>
-        <div style="height:8px;border-radius:6px;background:var(--k-line,#ddd);margin-top:10px;overflow:hidden">
-            <div style="height:100%;width:@(_total == 0 ? 0 : _done * 100 / _total)%;background:var(--k-accent,#1f7a5c)"></div>
-        </div>
-    </div>
-
-    @foreach (var s in _states)
-    {
-        <div class="k-card" style="padding:12px 14px">
-            <div style="display:flex;gap:10px;align-items:flex-start">
-                <span style="font-size:20px;line-height:1.2">@(s.Done ? "✅" : "⬜")</span>
-                <div style="flex:1">
-                    <b>@s.Step.Title</b>
-                    <div class="k-muted small">
-                        @if (s.Step.IsAuto)
-                        {
-                            @(s.Done ? "Krydset af automatisk – data er på plads." : "Krydser sig selv af, når det er gjort.")
-                        }
-                        else if (s.TickedUtc is { } at)
-                        {
-                            @($"Krydset af {at.ToLocalTime().ToString("d. MMM 'kl.' HH:mm", CustomerSetup.Da)}")
-                        }
-                    </div>
-                    <details style="margin-top:4px">
-                        <summary class="small">Sådan gør du</summary>
-                        <div class="small" style="margin-top:4px">@s.Step.How</div>
-                    </details>
-                </div>
-                @if (!s.Step.IsAuto)
-                {
-                    <button class="k-btn k-btn-sm @(s.Done ? "" : "k-btn-primary")" @onclick="() => Toggle(s)">@(s.Done ? "Fortryd" : "Klar")</button>
-                }
             </div>
         </div>
-    }
+    </section>
 
-    <div class="k-card">
+    <section class="k-card">
+        <ul class="k-list">
+            @foreach (var s in _states)
+            {
+                <li>
+                    <span class="k-status"><span class="k-dot @(s.Done ? "ok" : "")"></span>@(s.Done ? "Klar" : "Mangler")</span>
+                    <div class="k-stack">
+                        <b>@s.Step.Title</b>
+                        <span class="k-muted">
+                            @if (s.Step.IsAuto)
+                            {
+                                @(s.Done ? "Krydset af automatisk – data er på plads." : "Krydser sig selv af, når det er gjort.")
+                            }
+                            else if (s.TickedUtc is { } at)
+                            {
+                                @($"Krydset af {at.ToLocalTime().ToString("d. MMM 'kl.' HH:mm", CustomerSetup.Da)}")
+                            }
+                        </span>
+                        <details>
+                            <summary class="k-muted">Sådan gør du</summary>
+                            <p>@s.Step.How</p>
+                        </details>
+                    </div>
+                    @if (!s.Step.IsAuto)
+                    {
+                        <button class="k-btn k-btn-sm @(s.Done ? "" : "k-btn-primary")" @onclick="() => Toggle(s)">@(s.Done ? "Fortryd" : "Klar")</button>
+                    }
+                </li>
+            }
+        </ul>
+    </section>
+
+    <section class="k-card">
         <h2 class="k-card-title">Det aftalte vi</h2>
-        <div class="k-muted small" style="margin-bottom:6px">Står på overdragelsesarket. Fx "Flyt opvasken til efter kl. 21" eller "Ring i januar, når vinterregningen er kommet".</div>
-        <textarea @bind="_notes" rows="4" style="width:100%"></textarea>
-        <button class="k-btn k-btn-sm" style="margin-top:6px" @onclick="SaveNotes">Gem</button>
-        @if (_saved) { <span class="small ok" style="margin-left:8px">Gemt</span> }
-    </div>
+        <label class="k-label" for="notes">Står på overdragelsesarket. Fx "Flyt opvasken til efter kl. 21" eller "Ring i januar, når vinterregningen er kommet".</label>
+        <textarea id="notes" class="k-input k-textarea" @bind="_notes"></textarea>
+        <div class="k-row k-mt">
+            <button class="k-btn k-btn-sm" @onclick="SaveNotes">Gem</button>
+            @if (_saved) { <span class="k-tag">Gemt</span> }
+        </div>
+    </section>
 
-    <p class="small"><a href="/kunder">← Alle kunder</a></p>
+    <p><a href="/kunder">Tilbage til alle kunder</a></p>
 }
 
 @code {
