@@ -97,4 +97,13 @@ public class FixedPriceTests
         hint.Should().BeLessThanOrEqualTo(180, "at most 60 % of the new price");
         FixedPrice.OurPrice(252, null).Should().BeLessThan(252, "10-25 % under the market");
     }
+
+    [Test]
+    public void A_box_set_follows_the_same_rules()
+    {
+        // In Treatment Season Three: ONE DBA listing "sæson 1 og 2" at 400 kr gave 200 kr (2026-11-24).
+        var box = new Item { Kind = Kinds.Dvd, Category = ProductTypes.Film, Title = "In Treatment – Season Three", PricesAt = DateTime.UtcNow, Confidence = 1, ItemPhoto = "x.jpg" };
+        FixedPrice.Applies(box).Should().BeTrue();
+        FixedPrice.Hint(box, [new PriceFind { Source = "DBA", Kr = 400, Name = "DVD-bokse In Treatment sæson 1 og 2" }], 200m).Should().BeNull();
+    }
 }

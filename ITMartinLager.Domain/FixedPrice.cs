@@ -20,8 +20,10 @@ public static class FixedPrice
     public const decimal MaxShareOfNew = 0.6m;
 
     /// <summary>Kinds that follow the fixed price. The rest keep their own way (Magic, Ting, box sets, console games ...).</summary>
+    // Box sets and console games follow the same rules since 2026-11-24 (user: "silver in treatment?" - ONE DBA listing for seasons
+    // 1 + 2 at 400 kr made every In Treatment box 200 kr).
     public static bool Applies(Item i) =>
-        !i.Rare && i.Kind != Kinds.Magic && i.Kind != Kinds.Ting && !Pricing.FromAdsKind(i) && StandardOf(i) is not null;
+        !i.Rare && i.Kind != Kinds.Magic && i.Kind != Kinds.Ting && StandardOf(i) is not null;
 
     /// <summary>The kind's fixed price; an Anders And-blad is the 3 kr bin.</summary>
     public static int? StandardOf(Item i) => i.Kind == Kinds.AndersAnd ? 3 : Shop.StandardFor(i.Kind, i.Category);
