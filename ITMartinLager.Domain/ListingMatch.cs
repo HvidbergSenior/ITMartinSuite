@@ -18,6 +18,7 @@ public static partial class ListingMatch
         listing ??= "";
         if (Films.IsSeason(i.Kind, i.Title) && !SameSeason(i.Title, listing)) return true;
         if (Bundle(listing, i)) return true;
+        if (NoIssueNumber(i, listing)) return true;
         return !TitleWordsIn(i, listing);
     }
 
@@ -26,7 +27,8 @@ public static partial class ListingMatch
     // then every listing of that artist matches (Evita, Freedom, 1996 ...).
     public static bool NoAlbum(Item i)
     {
-        if (i.Kind is not (Kinds.Cd or Kinds.Vinyl) || i.Artist.Trim() == "") return false;
+        // DVD/Blu-ray too (round 2: stand-up DVD "Mick Øgendahl" matched Spas, Micktrix, Julefrokosten ...).
+        if (i.Kind is not (Kinds.Cd or Kinds.Vinyl or Kinds.Dvd or Kinds.BluRay) || i.Artist.Trim() == "") return false;
         var title = Words(i.Title).ToList();
         if (title.Count == 0) return false;
         var artist = Words(i.Artist).ToHashSet();
@@ -67,6 +69,15 @@ public static partial class ListingMatch
         if (ours.Count != 1) return true;   // we do not know our own season - leave it to the other rules
         var theirs = Seasons(listing);
         return theirs.Count == 1 && theirs.SetEquals(ours);
+    }
+
+    // ---------- 2b. a numbered blad: the listing must name OUR number ----------
+    // Round 2 (2026-11-24): "Sølvpil 1978" / "SØLVPIL 1978, Tegneserie" for our Sølvpil nr. 48 from 1978 - could be any of that year's issues.
+    public static bool NoIssueNumber(Item i, string listing)
+    {
+        var n = i.Number.Trim().TrimStart('0');
+        if (!FixedPrice.Magazines.Contains(i.Kind) || n == "" || !n.All(char.IsDigit)) return false;
+        return !Regex.IsMatch(listing, $@"(?<!\d)0*{n}(?!\d)");
     }
 
     // ---------- 3. several things at once ----------
