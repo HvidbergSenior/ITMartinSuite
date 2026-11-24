@@ -27,3 +27,4 @@
 .nh-topic-row { display: flex; gap: 8px; }
 .nh-topic-row .k-input { flex: 1; min-width: 0; }
 @media (max-width: 520px) { .nh-img { width: 72px; height: 72px; } }
+.nh-summary-basis { font-size: var(--k-fs-small); margin: var(--k-space-2) 0 0; }

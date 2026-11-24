@@ -20,7 +20,7 @@ builder.Services.AddKolibri(k =>
         "Åbn siden – forsiden er de nyeste nyheder fra dine kilder.",
         "Vil du kun læse om ét emne? Åbn boksen Kun nyheder om …, skriv fx Trump og tryk Vis. Flere emner: komma imellem.",
         "Tryk Kilder for at slå kilder til og fra, vælge antal eller tilføje din egen (en RSS-adresse). Valget gemmes kun på din egen telefon.",
-        "Tryk på en nyhed og derefter Lav resumé for at få den kort fortalt.",
+        "Tryk på en nyhed og derefter Lav resumé – AI'en læser hele artiklen og fortæller den kort. Er artiklen låst, står der, at resuméet kun bygger på indledningen.",
     ];
     k.Version = "2026.11";
     k.ThemeColor = "#f4f6f5";

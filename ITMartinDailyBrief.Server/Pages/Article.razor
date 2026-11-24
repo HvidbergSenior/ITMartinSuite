@@ -26,7 +26,11 @@ else
 
         @if (_summary.Length > 0)
         {
-            <div class="nh-summary"><div class="k-label">Kort fortalt (lavet af AI)</div><p>@_summary</p></div>
+            <div class="nh-summary">
+                <div class="k-label">Kort fortalt (lavet af AI)</div>
+                <p>@_summary</p>
+                <p class="k-muted nh-summary-basis">@(_whole ? "Ud fra hele artiklen." : "Kun ud fra overskrift og indledning – resten af artiklen kunne ikke læses (måske låst bag betaling).")</p>
+            </div>
         }
         else if (_item.Description.Length > 0)
         {
@@ -57,12 +61,13 @@ else
 
     private NewsItem? _item;
     private string _summary = "", _note = "";
-    private bool _busy;
+    private bool _busy, _whole;
 
     protected override void OnParametersSet()
     {
         _item = News.Find(ItemId);
-        _summary = _item is null ? "" : Ai.Known(_item.Id) ?? "";
+        var known = _item is null ? null : Ai.Known(_item.Id);
+        (_summary, _whole) = (known?.Text ?? "", known?.FromWholeArticle ?? false);
     }
 
     private async Task SummarizeAsync()
@@ -70,6 +75,7 @@ else
         _busy = true; _note = "";
         var r = await Ai.SummarizeAsync(_item);
         _busy = false;
+        _whole = r.FromWholeArticle;
         (_summary, _note) = r.Outcome switch
         {
             Summaries.Outcome.Ok => (r.Text, ""),

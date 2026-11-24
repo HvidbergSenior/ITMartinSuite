@@ -10,10 +10,16 @@ public interface IFeedReader
     Task<IReadOnlyList<NewsItem>> ReadAsync(NewsSource source, CancellationToken ct);
 }
 
-// Writes a short Danish summary of one article ("" = could not).
+// Writes a short Danish summary of one article ("" = could not). ArticleText.None = only headline + teaser.
 public interface ISummaryWriter
 {
-    Task<string> SummarizeAsync(NewsItem item, CancellationToken ct);
+    Task<string> SummarizeAsync(NewsItem item, ArticleText article, CancellationToken ct);
+}
+
+// Reads the body text of an article from its own page (ArticleText.None = could not, e.g. paywall or blocked).
+public interface IArticleTextReader
+{
+    Task<ArticleText> ReadAsync(NewsItem item, CancellationToken ct);
 }
 
 // The front page and single articles. Each source is read at most once a minute, whoever asks;
@@ -50,29 +56,34 @@ public sealed class NewsFeed(IFeedReader reader, TimeProvider clock)
 
 // AI summary of one article, on request. Each article is summarised once for everybody (kept in memory),
 // and the whole app has a hard daily ceiling (News:AiPerDay, default 200).
-public sealed class Summaries(ISummaryWriter writer, SummaryBudget budget, TimeProvider clock, ILogger<Summaries> log)
+public sealed class Summaries(ISummaryWriter writer, IArticleTextReader articles, SummaryBudget budget, TimeProvider clock, ILogger<Summaries> log)
 {
     public enum Outcome { Ok, NoArticle, DayLimit, Failed }
-    public sealed record Result(Outcome Outcome, string Text = "");
+    // FromWholeArticle: the article page could be read (else only headline + teaser, e.g. paywall) - the page tells the reader.
+    public sealed record Result(Outcome Outcome, string Text = "", bool FromWholeArticle = false);
 
-    private readonly ConcurrentDictionary<string, string> _done = new();
+    private readonly ConcurrentDictionary<string, Result> _done = new();
     private readonly object _lock = new();
 
-    public string? Known(string id) => _done.GetValueOrDefault(id);
+    public Result? Known(string id) => _done.GetValueOrDefault(id);
 
     public async Task<Result> SummarizeAsync(NewsItem? item, CancellationToken ct = default)
     {
         if (item is null) return new(Outcome.NoArticle);
-        if (_done.TryGetValue(item.Id, out var cached)) return new(Outcome.Ok, cached);
+        if (_done.TryGetValue(item.Id, out var cached)) return cached;
         lock (_lock)
             if (!budget.TryUse(clock.GetUtcNow().UtcDateTime))
             {
                 log.LogWarning("AI summary day limit ({Max}) reached", budget.MaxPerDay);
                 return new(Outcome.DayLimit);
             }
-        var text = await writer.SummarizeAsync(item, ct);
+        // Read the article page first (free, no AI); too little text = locked or unreadable -> headline + teaser only.
+        var article = await articles.ReadAsync(item, ct);
+        if (!article.IsWhole) article = ArticleText.None;
+        var text = await writer.SummarizeAsync(item, article, ct);
         if (text.Length == 0) return new(Outcome.Failed);
-        _done[item.Id] = text;
-        return new(Outcome.Ok, text);
+        var result = new Result(Outcome.Ok, text, article.IsWhole);
+        _done[item.Id] = result;
+        return result;
     }
 }

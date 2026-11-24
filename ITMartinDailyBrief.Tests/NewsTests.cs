@@ -35,7 +35,13 @@ public class NewsTests
     {
         public int Calls;
         public string Answer = "Kort fortalt.";
-        public Task<string> SummarizeAsync(NewsItem item, CancellationToken ct) { Calls++; return Task.FromResult(Answer); }
+        public ArticleText? Got;
+        public Task<string> SummarizeAsync(NewsItem item, ArticleText article, CancellationToken ct) { Calls++; Got = article; return Task.FromResult(Answer); }
+    }
+
+    private sealed class Pages(string text = "") : IArticleTextReader
+    {
+        public Task<ArticleText> ReadAsync(NewsItem item, CancellationToken ct) => Task.FromResult(new ArticleText(text));
     }
 
     [Test]
@@ -96,7 +102,7 @@ public class NewsTests
     {
         var writer = new Writer();
         var clock = new Clock(T0);
-        var ai = new Summaries(writer, new SummaryBudget(2), clock, NullLogger<Summaries>.Instance);
+        var ai = new Summaries(writer, new Pages(), new SummaryBudget(2), clock, NullLogger<Summaries>.Instance);
         (await ai.SummarizeAsync(Item("a", 1))).Outcome.Should().Be(Summaries.Outcome.Ok);
         (await ai.SummarizeAsync(Item("a", 1))).Text.Should().Be("Kort fortalt.");
         writer.Calls.Should().Be(1);
@@ -175,5 +181,55 @@ public class NewsTests
             .Should().Be("Kort fortalt.");
         ClaudeSummaryWriter.TextOf("""{"content":[]}""").Should().BeEmpty();
         ClaudeSummaryWriter.TextOf("ikke json").Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Summary_uses_the_whole_article_when_it_can_be_read_and_says_so()
+    {
+        var whole = new string('x', ArticleText.MinWhole);
+        var writer = new Writer();
+        var ai = new Summaries(writer, new Pages(whole), new SummaryBudget(5), new Clock(T0), NullLogger<Summaries>.Instance);
+        var r = await ai.SummarizeAsync(Item("a", 1));
+        r.FromWholeArticle.Should().BeTrue();
+        writer.Got!.Text.Should().Be(whole);
+        ai.Known(Item("a", 1).Id)!.FromWholeArticle.Should().BeTrue();
+
+        var locked = new Summaries(writer, new Pages("Kun en kort teaser."), new SummaryBudget(5), new Clock(T0), NullLogger<Summaries>.Instance);
+        (await locked.SummarizeAsync(Item("b", 1))).FromWholeArticle.Should().BeFalse();
+        writer.Got!.Should().Be(ArticleText.None);
+    }
+
+    [Test]
+    public void Article_text_is_the_body_paragraphs_without_menus_scripts_or_short_bits()
+    {
+        var body = "Regeringen fremlagde i dag et nyt forslag om skat på pension, som skal gælde fra næste år.";
+        var html = $"""
+            <html><body><nav><p>Forside · Nyheder · Sport · Vejret · Kontakt · Om os · Abonnement</p></nav>
+            <article><h1>Titel</h1><p>{body}</p><p>Kort</p><script>var x = "hemmelig kode der ikke er tekst";</script>
+            <p>Forslaget får blandet modtagelse hos oppositionen, der kalder det &amp; urimeligt for mange.</p>
+            <p>Skatteministeren siger, at forslaget vil give flere penge til velfærd, og at pensionisterne med de laveste indtægter slipper.</p></article>
+            <article><h2>Storm over Sjælland</h2><p>Det blæser kraftigt over hele Sjælland i dag, og flere færger er aflyst resten af dagen.</p></article>
+            <footer><p>Copyright og cookies og alt det der står nederst på siden hver gang.</p></footer></body></html>
+            """;
+        var text = HtmlArticleReader.Extract(html, "Nyt forslag om skat på pension").Text;
+        HtmlArticleReader.Extract(html, "Storm lukker Storebæltsbroen").IsWhole.Should().BeFalse();
+        text.Should().Contain(body).And.Contain("& urimeligt").And.NotContain("Storm").And.NotContain("Forside").And.NotContain("Copyright").And.NotContain("hemmelig");
+        HtmlArticleReader.Extract("<html><body></body></html>", "x").IsWhole.Should().BeFalse();
+    }
+
+    [Test]
+    public void Articles_are_never_fetched_from_the_home_network()
+    {
+        foreach (var ip in new[] { "10.0.0.200", "192.168.1.1", "127.0.0.1", "172.16.0.5", "169.254.1.1", "100.64.0.1", "::1", "fd00::1" })
+            HtmlArticleReader.IsPublic(System.Net.IPAddress.Parse(ip)).Should().BeFalse(ip);
+        HtmlArticleReader.IsPublic(System.Net.IPAddress.Parse("151.101.1.1")).Should().BeTrue();
+    }
+
+    [Test]
+    public void Prompt_only_asks_for_a_long_summary_when_the_whole_article_is_there()
+    {
+        var item = new NewsItem("Storm", "u", "Det blæser.", "", "", "DR", NewsSource.Grey, T0);
+        ClaudeSummaryWriter.Prompt(item, new ArticleText(new string('y', ArticleText.MinWhole))).Should().Contain("150-200 ord").And.Contain("Artiklens tekst");
+        ClaudeSummaryWriter.Prompt(item, ArticleText.None).Should().Contain("2-3").And.Contain("Det blæser.").And.NotContain("150-200");
     }
 }

@@ -8,30 +8,18 @@ using Microsoft.Extensions.Logging;
 
 namespace ITMartinDailyBrief.Infrastructure;
 
-// One article -> 150-200 words of calm Danish, with Haiku (cheap). No key = no summaries ("").
+// One article -> calm Danish summary with Haiku (cheap), from the whole article text when it could be read. No key = no summaries ("").
 public sealed class ClaudeSummaryWriter(HttpClient http, IConfiguration cfg, ILogger<ClaudeSummaryWriter> log) : ISummaryWriter
 {
     // Newest cheap model (2026-11-24, user wanted a better summary; same price class).
     private const string Model = "claude-haiku-5-5";
 
-    public async Task<string> SummarizeAsync(NewsItem item, CancellationToken ct)
+    public async Task<string> SummarizeAsync(NewsItem item, ArticleText article, CancellationToken ct)
     {
         var apiKey = cfg["CLAUDE:APIKEY"] ?? "";
         if (apiKey.Length == 0) return "";
+        var prompt = Prompt(item, article);
 
-        var hasDesc = !string.IsNullOrWhiteSpace(item.Description);
-        var prompt = $"""
-            Skriv et fyldigt dansk resumé (150-200 ord) af denne nyhedsartikel.
-            Dæk: hvad skete, hvem er involveret, hvorfor det skete, hvad sker der nu.
-            Rolig, neutral journalistisk tone. Ingen kildehenvisninger.
-            {(!hasDesc ? "Kun titlen er tilgængelig. Skriv 2-3 rolige sætninger om, hvad titlen fortæller – find ikke på detaljer." : "Brug kun det, der står i titlen og beskrivelsen – find ikke på detaljer.")}
-
-            Titel: {item.Title}
-            Kilde: {item.SourceName}
-            {(hasDesc ? $"Beskrivelse: {item.Description}" : "")}
-
-            Svar KUN med resuméteksten — ingen overskrift, ingen forklaring.
-            """;
         // Thinking OFF (2026-11-24): with it on, Haiku 5.5 spent all 600 tokens thinking and wrote no text (stop_reason max_tokens).
         var body = JsonSerializer.Serialize(new
         {
@@ -63,6 +51,29 @@ public sealed class ClaudeSummaryWriter(HttpClient http, IConfiguration cfg, ILo
 
     private const string Blank = "\n\n";
 
+    // Whole article -> 150-200 words; only headline/teaser -> 2-3 sentences. Never invent details.
+    public static string Prompt(NewsItem item, ArticleText article)
+    {
+        var hasDesc = !string.IsNullOrWhiteSpace(item.Description);
+        var task = article.IsWhole
+            ? "Skriv et fyldigt dansk resumé (150-200 ord) af artiklen. Dæk: hvad skete, hvem er involveret, hvorfor, hvad sker der nu."
+            : "Skriv 2-3 rolige danske sætninger om, hvad overskriften og indledningen fortæller.";
+        var source = article.IsWhole ? "Artiklens tekst:\n" + article.Text
+            : hasDesc ? "Indledning (kun den kunne læses):\n" + item.Description
+            : "(Kun overskriften kunne læses.)";
+        return $"""
+            {task}
+            Rolig, neutral journalistisk tone. Brug kun det, der står herunder – find ikke på detaljer. Ingen kildehenvisninger.
+            Er artiklen på engelsk, så skriv resuméet på dansk.
+
+            Titel: {item.Title}
+            Kilde: {item.SourceName}
+            {source}
+
+            Svar KUN med resuméteksten – ingen overskrift, ingen forklaring.
+            """;
+    }
+
     // The answer is a list of blocks; only "text" blocks are the summary (2026-11-24: content[0] was not always text -> no summary).
     public static string TextOf(string raw)
     {
@@ -92,6 +103,12 @@ public static class DailyBriefInfrastructure
             c.DefaultRequestHeaders.UserAgent.ParseAdd("Nyheder/1.0 (+https://itmartin.dk)");
         });
         services.AddHttpClient<ISummaryWriter, ClaudeSummaryWriter>(c => c.Timeout = TimeSpan.FromSeconds(25));
+        // Redirects are followed by HtmlArticleReader itself, so every hop is checked for a public address.
+        services.AddHttpClient<IArticleTextReader, HtmlArticleReader>(c =>
+        {
+            c.Timeout = TimeSpan.FromSeconds(10);
+            c.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; Nyheder/1.0; +https://itmartin.dk)");
+        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         services.AddSingleton(new SummaryBudget(int.TryParse(cfg["News:AiPerDay"], out var n) && n >= 0 ? n : 200));
         services.AddSingleton<NewsFeed>();
         services.AddSingleton<Summaries>();
