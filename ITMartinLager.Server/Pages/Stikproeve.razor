@@ -55,6 +55,15 @@ else
                     var key = ITMartinLager.Domain.ListingVerdict.KeyOf(f);
                     var mark = row.Marks.TryGetValue(key, out var m) ? m : "";
                     <li class="@(mark == SpotCheckUseCases.Forkert ? "lg-spot-wrong" : mark == SpotCheckUseCases.Rigtig ? "lg-spot-right" : mark == SpotCheckUseCases.KanIkkeSe ? "lg-spot-unsure" : "")">
+                        @* 2026-11-24 (user: "look at the pictures from front cover"): the listing's own picture, so another edition's cover shows at a glance. *@
+                        @if (f.Image.StartsWith("http"))
+                        {
+                            <a class="lg-spot-thumb" href="@f.Image" target="_blank" rel="noopener noreferrer" title="Annoncens billede – åbner stort"><img src="@f.Image" alt="" loading="lazy" referrerpolicy="no-referrer" /></a>
+                        }
+                        else
+                        {
+                            <span class="lg-spot-thumb lg-spot-nothumb">intet billede</span>
+                        }
                         <span class="lg-spot-kr">@f.Kr kr</span>
                         <span class="lg-spot-src">@f.Source</span>
                         @if (f.Url.StartsWith("http")) { <a href="@f.Url" target="_blank" rel="noopener">@f.Name</a> } else { <span>@f.Name</span> }
