@@ -33,7 +33,17 @@ else
     {
         <section class="k-card lg-spot">
             <div class="lg-spot-head">
-                <img class="lg-spot-photo" src="/varefoto/@row.Item.Id" alt="" loading="lazy" />
+                @* 2026-11-24 (user: "Will Young · Keep On no picture"): no own photo yet -> the pile photo it was read from, so you can see what it is. *@
+                @if (row.Item.ItemPhoto == "" && row.Item.PhotoId is { } pile)
+                {
+                    <a class="lg-spot-pile" href="/bunkefoto/@pile" target="_blank" rel="noopener" title="Billedet af bunken, varen er læst fra – åbner stort i en ny fane">
+                        <img class="lg-spot-photo" src="/bunkefoto/@pile" alt="" loading="lazy" /><span>bunkefoto</span>
+                    </a>
+                }
+                else
+                {
+                    <img class="lg-spot-photo" src="/varefoto/@row.Item.Id" alt="" loading="lazy" />
+                }
                 <div>
                     <b><a href="/vare/@row.Item.Id" target="_blank" rel="noopener" title="Åbner i en ny fane – listen her bliver stående">@row.Item.Line()</a></b>
                     <div class="k-small k-muted">@row.Item.Kind · @(row.Item.Box?.Code ?? "ingen kasse") · standard @(row.Standard is { } s ? $"{s} kr" : "–") · @PriceNow(row.Item)</div>

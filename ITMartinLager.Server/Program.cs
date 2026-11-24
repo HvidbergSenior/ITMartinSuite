@@ -164,6 +164,15 @@ app.MapGet("/api/logout", (HttpContext ctx) => { ctx.Response.Cookies.Delete("la
 static IResult Jpeg(string? file) => file is null ? Results.NotFound() : Results.File(file, "image/jpeg");
 app.MapGet("/varefoto/{id:int}", async (int id, int? n, ItemUseCases items) => Jpeg(await items.PhotoFileAsync(id, n ?? 1)));
 app.MapGet("/foto/{id:int}", (int id, VareinfoLinks v) => Results.Redirect(v.Photo(id)));
+// 2026-11-24: the pile photo itself, fetched from Vareinfo server to server (its own /foto needs a Vareinfo login) - Stikprøve shows
+// it for things without their own photo. Behind Lager's login like every page.
+app.MapGet("/bunkefoto/{id:int}", async (int id, IVareinfoGateway vareinfo, HttpContext c) =>
+{
+    var bytes = await vareinfo.PhotoAsync(id, null, c.RequestAborted);
+    if (bytes is null) return Results.NotFound();
+    c.Response.Headers.CacheControl = "private, max-age=86400";
+    return Results.File(bytes, "image/jpeg");
+});
 app.MapGet("/kolofonfoto/{id:int}", async (int id, KolofonUseCases k) => Jpeg(await k.PhotoFileAsync(id)));
 
 app.MapStockApi();
