@@ -36,6 +36,10 @@ public sealed class HouseholdData
     // "Det har vi fundet om jer" after connecting the meter - true once the user has seen it.
     // Default true so households that were set up before the onboarding existed never see it.
     public bool OnboardingSeen { get; set; } = true;
+    // The advisor's visit (2026-11-24): hand-ticked checklist steps (step id -> when) and the note that goes on the
+    // handover sheet under "Det aftalte vi". See CustomerSetup.
+    public Dictionary<string, DateTime> SetupTicks { get; set; } = [];
+    public string AdvisorNotes { get; set; } = "";
 }
 
 /// <summary>

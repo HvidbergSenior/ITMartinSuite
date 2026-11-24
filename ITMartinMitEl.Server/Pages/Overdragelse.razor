@@ -1,0 +1,108 @@
+@page "/kunder/{Id:guid}/overdragelse"
+@inject TenantContext Tenant
+@inject CustomerSetupReader Setup
+
+<PageTitle>Overdragelse – MinElpris</PageTitle>
+
+<style>
+    .handover h1 { margin-bottom: 2px; }
+    .handover h2 { font-size: 17px; margin: 18px 0 6px; }
+    .handover table { border-collapse: collapse; width: 100%; }
+    .handover td { padding: 5px 8px 5px 0; vertical-align: top; border-bottom: 1px solid var(--k-line, #e3e3e3); }
+    .handover td:first-child { font-weight: 600; white-space: nowrap; width: 1%; padding-right: 14px; }
+    .handover ol, .handover ul { margin: 4px 0 0 20px; padding: 0; }
+    .handover li { margin: 3px 0; }
+    .handover .contact { border: 2px solid var(--k-accent, #1f7a5c); border-radius: 12px; padding: 10px 14px; margin-top: 18px; }
+    @@media print {
+        .k-header, .k-footer, .advisor-bar, .no-print { display: none !important; }
+        body, .k-main, .k-content { background: #fff !important; color: #000 !important; }
+        .handover { font-size: 12.5pt; }
+        .handover a { color: #000; text-decoration: none; }
+    }
+</style>
+
+@if (_facts is null)
+{
+    <h1>Overdragelse</h1>
+    <p class="k-muted">Du har ikke adgang til den kunde (længere). <a href="/kunder">Tilbage til Kunder</a></p>
+}
+else
+{
+    <div class="no-print" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <button class="k-btn k-btn-primary k-btn-sm" type="button" onclick="window.print()">Udskriv / gem som PDF</button>
+        <a class="k-btn k-btn-sm" href="@($"/kunder/{Id}")">← Opsætning</a>
+    </div>
+
+    <div class="handover">
+        <h1>MinElpris – sådan bruger I den</h1>
+        <div class="k-muted">@_facts.HouseholdName · sat op @DkTime.Now.ToString("d. MMMM yyyy", CustomerSetup.Da) af Martin Hvidberg, ITMartin</div>
+
+        <h2>Det har vi sat op</h2>
+        @if (_setUp.Count == 0)
+        {
+            <p>Endnu intet – gennemgå opsætningen først.</p>
+        }
+        else
+        {
+            <table>
+                @foreach (var (label, value) in _setUp)
+                {
+                    <tr><td>@label</td><td>@value</td></tr>
+                }
+            </table>
+        }
+
+        <h2>Sådan logger I ind</h2>
+        <ul>
+            <li>Åbn <b>minelpris.itmartin.dk</b> – eller tryk på ikonet på telefonens hjemmeskærm.</li>
+            <li>Mail: <b>@_facts.OwnerEmail</b> og jeres egen adgangskode.</li>
+            <li>Glemt adgangskoden? Tryk <b>Glemt adgangskoden?</b> på log ind-siden, så får I et link på mail.</li>
+        </ul>
+
+        <h2>Det bruger I den til</h2>
+        <ol>
+            <li><b>Nu</b> – hvad strømmen koster lige nu, og om det betaler sig at vente med vask og opvask.</li>
+            <li><b>Dag</b> – hvad I brugte i går, time for time, og hvad det kostede.</li>
+            <li><b>Enheder</b> – hvad jeres maskiner og strømslugere koster om måneden og året.</li>
+            <li><b>Regning</b> – hvor pengene går hen: strømmen, netselskabet og staten.</li>
+            <li><b>Besked</b> – telefonen siger til, før de billige timer starter.</li>
+        </ol>
+
+        @if (_notes.Length > 0)
+        {
+            <h2>Det aftalte vi</h2>
+            <p style="white-space:pre-line;margin:0">@_notes</p>
+        }
+
+        <h2>Jeres data</h2>
+        <ul>
+            <li>Tallene kommer fra jeres egen elmåler (eloverblik.dk) og det, I selv lægger ind. De er kun jeres.</li>
+            @if (_facts.AdvisorAccessUntilUtc is { } until)
+            {
+                <li>Martin kan kigge med til og med <b>@until.ToLocalTime().ToString("d. MMMM yyyy", CustomerSetup.Da)</b>, så han kan hjælpe. I kan lukke for det når som helst under <b>Konto</b>.</li>
+            }
+            <li>Vil I stoppe, kan I slette hele kontoen under <b>Konto</b> – så er alt væk.</li>
+        </ul>
+
+        <div class="contact">
+            <b>Brug for hjælp?</b> Ring eller skriv til Martin Hvidberg, ITMartin<br />
+            📞 31 19 47 30 · ✉️ ITMartin@Mensa.dk
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private SetupFacts? _facts;
+    private List<(string Label, string Value)> _setUp = [];
+    private string _notes = "";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!Tenant.IsAdvisor || Tenant.UserId is not { } advisorId || await Setup.ReadAsync(advisorId, Id) is not { } r) return;
+        _facts = r.Facts;
+        _setUp = CustomerSetup.WhatWasSetUp(r.Facts);
+        _notes = r.Data.AdvisorNotes;
+    }
+}

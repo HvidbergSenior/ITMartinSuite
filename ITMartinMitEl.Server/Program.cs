@@ -47,6 +47,7 @@ builder.Services.AddKolibri(k =>
 builder.Services.AddElPriserSources();
 builder.Services.AddMinElprisMail();                        // "Glemt adgangskoden?" mail (2026-11-24)
 builder.Services.AddScoped<IResetAccounts, ResetAccounts>();
+builder.Services.AddScoped<CustomerSetupReader>();         // advisor checklist + handover sheet (2026-11-24)
 builder.Services.AddScoped(sp => new PasswordResetUseCases(sp.GetRequiredService<IResetAccounts>(), sp.GetRequiredService<IMailSender>()));
 builder.Services.AddMinElprisPaid(builder.Configuration);   // free vs paid (2026-11-12): sign-up needs the paid tick in Kunder
 // Accounts and per-household data (phase 2). The stores are resolved per request

@@ -29,7 +29,7 @@ public static class DependencyInjection
         return services;
     }
 
-    /// <summary>MinElpris: mail for "Glemt adgangskoden?" (from ITMartin@mensa.dk via ImprovMX, see SmtpMailSender).</summary>
+    /// <summary>MinElpris: mail for "Glemt adgangskoden?" (from martinhvidbergnielsen@gmail.com via Gmail, see SmtpMailSender).</summary>
     public static IServiceCollection AddMinElprisMail(this IServiceCollection services)
     {
         services.AddSingleton<IMailSender, SmtpMailSender>();

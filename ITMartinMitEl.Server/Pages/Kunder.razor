@@ -4,6 +4,7 @@
 @inject AdvisorService Advisors
 @inject HouseholdRegistry Registry
 @inject NavigationManager Nav
+@inject CustomerSetupReader Setup
 
 <PageTitle>Kunder – MinElpris</PageTitle>
 
@@ -50,7 +51,10 @@ else
                 <div class="k-muted small" style="margin-top:6px">
                     @Summary(c.HouseholdId)
                 </div>
-                <a class="k-btn k-btn-primary" style="margin-top:10px" href="@($"/vaelg/{c.HouseholdId}")">Åbn @c.HouseholdName</a>
+                <span style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+                    <a class="k-btn k-btn-primary" href="@($"/vaelg/{c.HouseholdId}")">Åbn @c.HouseholdName</a>
+                    <a class="k-btn" href="@($"/kunder/{c.HouseholdId}")">Opsætning @Setup.Progress(c.HouseholdId)</a>
+                </span>
             </section>
         }
     }
