@@ -66,4 +66,16 @@ public class FixedPriceTests
         FixedPrice.NeedsOwnPrice(unsure, [F("DBA", 329), F("DBA", 1000), F("DBA", 3300)]).Should().BeFalse();
         FixedPrice.Hint(unsure, [F("DBA", 329), F("DBA", 1000), F("DBA", 3300)], 1000m).Should().BeNull();
     }
+
+    [Test]
+    public void A_listing_for_a_special_version_does_not_count()
+    {
+        // Anders And 17/1973: both listings were "trykvariant (uden dato)" - ours has the date (2026-11-24).
+        var aa = new Item { Kind = Kinds.AndersAnd, Category = ProductTypes.Serieblade, PricesAt = DateTime.UtcNow, Confidence = 1, ItemPhoto = "x.jpg" };
+        var finds = new[] { new PriceFind { Source = "DBA", Kr = 150, Name = "Anders And & Co nr. 17 (1973) – SJÆLDEN TRYKVARIANT UDEN DATO" },
+                            new PriceFind { Source = "DBA", Kr = 1500, Name = "Anders And & Co nr. 17 – 1973 – Trykvariant – flot samler-eksemplar" } };
+        FixedPrice.NeedsOwnPrice(aa, finds).Should().BeFalse();
+        aa.Note = "Trykvariant uden dato";
+        FixedPrice.NeedsOwnPrice(aa, finds).Should().BeTrue("our own copy IS the variant");
+    }
 }

@@ -25,18 +25,31 @@ public static class FixedPrice
     public static int? StandardOf(Item i) => i.Kind == Kinds.AndersAnd ? 3 : Shop.StandardFor(i.Kind, i.Category);
 
     /// <summary>The typical (middle) used price found: the other sources first, DBA only when they found nothing. Null = nothing found.</summary>
-    public static int? Typical(IEnumerable<PriceFind> finds)
+    public static int? Typical(IEnumerable<PriceFind> finds, Item? i = null)
     {
-        var list = Chosen(finds);
+        var list = Chosen(finds, i);
         if (list.Count == 0) return null;
         list.Sort();
         return list.Count % 2 == 1 ? list[list.Count / 2] : (list[list.Count / 2 - 1] + list[list.Count / 2]) / 2;
     }
 
-    /// <summary>The used prices that count: the other sources, or DBA when they found nothing.</summary>
-    public static List<int> Chosen(IEnumerable<PriceFind> finds)
+    /// <summary>Words that mean a SPECIAL version, not an ordinary copy (user 2026-11-24, Anders And 17/1973: both listings were the rare
+    /// "trykvariant uden dato" - ours has the date). Such a listing only counts when our own thing says the same word.</summary>
+    public static readonly string[] SpecialWords =
+        ["trykvariant", "variant", "fejltryk", "uden dato", "til læg", "i pose", "billedhæfte", "guldbog", "signeret", "signed"];
+
+    /// <summary>True when the listing is about a special version our thing is not marked as.</summary>
+    public static bool SpecialVersion(string listing, Item? i)
     {
-        var used = finds.Where(f => !f.IsNew && !f.Similar && f.Kr > 0).ToList();
+        var l = (listing ?? "").ToLowerInvariant();
+        var own = i is null ? "" : $"{i.Title} {i.Note} {i.Interest} {i.EditionHint}".ToLowerInvariant();
+        return SpecialWords.Any(w => l.Contains(w) && !own.Contains(w));
+    }
+
+    /// <summary>The used prices that count: the other sources, or DBA when they found nothing. Special versions are left out.</summary>
+    public static List<int> Chosen(IEnumerable<PriceFind> finds, Item? i = null)
+    {
+        var used = finds.Where(f => !f.IsNew && !f.Similar && f.Kr > 0 && !SpecialVersion(f.Name, i)).ToList();
         var others = used.Where(f => Sources.Contains(f.Source)).Select(f => f.Kr).ToList();
         return others.Count > 0 ? others : used.Where(f => f.Source == Dba).Select(f => f.Kr).ToList();
     }
@@ -60,7 +73,7 @@ public static class FixedPrice
 
     /// <summary>True when Martin must set the price: typical found price >= 2x the fixed price and >= 50 kr.</summary>
     public static bool NeedsOwnPrice(Item i, IEnumerable<PriceFind> finds) =>
-        Applies(i) && i.Price is not > 0 && !BlurryMagazine(i) && i.Confidence >= Pricing.MinConfidence && Chosen(finds) is { Count: >= MinListings } && Typical(finds) is { } t && StandardOf(i) is { } s && t >= Factor * s && t >= MinKr;
+        Applies(i) && i.Price is not > 0 && !BlurryMagazine(i) && i.Confidence >= Pricing.MinConfidence && Chosen(finds, i) is { Count: >= MinListings } && Typical(finds, i) is { } t && StandardOf(i) is { } s && t >= Factor * s && t >= MinKr;
 
     /// <summary>The hint for a thing that follows the fixed price: the typical price when Martin must decide, else none (the shop
     /// then shows the fixed price). "Som ny" keeps its own rule (25 % under the new price) when that is higher. Not applicable =
@@ -69,7 +82,7 @@ public static class FixedPrice
     {
         if (!Applies(i)) return current;
         var list = finds.ToList();
-        decimal? hint = NeedsOwnPrice(i, list) ? Pricing.OnStep(Typical(list)!.Value) : null;
+        decimal? hint = NeedsOwnPrice(i, list) ? Pricing.OnStep(Typical(list, i)!.Value) : null;
         if (Pricing.LikeNew(i.Usage) && Pricing.AsNewPrice(NewTypical(list)) is { } asNew && asNew > (hint ?? 0)) hint = asNew;
         return hint;
     }
