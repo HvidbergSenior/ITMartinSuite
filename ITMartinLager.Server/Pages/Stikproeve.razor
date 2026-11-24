@@ -1,0 +1,90 @@
+@page "/stikproeve"
+@inject SpotCheckUseCases Spot
+
+@* Stikprøve (user 2026-11-24: "if the listings are not precise or the rules are bad... How?" -> "yes" to spot checks): 20 random things
+   with the used listings behind their price. Rigtig / Forkert on each listing. Forkert = never counts again for that thing, and its
+   price is worked out again at once. The table on top shows how good each source is. *@
+<PageTitle>Stikprøve – Lager</PageTitle>
+
+<section class="k-card">
+    <h1 class="k-card-title">Stikprøve af priserne</h1>
+    <p><b>Gør dette:</b> se på hver annonce – er det <b>præcis den samme ting</b> (samme titel, nummer, år og udgave)? Tryk <b>Rigtig</b> eller <b>Forkert</b>.
+       <b>Du får:</b> forkerte annoncer tæller aldrig mere, prisen regnes om med det samme, og du kan se, hvor gode kilderne er.</p>
+    @if (_stats is { Count: > 0 })
+    {
+        <table class="lg-stats">
+            <thead><tr><th>Kilde</th><th>Rigtig</th><th>Forkert</th><th>Rigtig i %</th></tr></thead>
+            <tbody>
+                @foreach (var (src, r, w) in _stats)
+                {
+                    <tr><td>@src</td><td>@r</td><td>@w</td><td>@(r + w == 0 ? "–" : $"{100 * r / (r + w)} %")</td></tr>
+                }
+            </tbody>
+        </table>
+    }
+    <button class="k-btn k-btn-secondary k-mt" disabled="@_busy" @onclick="Load">Nye @Count</button>
+</section>
+
+@if (_rows is null) { <section class="k-card"><p>Henter …</p></section> }
+else
+{
+    @foreach (var row in _rows)
+    {
+        <section class="k-card lg-spot">
+            <div class="lg-spot-head">
+                <img class="lg-spot-photo" src="/varefoto/@row.Item.Id" alt="" loading="lazy" />
+                <div>
+                    <b><a href="/vare/@row.Item.Id">@row.Item.Line()</a></b>
+                    <div class="k-small k-muted">@row.Item.Kind · @(row.Item.Box?.Code ?? "ingen kasse") · standard @(row.Standard is { } s ? $"{s} kr" : "–") · @PriceNow(row.Item)</div>
+                </div>
+            </div>
+            <ul class="lg-spot-list">
+                @foreach (var f in row.Finds)
+                {
+                    var key = ITMartinLager.Domain.ListingVerdict.KeyOf(f);
+                    var mark = row.Marks.TryGetValue(key, out var m) ? m : (bool?)null;
+                    <li class="@(mark == false ? "lg-spot-wrong" : mark == true ? "lg-spot-right" : "")">
+                        <span class="lg-spot-kr">@f.Kr kr</span>
+                        <span class="lg-spot-src">@f.Source</span>
+                        @if (f.Url.StartsWith("http")) { <a href="@f.Url" target="_blank" rel="noopener">@f.Name</a> } else { <span>@f.Name</span> }
+                        <span class="lg-spot-btns">
+                            <button class="k-btn k-btn-sm @(mark == true ? "k-btn-primary" : "k-btn-secondary")" disabled="@_busy" @onclick="() => Mark(row, f, true)">Rigtig</button>
+                            <button class="k-btn k-btn-sm @(mark == false ? "k-btn-primary" : "k-btn-ghost")" disabled="@_busy" @onclick="() => Mark(row, f, false)">Forkert</button>
+                        </span>
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+}
+
+@code {
+    public const int Count = 20;
+    private List<SpotCheckUseCases.Row>? _rows;
+    private List<(string Source, int Right, int Wrong)>? _stats;
+    private bool _busy;
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    private async Task Load()
+    {
+        _busy = true; _rows = null;
+        try { _rows = await Spot.SampleAsync(Count); _stats = await Spot.StatsAsync(); }
+        finally { _busy = false; }
+    }
+
+    private async Task Mark(SpotCheckUseCases.Row row, PriceFind f, bool right)
+    {
+        _busy = true;
+        try
+        {
+            row.Item.PriceHint = await Spot.MarkAsync(row.Item.Id, f, right);
+            row.Marks[ITMartinLager.Domain.ListingVerdict.KeyOf(f)] = right;
+            _stats = await Spot.StatsAsync();
+        }
+        finally { _busy = false; }
+    }
+
+    private static string PriceNow(Item i) =>
+        i.Price is > 0 ? $"din pris {i.Price:0} kr" : i.PriceHint is > 0 ? $"forslag {i.PriceHint:0} kr" : "standardprisen";
+}

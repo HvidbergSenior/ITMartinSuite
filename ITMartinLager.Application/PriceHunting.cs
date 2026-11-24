@@ -37,7 +37,8 @@ public sealed class PriceHuntUseCases(IItemRepository items, IPriceRepository pr
         item.PriceHint = SalesCalibration.Apply(item.PriceHint is > 0 ? (int)item.PriceHint.Value : null,
             SalesCalibration.Factor(await items.SalesWithHintAsync(ct), item.Kind));
         // Fixed price per kind (user 2026-11-24): an ordinary thing keeps its kind's price; clearly higher = Martin sets it.
-        item.PriceHint = FixedPrice.Hint(item, result.Finds, item.PriceHint);
+        // ... without the listings Martin marked Forkert in a Stikprøve (they stay wrong after a new search).
+        item.PriceHint = FixedPrice.Hint(item, ListingVerdict.WithoutWrong(result.Finds, await prices.VerdictsForAsync([itemId], ct)), item.PriceHint);
         await CompareCoversAsync(item, result.Finds, ct);
         await prices.ReplaceAsync(itemId, result.Checks, result.Finds, ct);
         await items.UpdateAsync([item], ct);

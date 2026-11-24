@@ -12,6 +12,7 @@ public sealed class LagerDb(DbContextOptions<LagerDb> options) : DbContext(optio
     public DbSet<BookCheck> BookChecks => Set<BookCheck>();
     public DbSet<PriceCheck> PriceChecks => Set<PriceCheck>();
     public DbSet<PriceFind> PriceFinds => Set<PriceFind>();
+    public DbSet<ListingVerdict> ListingVerdicts => Set<ListingVerdict>();
     public DbSet<GoldEntry> GoldEntries => Set<GoldEntry>();
     public DbSet<SaleBooking> SaleBookings => Set<SaleBooking>();
     public DbSet<KioskPrice> KioskPrices => Set<KioskPrice>();

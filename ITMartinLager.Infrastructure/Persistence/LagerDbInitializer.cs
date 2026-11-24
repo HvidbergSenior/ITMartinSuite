@@ -38,6 +38,11 @@ public static class LagerDbInitializer
                 "Name" TEXT NOT NULL DEFAULT '', "Kr" INTEGER NOT NULL DEFAULT 0, "Original" TEXT NOT NULL DEFAULT '',
                 "Url" TEXT NOT NULL DEFAULT '', "FoundAt" TEXT NOT NULL);
             CREATE INDEX IF NOT EXISTS "IX_PriceFinds_ItemId" ON "PriceFinds" ("ItemId");
+            CREATE TABLE IF NOT EXISTS "ListingVerdicts" (
+                "Id" INTEGER NOT NULL CONSTRAINT "PK_ListingVerdicts" PRIMARY KEY AUTOINCREMENT,
+                "ItemId" INTEGER NOT NULL, "ListingKey" TEXT NOT NULL DEFAULT '', "Source" TEXT NOT NULL DEFAULT '',
+                "Name" TEXT NOT NULL DEFAULT '', "Kr" INTEGER NOT NULL DEFAULT 0, "Right" INTEGER NOT NULL DEFAULT 0, "At" TEXT NOT NULL);
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_ListingVerdicts_Item_Key" ON "ListingVerdicts" ("ItemId", "ListingKey");
             CREATE TABLE IF NOT EXISTS "GoldEntries" (
                 "Id" INTEGER NOT NULL CONSTRAINT "PK_GoldEntries" PRIMARY KEY AUTOINCREMENT,
                 "Category" TEXT NOT NULL DEFAULT '', "Kind" TEXT NOT NULL DEFAULT '', "Number" TEXT NOT NULL DEFAULT '',

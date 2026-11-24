@@ -532,8 +532,38 @@ public sealed class PriceRepository(IDbContextFactory<LagerDb> dbf) : IPriceRepo
     {
         if (itemIds.Count == 0) return [];
         await using var db = await dbf.CreateDbContextAsync(ct);
-        return (await db.PriceFinds.Where(f => itemIds.Contains(f.ItemId)).ToListAsync(ct))
-            .GroupBy(f => f.ItemId).ToDictionary(g => g.Key, g => g.ToList());
+        var finds = await db.PriceFinds.Where(f => itemIds.Contains(f.ItemId)).ToListAsync(ct);
+        var verdicts = await db.ListingVerdicts.Where(v => itemIds.Contains(v.ItemId) && !v.Right).ToListAsync(ct);
+        return ListingVerdict.WithoutWrong(finds, verdicts).GroupBy(f => f.ItemId).ToDictionary(g => g.Key, g => g.ToList());
+    }
+
+    public async Task<List<ListingVerdict>> VerdictsForAsync(IReadOnlyCollection<int> itemIds, CancellationToken ct)
+    {
+        if (itemIds.Count == 0) return [];
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.ListingVerdicts.Where(v => itemIds.Contains(v.ItemId)).ToListAsync(ct);
+    }
+
+    // One mark per thing + listing: a new mark replaces the old one.
+    public async Task SetVerdictAsync(ListingVerdict verdict, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        var old = await db.ListingVerdicts.FirstOrDefaultAsync(v => v.ItemId == verdict.ItemId && v.ListingKey == verdict.ListingKey, ct);
+        if (old is null) db.ListingVerdicts.Add(verdict);
+        else (old.Right, old.At, old.Kr, old.Name, old.Source) = (verdict.Right, verdict.At, verdict.Kr, verdict.Name, verdict.Source);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<List<ListingVerdict>> AllVerdictsAsync(CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.ListingVerdicts.ToListAsync(ct);
+    }
+
+    public async Task<List<int>> ItemsWithUsedFindsAsync(CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        return await db.PriceFinds.Where(f => !f.IsNew && !f.Similar && f.Kr > 0).Select(f => f.ItemId).Distinct().ToListAsync(ct);
     }
 
     public async Task<(List<PriceFind> Finds, List<PriceCheck> Checks)> ForItemAsync(int itemId, CancellationToken ct)

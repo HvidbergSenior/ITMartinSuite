@@ -93,8 +93,14 @@ public interface IPriceRepository
     Task ReplaceAsync(int itemId, IEnumerable<PriceCheck> checks, IEnumerable<PriceFind> finds, CancellationToken ct);
     /// <summary>The dearest find per item.</summary>
     Task<Dictionary<int, PriceFind>> TopFindsAsync(IReadOnlyCollection<int> itemIds, CancellationToken ct);
-    /// <summary>All finds of these items, per item.</summary>
+    /// <summary>All finds of these items, per item - without the listings Martin marked Forkert (ListingVerdict).</summary>
     Task<Dictionary<int, List<PriceFind>>> FindsForAsync(IReadOnlyCollection<int> itemIds, CancellationToken ct);
+    /// <summary>Stikprøve marks (2026-11-24). Default bodies keep test doubles compiling.</summary>
+    Task<List<ListingVerdict>> VerdictsForAsync(IReadOnlyCollection<int> itemIds, CancellationToken ct) => Task.FromResult(new List<ListingVerdict>());
+    Task SetVerdictAsync(ListingVerdict verdict, CancellationToken ct) => Task.CompletedTask;
+    Task<List<ListingVerdict>> AllVerdictsAsync(CancellationToken ct) => Task.FromResult(new List<ListingVerdict>());
+    /// <summary>Things that have used, exact listings (candidates for a spot check).</summary>
+    Task<List<int>> ItemsWithUsedFindsAsync(CancellationToken ct) => Task.FromResult(new List<int>());
 }
 
 public interface IBookCheckRepository

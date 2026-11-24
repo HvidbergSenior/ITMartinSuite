@@ -139,3 +139,17 @@
 /* Din pris on the item page (2026-11-24) */
 .lg-price-label { display: grid; gap: 4px; font-weight: 600; margin-top: 8px; }
 .lg-price { max-width: 10em; font-size: 1.1rem; }
+
+/* Stikprøve (2026-11-24) */
+.lg-stats { border-collapse: collapse; margin-top: 8px; font-variant-numeric: tabular-nums; }
+.lg-stats th, .lg-stats td { padding: 4px 10px; border-bottom: 1px solid #0002; text-align: left; }
+.lg-spot-head { display: flex; gap: 12px; align-items: flex-start; }
+.lg-spot-photo { width: 90px; height: 120px; object-fit: contain; background: #0001; border-radius: 6px; flex: none; }
+.lg-spot-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+.lg-spot-list li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 6px; background: #0000000a; }
+.lg-spot-list li a, .lg-spot-list li > span:nth-child(3) { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
+.lg-spot-kr { font-weight: 700; font-variant-numeric: tabular-nums; min-width: 4.5em; }
+.lg-spot-src { font-size: .85em; opacity: .75; min-width: 7em; }
+.lg-spot-btns { display: flex; gap: 6px; }
+.lg-spot-wrong { opacity: .55; text-decoration: line-through; }
+.lg-spot-right { outline: 2px solid #2e7d32; }
