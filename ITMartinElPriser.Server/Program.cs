@@ -17,15 +17,14 @@ builder.Services.AddKolibri(k =>
     [
         // Short and plain (user 2026-11-12: "The formål description need to be shorter and more understandable"); details live in HowTo.
         "Se, hvornår strømmen er billigst i dag og i morgen – så du kan vaske, tage opvask og lade bilen i de billige timer.",
-        "Det er gratis og kræver ingen konto. Vil du have en besked, før de billige timer starter, så skriv dig op gratis.",
+        "Det er gratis og kræver ingen konto.",
         "Kort og adresser: © OpenStreetMap-bidragydere. Netselskab: Green Power Denmark. Nettariffer og elpriser: Kilde: Energinet.",
     ];
     k.HowTo =
     [
         "Åbn appen fra ikonet på telefonen – forsiden viser prisen nu.",
-        "Vælg dit hjem og dit elselskab øverst i boksen med prisen (\"Elselskab … skift\"), så er prisen din egen.",
-        "Vil du have besked, når strømmen bliver billig? Skriv dig op gratis på itmartin.dk (tryk Skriv mig op – gratis på forsiden), så får du et nummer på mail. Skriv det under Besked, og tryk Slå beskeder til.",
-        "Fik du beskeder, før nummeret kom? De fortsætter. Skriv dig op gratis, og skriv dit nummer under Besked.",
+        "Vælg dit hjem og dit elselskab øverst i boksen med prisen, så er prisen din egen. Kender du ikke dit elselskab, bruges et typisk.",
+        "Vil du have besked, før de billige timer starter? Det er en del af MinElpris – spørg Martin på itmartin.dk.",
         "Vil du have din elregning forklaret? Det er en del af MinElpris – spørg Martin på itmartin.dk.",
     ];
     k.Version = "2026.11.5";

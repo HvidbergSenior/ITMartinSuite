@@ -185,7 +185,10 @@ public sealed class GridTariffs(HttpClient http, ILogger<GridTariffs> logger) : 
     {
         s.NettarifLookup = null;
         if (string.IsNullOrEmpty(s.GridSupplierId) || await BookAsync() is not { } book) return;
+        // "Netområde 151" = found while the list was still loading: resolve it now by area number or name.
         var owner = book.Has(s.GridSupplierId) ? s.GridSupplierId
+            : s.GridSupplierId.StartsWith("Netområde ", StringComparison.Ordinal)
+                ? book.OwnerFor(s.GridSupplierId["Netområde ".Length..], s.GridName) ?? book.OwnerForShortName(s.GridName)
             : GridIds.IsLegacy(s.GridSupplierId) ? book.OwnerForShortName(s.GridName) : null;
         if (owner is null) return;
         s.NettarifLookup = t => book.At(owner, t);
@@ -211,6 +214,15 @@ public sealed class GridTariffs(HttpClient http, ILogger<GridTariffs> logger) : 
     /// minute because of Energi Data Service's rate limit, and no visitor should wait for that.</summary>
     public void Warm() => _ = Task.Run(LoadAsync);
 
+    /// <summary>For the live test: waits (at most max) until the tariff list is loaded.</summary>
+    internal async Task<bool> WaitLoadedAsync(TimeSpan max)
+    {
+        var until = DateTime.UtcNow + max;
+        Warm();
+        while (_book is null && DateTime.UtcNow < until) await Task.Delay(1000);
+        return _book is not null;
+    }
+
     private async Task<DatahubTariffBook?> BookAsync()
     {
         if (_book is { } b)
@@ -220,7 +232,12 @@ public sealed class GridTariffs(HttpClient http, ILogger<GridTariffs> logger) : 
                 _ = Task.Run(LoadAsync);
             return b;
         }
-        return await LoadAsync();
+        // Not loaded yet (just started; Energi Data Service's rate limit can make it take minutes): NEVER make a page wait
+        // for it (2026-11-24: the front page spun after a deploy). Start the load if it is not running and answer without
+        // the exact tariff - the standard bands are used until it is there.
+        if (_bookGate.CurrentCount > 0) _ = Task.Run(LoadAsync);
+        await Task.CompletedTask;
+        return null;
     }
 
     private async Task<DatahubTariffBook?> LoadAsync()

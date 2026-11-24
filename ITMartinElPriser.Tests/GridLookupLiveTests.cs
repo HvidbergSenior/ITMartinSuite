@@ -16,6 +16,7 @@ public class GridLookupLiveTests
     public async Task Skelagervej_222_is_Konstant_DK1_with_a_winter_tariff()
     {
         var grids = new GridTariffs(new HttpClient { Timeout = TimeSpan.FromSeconds(120) }, NullLogger<GridTariffs>.Instance);
+        if (!await grids.WaitLoadedAsync(TimeSpan.FromMinutes(5))) Assert.Ignore("Energi Data Service not reachable");
         var place = await grids.ResolveAsync("Skelagervej 222, 8200 Aarhus N");
         if (place is null) Assert.Ignore("OpenStreetMap not reachable");
         var g = await grids.FindAtAsync(place!);
