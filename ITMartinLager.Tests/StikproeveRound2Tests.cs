@@ -37,6 +37,16 @@ public class StikproeveRound2Tests
     [TestCase("JULEFROKOSTEN. Mick Øgendahl. BYD.")]
     public void Dvd_titled_only_by_the_artist(string l) => Counts(new Item { Kind = Kinds.Dvd, Title = "Mick Øgendahl", Artist = "Mick Øgendahl" }, l).Should().BeFalse();
 
+    // ...and these were marked Rigtig - they must still count.
+    [TestCase("Da Svend Asmussen ville være tandlæge", "23", "Kong Kylie 1949 Nr. 23")]
+    [TestCase("Hvorfor er havet salt", "27", "Kong Kylie 1949 Nr. 27")]
+    public void Kong_Kylie_found_by_series_and_number(string title, string nr, string l) =>
+        Counts(Blad(title, "Kong Kylie", nr, 1949), l).Should().BeTrue();
+
+    [Test]
+    public void A_triple_album_is_one_thing() => Counts(new Item { Kind = Kinds.Cd, Title = "Emancipation", Artist = "Prince", Year = 1996 },
+        "The Artist (Formerly Known As Prince) – Emancipation (3 x CD Album)").Should().BeTrue();
+
     [TestCase("Sanne Salomonsen – Evita – CD")]
     [TestCase("SANNE SALOMONSEN. 3 x Cd.")]
     public void Sanne(string l) => Counts(new Item { Kind = Kinds.Cd, Title = "Sanne", Artist = "Sanne Salomonsen" }, l).Should().BeFalse();

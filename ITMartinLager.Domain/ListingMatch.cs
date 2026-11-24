@@ -93,7 +93,7 @@ public static partial class ListingMatch
             || (CountRx().IsMatch(l) && !CountRx().IsMatch(own));
     }
 
-    [GeneratedRegex(@"\b([3-9]|\d{2,})\s*(x|stk|styk|stykker|titler)\b")]
+    [GeneratedRegex(@"\b([3-9]|\d{2,})\s*(x|stk|styk|stykker|titler)\b(?!\s*(cd|lp|vinyl)?\s*album\b)")]
     private static partial Regex CountRx();
 
     // ---------- 4. our title words ----------
@@ -106,7 +106,10 @@ public static partial class ListingMatch
     /// <summary>Rule 4: every real word of our own title (3+ letters, not a filler word) is in the listing.</summary>
     public static bool TitleWordsIn(Item i, string listing)
     {
-        var words = Words(i.Title).Where(w => w.Length >= 3 && !Stop.Contains(w) && !w.All(char.IsDigit)).Distinct().ToList();
+        // A numbered blad is found by its series + number, not the story title (2026-11-24: "Kong Kylie 1949 Nr. 23" IS our
+        // "Da Svend Asmussen ville være tandlæge"); the number itself is checked by NoIssueNumber.
+        var text = FixedPrice.Magazines.Contains(i.Kind) && i.Number.Trim() != "" && i.Series.Trim() != "" ? i.Series : i.Title;
+        var words = Words(text).Where(w => w.Length >= 3 && !Stop.Contains(w) && !w.All(char.IsDigit)).Distinct().ToList();
         if (words.Count == 0) return true;
         var theirs = Words(listing).ToHashSet();
         return words.All(theirs.Contains);
