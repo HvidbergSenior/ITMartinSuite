@@ -6,11 +6,11 @@ namespace ITMartinSnak.Application;
 // so the card reads "Lions Club Aarhus – arrangementer" instead of a long address.
 public sealed class IdeaIntake(IPageTitles titles)
 {
-    public async Task<(Idea? Idea, string? Error)> AddAsync(Group group, string? by, string? pasted, string? fromEndpoint, CancellationToken ct = default)
+    public async Task<(Idea? Idea, string? Error)> AddAsync(Group group, string? by, string? pasted, PushFrom? from, CancellationToken ct = default)
     {
         string? title = null;
         if (IdeaRules.NeedsTitle(pasted) && IdeaRules.FirstUrl(pasted) is { } url)
             title = await titles.TitleAsync(url, ct);
-        return group.AddIdea(by, pasted, title, fromEndpoint);
+        return group.AddIdea(by, pasted, title, from);
     }
 }

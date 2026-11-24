@@ -71,7 +71,7 @@ public sealed class Group
 
     /// <param name="replyTo">The message it answers (trin 2).</param>
     /// <param name="fileId">A picture or file from the room's Filer, shown in the chat.</param>
-    public Message? Write(string? name, string? text, string? fromEndpoint = null, bool host = false, long? replyTo = null, long? fileId = null)
+    public Message? Write(string? name, string? text, PushFrom? from = null, bool host = false, long? replyTo = null, long? fileId = null)
     {
         Message? m;
         string? fileName = null;
@@ -91,7 +91,7 @@ public sealed class Group
         _live.Send(_room.Id, "besked", m);
         var body = m.Text.Length > 0 ? m.Text : fileName is not null && FileRules.TypeOf(fileName) is { } ct && ct.StartsWith("image/")
             ? "Har sendt et billede" : $"Har sendt {fileName}";
-        _push.SendToOthers(_room.Id, fromEndpoint, $"{m.Name} · {_room.Title}", body, "snak-" + _room.Id, _room.Url);
+        _push.SendToOthers(_room.Id, from, $"{m.Name} · {_room.Title}", body, "snak-" + _room.Id, _room.Url);
         _room.Activity(true);
         return m;
     }
@@ -188,7 +188,7 @@ public sealed class Group
     public DateOnly Today => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(_clock.GetUtcNow().UtcDateTime, Dk));
 
     /// <param name="by">A member who adds it themselves (shared rooms, 2026-11-12) - "" = the host.</param>
-    public TaskItem? AddTask(string? title, string? note, string? when, string? fromEndpoint = null, string? to = null, string? day = null, bool daily = false,
+    public TaskItem? AddTask(string? title, string? note, string? when, PushFrom? from = null, string? to = null, string? day = null, bool daily = false,
         string? by = null, bool yearly = false, string? endDay = null, string? place = null)
     {
         TaskItem? t;
@@ -201,43 +201,43 @@ public sealed class Group
         }
         TasksChanged();
         var head = t.By.Length > 0 ? $"{t.By} har lagt noget ind · " : t.Takers.Count > 0 ? $"Ny opgave til {t.Takers[0]} · " : "Ny opgave · ";
-        _push.SendToOthers(_room.Id, fromEndpoint, head + _room.Title, t.Title + (t.When.Length > 0 ? " · " + t.When : ""), "snak-opg-" + _room.Id, _room.Url);
+        _push.SendToOthers(_room.Id, from, head + _room.Title, t.Title + (t.When.Length > 0 ? " · " + t.When : ""), "snak-opg-" + _room.Id, _room.Url);
         _room.Activity(false);
         return GroupRules.Copy(t);
     }
 
     /// <param name="to">null = keep who has it; "" = nobody; a name = give it to that person (they get a push).</param>
-    public TaskItem? EditTask(long id, string? title, string? note, string? when, string? to = null, string? fromEndpoint = null, string? day = null, bool? daily = null,
+    public TaskItem? EditTask(long id, string? title, string? note, string? when, string? to = null, PushFrom? from = null, string? day = null, bool? daily = null,
         bool? yearly = null, string? endDay = null, string? place = null)
     {
         string? before;
         lock (_gate) before = _tasks.FirstOrDefault(x => x.Id == id) is { } old ? string.Join(",", old.Takers) : null;
         var t = Change(id, x => GroupRules.Edit(x, title, note, when, to, day, daily, yearly, endDay, place));
         if (t is not null && to is not null && t.Takers.Count > 0 && string.Join(",", t.Takers) != before)
-            _push.SendToOthers(_room.Id, fromEndpoint, $"Opgave til {t.Takers[0]} · " + _room.Title, t.Title + (t.When.Length > 0 ? " · " + t.When : ""), "snak-opg-" + _room.Id, _room.Url);
+            _push.SendToOthers(_room.Id, from, $"Opgave til {t.Takers[0]} · " + _room.Title, t.Title + (t.When.Length > 0 ? " · " + t.When : ""), "snak-opg-" + _room.Id, _room.Url);
         return t;
     }
 
     /// <param name="note">How it was closed (2026-11-17), shown on the task and in the Kalender tab.</param>
     /// <param name="nextDay">"Næste gang": the same thing again on that day (yyyy-MM-dd, after today) - a new task in the calendar.</param>
     public TaskItem? SetDone(long id, bool done, string? note = null, string? by = null, bool calendar = false, string? nextDay = null,
-        string? fromEndpoint = null)
+        PushFrom? from = null)
     {
         var t = Change(id, x => GroupRules.SetDone(x, done, Today, note, by, calendar));
         if (t is null || !done) return t;
         var who = GroupRules.CleanName(by);
-        _push.SendToOthers(_room.Id, fromEndpoint, (who.Length > 0 ? who + " har klaret det · " : "Klaret · ") + _room.Title,
+        _push.SendToOthers(_room.Id, from, (who.Length > 0 ? who + " har klaret det · " : "Klaret · ") + _room.Title,
             t.Title + (t.DoneNote.Length > 0 ? " – " + t.DoneNote : ""), "snak-opg-" + _room.Id, _room.Url);
         if (GroupRules.CleanNextDay(nextDay, Today) is { } next)
-            AddTask(t.Title, t.Note, t.When, fromEndpoint, null, next, false, who.Length > 0 ? who : null, false, null, t.Place);
+            AddTask(t.Title, t.Note, t.When, from, null, next, false, who.Length > 0 ? who : null, false, null, t.Place);
         return t;
     }
 
-    public TaskItem? ToggleTaker(long id, string? name, string? fromEndpoint = null)
+    public TaskItem? ToggleTaker(long id, string? name, PushFrom? from = null)
     {
         var t = Change(id, x => GroupRules.ToggleTaker(x, name));
         if (t is not null && GroupRules.HasTaker(t, name))
-            _push.SendToOthers(_room.Id, fromEndpoint, "Opgave taget · " + _room.Title, $"{GroupRules.CleanName(name)} tager: {t.Title}", "snak-opg-" + _room.Id, _room.Url);
+            _push.SendToOthers(_room.Id, from, "Opgave taget · " + _room.Title, $"{GroupRules.CleanName(name)} tager: {t.Title}", "snak-opg-" + _room.Id, _room.Url);
         return t;
     }
 
@@ -293,7 +293,7 @@ public sealed class Group
     /// <returns>The new file, or the Danish reason it was not added.</returns>
     /// <param name="topic">Already checked against the room's topics (RosterRules.TopicFor); "" = Andet.</param>
     public async Task<(SharedFile? File, string? Error)> AddFileAsync(string? fileName, long size, Stream content, string? by,
-        string? fromEndpoint, CancellationToken ct = default, string topic = "", bool push = true)
+        PushFrom? from, CancellationToken ct = default, string topic = "", bool push = true)
     {
         var who = GroupRules.CleanName(by);
         if (who.Length == 0) return (null, "Skriv dit navn først.");
@@ -317,7 +317,7 @@ public sealed class Group
         if (!ok) return (null, "Filen er tom eller for stor. " + FileRules.TooBig[19..]);
         FilesChanged();
         // A picture sent in the chat: the chat message gives the push, not the file as well.
-        if (push) _push.SendToOthers(_room.Id, fromEndpoint, "Ny fil · " + _room.Title, $"{who} har lagt {f.Name} op", "snak-fil-" + _room.Id, _room.Url);
+        if (push) _push.SendToOthers(_room.Id, from, "Ny fil · " + _room.Title, $"{who} har lagt {f.Name} op", "snak-fil-" + _room.Id, _room.Url);
         _room.Activity(false);
         return (f, null);
     }
@@ -348,7 +348,7 @@ public sealed class Group
 
     /// <param name="pageTitle">The linked page's own title (fetched by IdeaIntake), or null.</param>
     /// <returns>The new idea, or the Danish reason it was not added.</returns>
-    public (Idea? Idea, string? Error) AddIdea(string? by, string? pasted, string? pageTitle = null, string? fromEndpoint = null)
+    public (Idea? Idea, string? Error) AddIdea(string? by, string? pasted, string? pageTitle = null, PushFrom? from = null)
     {
         var who = GroupRules.CleanName(by);
         if (IdeaRules.Parse(pasted, pageTitle) is not { } parsed) return (null, "Sæt et link eller en tekst ind først.");
@@ -361,7 +361,7 @@ public sealed class Group
             _store.SaveIdeas(_ideas);
         }
         IdeasChanged();
-        _push.SendToOthers(_room.Id, fromEndpoint, "Ny idé · " + _room.Title, $"{who}: {idea.Title}", "snak-ide-" + _room.Id, _room.Url);
+        _push.SendToOthers(_room.Id, from, "Ny idé · " + _room.Title, $"{who}: {idea.Title}", "snak-ide-" + _room.Id, _room.Url);
         _room.Activity(false);
         return (idea, null);
     }
@@ -381,12 +381,12 @@ public sealed class Group
 
     /// <summary>The idea becomes an Opgave (title = the idea's title, note = its text + link); the card keeps a mark.</summary>
     /// <param name="by">The named person who made it (shared room), or null for the host.</param>
-    public TaskItem? IdeaToTask(long id, string? by = null, string? fromEndpoint = null)
+    public TaskItem? IdeaToTask(long id, string? by = null, PushFrom? from = null)
     {
         Idea? idea;
         lock (_gate) idea = _ideas.FirstOrDefault(x => x.Id == id);
         if (idea is null || idea.TaskId is not null) return null;
-        var t = AddTask(idea.Title, IdeaRules.TaskNote(idea), null, fromEndpoint, by: by);
+        var t = AddTask(idea.Title, IdeaRules.TaskNote(idea), null, from, by: by);
         if (t is null) return null;
         lock (_gate)
         {

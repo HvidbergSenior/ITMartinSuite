@@ -26,9 +26,9 @@ public class GroupTests
         public List<(string? Except, string Title, string Body)> Sent = [];
         public List<string> Forgotten = [];
         public string PublicKey => "test";
-        public void Subscribe(string room, string endpoint, string p256dh, string auth, string name) { }
+        public void Subscribe(string room, string endpoint, string p256dh, string auth, string name, bool host = false) { }
         public void Unsubscribe(string endpoint) { }
-        public void SendToOthers(string room, string? exceptEndpoint, string title, string body, string tag, string url) => Sent.Add((exceptEndpoint, title, body));
+        public void SendToOthers(string room, PushFrom? from, string title, string body, string tag, string url) => Sent.Add((from?.Endpoint, title, body));
         public void ForgetRoom(string room) => Forgotten.Add(room);
         public Dictionary<string, int> Phones = new(StringComparer.OrdinalIgnoreCase);
         public IReadOnlyDictionary<string, int> PhonesPerName(string room) => Phones;
@@ -65,7 +65,7 @@ public class GroupTests
         var g = NewGroup();
         g.Write("", "hej").Should().BeNull();
         g.Write("Martin", "   ").Should().BeNull();
-        g.Write(new string('x', 50), "hej", "https://push/martin")!.Name.Should().HaveLength(GroupRules.MaxName);
+        g.Write(new string('x', 50), "hej", new PushFrom("https://push/martin"))!.Name.Should().HaveLength(GroupRules.MaxName);
 
         _live.Kinds.Should().Equal("besked");
         _push.Sent.Should().ContainSingle().Which.Except.Should().Be("https://push/martin");   // not back to the sender
@@ -270,7 +270,7 @@ public class GroupTests
     public async Task A_file_is_stored_under_its_own_name_downloads_again_and_survives_a_restart()
     {
         var g = NewGroup();
-        var (f, err) = await g.AddFileAsync(@"C:\fakepath\..\Hold 36 program.pdf", 1000, Bytes(1000), "Sonja", "phone-1");
+        var (f, err) = await g.AddFileAsync(@"C:\fakepath\..\Hold 36 program.pdf", 1000, Bytes(1000), "Sonja", new PushFrom("phone-1"));
         err.Should().BeNull();
         f!.Name.Should().Be("Hold 36 program.pdf");
         f.StoredName.Should().Be("1.pdf");

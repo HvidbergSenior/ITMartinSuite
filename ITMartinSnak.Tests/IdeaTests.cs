@@ -24,9 +24,9 @@ public class IdeaTests
     private sealed class Push(List<string> sent) : IPushSender
     {
         public string PublicKey => "test";
-        public void Subscribe(string room, string endpoint, string p256dh, string auth, string name) { }
+        public void Subscribe(string room, string endpoint, string p256dh, string auth, string name, bool host = false) { }
         public void Unsubscribe(string endpoint) { }
-        public void SendToOthers(string room, string? exceptEndpoint, string title, string body, string tag, string url) => sent.Add(body);
+        public void SendToOthers(string room, PushFrom? from, string title, string body, string tag, string url) => sent.Add(body);
         public void ForgetRoom(string room) { }
         public IReadOnlyDictionary<string, int> PhonesPerName(string room) => new Dictionary<string, int>();
     }
@@ -86,7 +86,7 @@ public class IdeaTests
     {
         var titles = new Titles("Digitalt loppemarked – idé");
         var intake = new IdeaIntake(titles);
-        var (idea, err) = await intake.AddAsync(NewGroup(), "Lukas", "https://example.dk/side", "phone-1");
+        var (idea, err) = await intake.AddAsync(NewGroup(), "Lukas", "https://example.dk/side", new PushFrom("phone-1"));
         err.Should().BeNull();
         idea!.Title.Should().Be("Digitalt loppemarked – idé");
         titles.Calls.Should().Be(1);

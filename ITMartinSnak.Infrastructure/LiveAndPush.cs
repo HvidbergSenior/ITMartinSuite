@@ -50,7 +50,7 @@ public sealed class WebPushSender : IPushSender
     private readonly ILogger<WebPushSender> _log;
     private List<Subscriber> _subs = [];
 
-    public sealed record Subscriber(string Endpoint, string P256dh, string Auth, string Name, DateTime AddedAt, string? Room = null);
+    public sealed record Subscriber(string Endpoint, string P256dh, string Auth, string Name, DateTime AddedAt, string? Room = null, bool Host = false);
     private sealed record VapidKeys(string PublicKey, string PrivateKey);
 
     public WebPushSender(string dataDir, ILogger<WebPushSender> log)
@@ -71,18 +71,21 @@ public sealed class WebPushSender : IPushSender
         if (File.Exists(_subsFile))
             try { _subs = JsonSerializer.Deserialize<List<Subscriber>>(File.ReadAllText(_subsFile)) ?? []; } catch { }
         _subs = _subs.Select(s => s.Room is null ? s with { Room = RoomRules.LegacyRoomId } : s).ToList();
+        // 2026-11-24: a phone that is Martin's every-room phone is his in every room it follows.
+        var hostPhones = _subs.Where(s => s.Room == "").Select(s => s.Endpoint).ToHashSet();
+        _subs = _subs.Select(s => hostPhones.Contains(s.Endpoint) ? s with { Host = true } : s).ToList();
     }
 
     public string PublicKey => _vapid.PublicKey;
     public int Count { get { lock (_gate) return _subs.Count; } }
 
     // One phone can be in several rooms (and be the host's) - one row per phone + room.
-    public void Subscribe(string room, string endpoint, string p256dh, string auth, string name)
+    public void Subscribe(string room, string endpoint, string p256dh, string auth, string name, bool host = false)
     {
         lock (_gate)
         {
             _subs.RemoveAll(x => x.Endpoint == endpoint && x.Room == room);
-            _subs.Add(new Subscriber(endpoint, p256dh, auth, name, DateTime.UtcNow, room));
+            _subs.Add(new Subscriber(endpoint, p256dh, auth, name, DateTime.UtcNow, room, host || room == ""));
             Save();
         }
     }
@@ -106,13 +109,16 @@ public sealed class WebPushSender : IPushSender
 
     private void Save() => File.WriteAllText(_subsFile, JsonSerializer.Serialize(_subs));
 
-    /// <summary>To the room's phones and the host's phones, except the one that caused it. Runs in the background.</summary>
-    public void SendToOthers(string room, string? exceptEndpoint, string title, string body, string tag, string url)
+    /// <summary>To the room's phones and the host's phones, except the sender's own phones. Runs in the background.</summary>
+    public void SendToOthers(string room, PushFrom? from, string title, string body, string tag, string url)
     {
         List<Subscriber> targets;
         lock (_gate)
-            targets = _subs.Where(s => (s.Room == room || s.Room == "") && s.Endpoint != exceptEndpoint)
-                .GroupBy(s => s.Endpoint).Select(g => g.First()).ToList();
+        {
+            var to = PushRules.Targets(_subs.Select(s => new PushPhone(s.Endpoint, s.Room ?? "", s.Name, s.Host)), room,
+                from?.Endpoint, from?.Name, from?.Host ?? false).ToHashSet();
+            targets = _subs.Where(s => to.Contains(s.Endpoint)).GroupBy(s => s.Endpoint).Select(g => g.First()).ToList();
+        }
         if (targets.Count == 0) return;
         if (body.Length > 140) body = body[..140] + "…";
         var payload = JsonSerializer.Serialize(new { title, body, url, tag });

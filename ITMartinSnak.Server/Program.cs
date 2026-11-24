@@ -86,6 +86,8 @@ const string OldHostName = "Martin";
     : AsMember(r, navn) ? (navn!.Trim(), false)
     : (HostName, true);
 bool IsAdmin(HttpContext c, Access a) => a.IsAdmin(c.Request.Cookies["snak_admin"]);
+// Who caused a push - their own phones get none. Host = Martin himself (not a room's own admin).
+PushFrom From(HttpContext c, Access a, string? endpoint, string? name) => new(endpoint, Who(c, name), IsAdmin(c, a));
 // In a room: Martin's code, or that room's own admin password (2026-11-08, e.g. Sonja's room).
 bool IsRoomAdmin(HttpContext c, Access a, Room r) => a.IsRoomAdmin(r, c.Request.Cookies["snak_admin"], c.Request.Cookies["snak_ra_" + r.Id]);
 
@@ -325,7 +327,7 @@ room.MapPost("/beskeder", (HttpContext c, string key, MessageBody b, Rooms rooms
 {
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
     var (name, asHost) = Writer(r, IsRoomAdmin(c, access, r), Who(c, b.Navn), b.Rolle);
-    var m = rooms.GroupOf(r).Write(name, b.Tekst, b.Endpoint, asHost, b.SvarPaa, b.Fil);
+    var m = rooms.GroupOf(r).Write(name, b.Tekst, new PushFrom(b.Endpoint, name, IsAdmin(c, access)), asHost, b.SvarPaa, b.Fil);
     return m is null ? Results.BadRequest(new { fejl = "Skriv dit navn og en besked." }) : Results.Json(m, web);
 });
 
@@ -424,7 +426,7 @@ room.MapPost("/opgaver", (HttpContext c, string key, TaskBody b, Access access, 
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
     var host = IsRoomAdmin(c, access, r);
     if (!host && !SharedMember(r, Who(c, b.Navn))) return Results.StatusCode(403);
-    var t = rooms.GroupOf(r).AddTask(b.Titel, b.Note, b.Hvornaar, b.Endpoint, b.Til, b.Dag, b.HverDag ?? false,
+    var t = rooms.GroupOf(r).AddTask(b.Titel, b.Note, b.Hvornaar, From(c, access, b.Endpoint, b.Navn), b.Til, b.Dag, b.HverDag ?? false,
         host ? null : Who(c, b.Navn), b.HvertAar ?? false, b.Slut, b.Sted);
     return t is null ? Results.BadRequest(new { fejl = "Opgaven skal have en titel." }) : Results.Json(t, web);
 });
@@ -434,7 +436,7 @@ room.MapPut("/opgaver/{id:long}", (HttpContext c, string key, long id, TaskBody 
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
     var host = IsRoomAdmin(c, access, r);
     if (!host && !(SharedMember(r, Who(c, b.Navn)) && rooms.GroupOf(r).MayChangeTask(id, Who(c, b.Navn), false))) return Results.StatusCode(403);
-    var t = rooms.GroupOf(r).EditTask(id, b.Titel, b.Note, b.Hvornaar, b.Til, b.Endpoint, b.Dag, b.HverDag, b.HvertAar, b.Slut, b.Sted);
+    var t = rooms.GroupOf(r).EditTask(id, b.Titel, b.Note, b.Hvornaar, b.Til, From(c, access, b.Endpoint, b.Navn), b.Dag, b.HverDag, b.HvertAar, b.Slut, b.Sted);
     return t is null ? Results.BadRequest(new { fejl = "Opgaven findes ikke, eller titlen mangler." }) : Results.Json(t, web);
 });
 
@@ -445,7 +447,7 @@ room.MapPost("/opgaver/{id:long}/faerdig", (HttpContext c, string key, long id, 
     var host = IsRoomAdmin(c, access, r);
     if (!host && !SharedMember(r, Who(c, b.Navn))) return Results.StatusCode(403);
     var by = Who(c, b.Navn) is { Length: > 0 } n ? n : host ? "Martin" : "";
-    return rooms.GroupOf(r).SetDone(id, b.Faerdig, b.Hvordan, by, b.Kalender ?? false, b.NaesteGang, b.Endpoint) is null ? Results.NotFound() : Results.Ok();
+    return rooms.GroupOf(r).SetDone(id, b.Faerdig, b.Hvordan, by, b.Kalender ?? false, b.NaesteGang, From(c, access, b.Endpoint, by)) is null ? Results.NotFound() : Results.Ok();
 });
 
 room.MapDelete("/opgaver/{id:long}", (HttpContext c, string key, long id, string? navn, Access access, Rooms rooms) =>
@@ -455,10 +457,10 @@ room.MapDelete("/opgaver/{id:long}", (HttpContext c, string key, long id, string
     return rooms.GroupOf(r).DeleteTask(id) ? Results.Ok() : Results.NotFound();
 });
 
-room.MapPost("/opgaver/{id:long}/tag", (HttpContext c, string key, long id, TakeBody b, Rooms rooms) =>
+room.MapPost("/opgaver/{id:long}/tag", (HttpContext c, string key, long id, TakeBody b, Rooms rooms, Access access) =>
 {
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
-    var t = rooms.GroupOf(r).ToggleTaker(id, Who(c, b.Navn), b.Endpoint);
+    var t = rooms.GroupOf(r).ToggleTaker(id, Who(c, b.Navn), From(c, access, b.Endpoint, b.Navn));
     return t is null ? Results.BadRequest(new { fejl = "Skriv dit navn først." }) : Results.Json(t, web);
 });
 
@@ -478,7 +480,7 @@ room.MapPost("/filer", async (HttpContext c, string key, Rooms rooms, Access acc
     await using var s = f.OpenReadStream();
     // "chat" = sent from the chat: the chat message gives the push.
     var (file, err) = await rooms.GroupOf(r).AddFileAsync(f.FileName, f.Length, s, who,
-        form["endpoint"].ToString(), c.RequestAborted, RosterRules.TopicFor(r.Topics, form["emne"].ToString()), push: form["chat"] != "1");
+        From(c, access, form["endpoint"].ToString(), who), c.RequestAborted, RosterRules.TopicFor(r.Topics, form["emne"].ToString()), push: form["chat"] != "1");
     return file is null ? Results.BadRequest(new { fejl = err }) : Results.Json(FileView(file), web);
 });
 
@@ -511,7 +513,7 @@ room.MapPost("/ideer", async (HttpContext c, string key, IdeaBody b, Rooms rooms
 {
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
     var (who, _) = Writer(r, IsRoomAdmin(c, access, r), Who(c, b.Navn), b.Rolle);
-    var (idea, err) = await intake.AddAsync(rooms.GroupOf(r), who, b.Tekst, b.Endpoint, c.RequestAborted);
+    var (idea, err) = await intake.AddAsync(rooms.GroupOf(r), who, b.Tekst, From(c, access, b.Endpoint, who), c.RequestAborted);
     return idea is null ? Results.BadRequest(new { fejl = err }) : Results.Json(idea, web);
 });
 
@@ -527,7 +529,7 @@ room.MapPost("/ideer/{id:long}/opgave", (HttpContext c, string key, long id, Ide
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
     var host = IsRoomAdmin(c, access, r);
     if (!host && !SharedMember(r, Who(c, b.Navn))) return Results.StatusCode(403);
-    var t = rooms.GroupOf(r).IdeaToTask(id, host ? null : Who(c, b.Navn), b.Endpoint);
+    var t = rooms.GroupOf(r).IdeaToTask(id, host ? null : Who(c, b.Navn), From(c, access, b.Endpoint, b.Navn));
     return t is null ? Results.BadRequest(new { fejl = "Idéen findes ikke, eller den er allerede en opgave." }) : Results.Json(t, web);
 });
 
@@ -558,11 +560,12 @@ room.MapGet("/live",async (HttpContext c, string key, Rooms rooms, ILiveFeed liv
     finally { live.Leave(id); }
 });
 
-room.MapPost("/push", (HttpContext c, string key, PushBody b, Rooms rooms, IPushSender push) =>
+room.MapPost("/push", (HttpContext c, string key, PushBody b, Rooms rooms, IPushSender push, Access access) =>
 {
     if (rooms.ByKey(key) is not { } r) return Results.NotFound();
     if (!GoodPush(b)) return Results.BadRequest();
-    push.Subscribe(r.Id, b.Endpoint!, b.P256dh!, b.Auth!, GroupRules.CleanName(Who(c, b.Navn)));
+    // Martin's own phone for this room: his own messages never ping it (2026-11-24).
+    push.Subscribe(r.Id, b.Endpoint!, b.P256dh!, b.Auth!, GroupRules.CleanName(Who(c, b.Navn)), IsAdmin(c, access));
     return Results.Ok();
 });
 

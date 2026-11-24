@@ -47,10 +47,11 @@ public interface ILiveFeed
 public interface IPushSender
 {
     string PublicKey { get; }
-    void Subscribe(string room, string endpoint, string p256dh, string auth, string name);
+    /// <param name="host">The phone is Martin's (set up while he was logged in) - his own messages never ping it.</param>
+    void Subscribe(string room, string endpoint, string p256dh, string auth, string name, bool host = false);
     void Unsubscribe(string endpoint);
-    /// <summary>To the room's phones and the host's phones, except the one that caused it; runs in the background.</summary>
-    void SendToOthers(string room, string? exceptEndpoint, string title, string body, string tag, string url);
+    /// <summary>To the room's phones and the host's phones, except the sender's own phones (PushRules.Targets); runs in the background.</summary>
+    void SendToOthers(string room, PushFrom? from, string title, string body, string tag, string url);
     void ForgetRoom(string room);
     /// <summary>Per name: how many phones get beskeder from this room (for the setup view).</summary>
     IReadOnlyDictionary<string, int> PhonesPerName(string room);

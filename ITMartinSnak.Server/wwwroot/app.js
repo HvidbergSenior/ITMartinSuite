@@ -1885,8 +1885,9 @@
         if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(pushKey) });
         const j = sub.toJSON();
         endpoint = j.endpoint;
-        // Martin's phone: every room. A customer's phone: this room only.
-        await api('POST', roomKey && !alleRum ? base + '/push' : '/api/push', { endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, navn });
+        // Martin's phone at snak.itmartin.dk: every room. Opened at a room's address (a room on the home screen, also
+        // Martin's): this room only - else that icon shows every room's beskeder, also his own (2026-11-24).
+        await api('POST', roomKey ? base + '/push' : '/api/push', { endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, navn });
     }
 
     // Called on every start: if the phone already said yes, (re)register silently; otherwise show
