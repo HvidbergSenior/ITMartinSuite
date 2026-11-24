@@ -100,3 +100,4 @@ ITMartinSalg.Server/data/
 ITMartinVareinfo.Server/data/
 # Local compose backups (contain passwords)
 docker-compose.yaml.local-bak-*
+magic.env.bak*

@@ -1,0 +1,173 @@
+<title>Test af ElPriser</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: one narrow column of test steps, each a card with "gør" / "det skal du se" / note. Kolibri look like the app. */
+:root {
+  --bg: #f4f6f5;
+  --card: #ffffff;
+  --text: #1d2a25;
+  --muted: #5c6b65;
+  --line: #dfe5e2;
+  --accent: #b4570f;
+  --accent-soft: #f8ebe0;
+  --ok: #2f8f57;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121917; --card: #1b2420; --text: #ecf2ee; --muted: #9fb0a8; --line: #2e3a35;
+    --accent: #e8964f; --accent-soft: #33261b; --ok: #5cc98a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121917; --card: #1b2420; --text: #ecf2ee; --muted: #9fb0a8; --line: #2e3a35;
+  --accent: #e8964f; --accent-soft: #33261b; --ok: #5cc98a; color-scheme: dark;
+}
+body {
+  background: var(--bg); color: var(--text); font-family: var(--font); font-size: 16px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+}
+.wrap { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+h1 { font-size: 1.7rem; line-height: 1.2; margin: 0; text-wrap: balance; }
+h2 { font-size: 1.1rem; margin: 0; text-wrap: balance; }
+p { margin: 0; }
+.lead { color: var(--muted); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.intro b { color: var(--text); }
+.link { font-weight: 700; color: var(--accent); word-break: break-all; }
+.step-head { display: flex; gap: 12px; align-items: flex-start; }
+.step-head input { width: 22px; height: 22px; margin-top: 2px; accent-color: var(--ok); flex: none; }
+.step-head label { cursor: pointer; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.no { font-size: .8rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.card.done { border-color: var(--ok); }
+.card.done .no { color: var(--ok); }
+ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+.see { background: var(--accent-soft); border-radius: 10px; padding: 10px 12px; }
+.see .label { font-size: .8rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+textarea, input[type="text"] {
+  width: 100%; box-sizing: border-box; font: inherit; color: var(--text); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+}
+textarea { min-height: 64px; resize: vertical; }
+textarea:focus, input[type="text"]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.notelabel { font-size: .85rem; font-weight: 600; color: var(--muted); }
+.btn {
+  font: inherit; font-weight: 700; cursor: pointer; border-radius: 11px; padding: 12px 16px;
+  background: var(--accent); color: #fff; border: 0;
+}
+.btn:focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.small { font-size: .9rem; color: var(--muted); }
+.contact { display: flex; flex-direction: column; gap: 4px; }
+.contact span { font-weight: 700; user-select: all; }
+#copied { color: var(--ok); font-weight: 600; }
+#fallback { min-height: 160px; }
+@media (prefers-reduced-motion: no-preference) { .card { transition: border-color .2s; } }
+</style>
+
+<div class="wrap">
+  <h1>Test af ElPriser</h1>
+  <p class="lead">Tak fordi du vil hjælpe. Det tager ca. 10 minutter. Gå trinene igennem på din telefon, sæt flueben, når det passer, og skriv en kort note, hvis noget er mærkeligt eller svært at forstå.</p>
+
+  <div class="card intro">
+    <p><b>Åbn:</b> <span class="link">elpriser.itmartin.dk</span></p>
+    <p class="small">Brug gerne et privat vindue (Safari: faner, Privat · Chrome: Nyt inkognitovindue), så du starter som ny bruger. Der er ingen konto og ingen adgangskode.</p>
+    <label class="notelabel" for="device">Hvilken telefon/computer og browser bruger du?</label>
+    <input type="text" id="device" placeholder="fx iPhone 13, Safari">
+  </div>
+
+  <div id="steps"></div>
+
+  <div class="card">
+    <h2>Send dine noter til Martin</h2>
+    <p>Tryk på knappen. Så kopieres dine flueben og noter, og du kan sætte dem ind i en mail eller sms.</p>
+    <div class="row">
+      <button class="btn" id="copy" type="button">Kopiér mine noter</button>
+      <span id="copied" hidden>Kopieret – sæt det ind i en mail eller sms.</span>
+    </div>
+    <textarea id="fallback" hidden readonly aria-label="Dine noter"></textarea>
+    <div class="contact">
+      <p class="small">Send til Martin Hvidberg, ITMartin:</p>
+      <p>Mail: <span>ITMartin@Mensa.dk</span></p>
+      <p>Sms: <span>31 19 47 30</span></p>
+    </div>
+    <p class="small">Skærmbilleder er meget velkomne – skriv, hvilket trin de hører til.</p>
+  </div>
+</div>
+
+<script>
+const STEPS = [
+  { title: "Hvor bor du?",
+    todo: ["Åbn siden. Den spørger 'Hvor bor du?'.", "Skriv din adresse (eller bare postnummeret) og tryk Find."],
+    see: ["Siden går ikke i stå og drejer ikke rundt.", "Øverst i boksen 'Prisen nu' står 'Netselskab i [dit postnummer]: [navn] · ret adresse'."] },
+  { title: "Prisen nu",
+    todo: ["Kig på den store boks."],
+    see: ["'Elselskab: typisk (gennemsnit) · vælg dit'.", "'Én opvask (Bosch …) · 0,54 kWh · 2 timer · start nu' og et stort tal i KR.", "En linje: 'Billigst de næste 12 timer: start … – færdig …' og hvor meget du sparer."] },
+  { title: "Vaskemaskine",
+    todo: ["Tryk på Vaskemaskine."],
+    see: ["'Én vask (Bosch WGG244RASN, Eco 40-60) · 0,46 kWh · 3 t 45 min'.", "Tallet og 'Billigst …' ændrer sig."] },
+  { title: "Dit elselskab",
+    todo: ["Tryk på 'Elselskab: typisk … vælg dit'.", "Vælg dit eget elselskab, hvis det står på listen, og tryk Gem elselskab."],
+    see: ["Listen starter på 'Vælg dit elselskab' – intet er valgt på forhånd.", "Bagefter står der 'Dit elselskab: [navn] · skift', og prisen ændrer sig lidt."] },
+  { title: "Time for time",
+    todo: ["Rul ned til søjlerne.", "Tryk på en søjle senere på dagen. Tryk på den igen."],
+    see: ["Under midnat står 'i morgen'. Den billigste periode er skraveret, med mærket 'billigst kl. …'.", "Når du trykker: det store tal øverst ændrer sig IKKE. Under søjlerne står 'Start kl. … – færdig kl. … – koster … kr' og hvor meget billigere eller dyrere end nu.", "Når du trykker igen: tilbage til 'Start nu'."] },
+  { title: "Hvad havde du sparet?",
+    todo: ["Rul længere ned."],
+    see: ["Et beløb for de sidste 30 dage, og to korte linjer: 'Kl. 18 hver dag' og 'Billigste tid'."] },
+  { title: "Læg den på telefonen",
+    todo: ["iPhone: Del-knappen, Føj til hjemmeskærm. Android: menuen (tre prikker), Føj til startskærm.", "Åbn ElPriser fra ikonet."],
+    see: ["Appen åbner med det samme og husker dit hjem og dit elselskab."] },
+  { title: "Dit indtryk",
+    todo: ["Hvad var svært at forstå? Hvad mangler du? Ville du bruge den?"],
+    see: ["Ingen rigtige eller forkerte svar – skriv det, du tænker."] },
+];
+
+const KEY = "elpriser-test-v1";
+let state = { device: "", done: {}, notes: {} };
+try { const s = JSON.parse(localStorage.getItem(KEY) || "null"); if (s) state = Object.assign(state, s); } catch (e) {}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+const host = document.getElementById("steps");
+STEPS.forEach((s, i) => {
+  const card = document.createElement("section");
+  card.className = "card" + (state.done[i] ? " done" : "");
+  const head = document.createElement("div"); head.className = "step-head";
+  const cb = document.createElement("input"); cb.type = "checkbox"; cb.id = "s" + i; cb.checked = !!state.done[i];
+  const lab = document.createElement("label"); lab.htmlFor = cb.id;
+  const no = document.createElement("span"); no.className = "no"; no.textContent = "Trin " + (i + 1);
+  const h = document.createElement("h2"); h.textContent = s.title;
+  lab.append(no, h); head.append(cb, lab);
+  const todo = document.createElement("ul"); s.todo.forEach(t => { const li = document.createElement("li"); li.textContent = t; todo.append(li); });
+  const see = document.createElement("div"); see.className = "see";
+  const sl = document.createElement("div"); sl.className = "label"; sl.textContent = "Det skal du se";
+  const su = document.createElement("ul"); s.see.forEach(t => { const li = document.createElement("li"); li.textContent = t; su.append(li); });
+  see.append(sl, su);
+  const nl = document.createElement("label"); nl.className = "notelabel"; nl.htmlFor = "n" + i; nl.textContent = "Note (hvis noget var anderledes eller svært)";
+  const ta = document.createElement("textarea"); ta.id = "n" + i; ta.value = state.notes[i] || "";
+  cb.addEventListener("change", () => { state.done[i] = cb.checked; card.classList.toggle("done", cb.checked); save(); });
+  ta.addEventListener("input", () => { state.notes[i] = ta.value; save(); });
+  card.append(head, todo, see, nl, ta);
+  host.append(card);
+});
+
+const device = document.getElementById("device");
+device.value = state.device || "";
+device.addEventListener("input", () => { state.device = device.value; save(); });
+
+function report() {
+  const lines = ["Test af ElPriser", "Enhed: " + (state.device || "(ikke skrevet)"), ""];
+  STEPS.forEach((s, i) => {
+    lines.push("Trin " + (i + 1) + " – " + s.title + ": " + (state.done[i] ? "OK" : "ikke krydset af"));
+    if ((state.notes[i] || "").trim()) lines.push("  Note: " + state.notes[i].trim());
+  });
+  return lines.join("\n");
+}
+document.getElementById("copy").addEventListener("click", () => {
+  const text = report();
+  const done = () => { document.getElementById("copied").hidden = false; };
+  const fallback = () => { const f = document.getElementById("fallback"); f.value = text; f.hidden = false; f.focus(); f.select(); };
+  try { navigator.clipboard.writeText(text).then(done, fallback); } catch (e) { fallback(); }
+});
+</script>
