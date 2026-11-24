@@ -1,0 +1,59 @@
+@page "/fotoliste"
+@inject ItemUseCases Items
+
+@* Fotoliste (user 2026-11-24): books ALWAYS need a proper own photo; special CDs/DVDs too (ordinary ones get a shared pile photo in the
+   shop). One round with the phone: by kind, A-Z, with the box. Small book photos at the bottom - Martin decides. *@
+<PageTitle>Fotoliste – Lager</PageTitle>
+
+<section class="k-card">
+    <h1 class="k-card-title">Fotoliste</h1>
+    <p><b>Gør dette:</b> find tingene i kassen, tag et skarpt billede af hver (forsiden fylder billedet, godt lys) – tryk på varen og <b>Tag billede af varen</b> (eller <b>Tag nyt billede</b>).
+       <b>Du får:</b> bøger og særlige cd'er/dvd'er med et rigtigt billede på bogshoppen.dk.</p>
+    <p class="k-help">@(_needed is null ? "Henter …" : $"{_needed.Count} mangler et rigtigt billede · {_small?.Count ?? 0} bøger med et lille billede")</p>
+</section>
+
+@if (_needed is not null)
+{
+    @foreach (var g in _needed.GroupBy(i => i.Kind))
+    {
+        <section class="k-card">
+            <h2 class="k-card-title">@g.Key (@g.Count())</h2>
+            <ul class="lg-fotoliste">
+                @foreach (var i in g)
+                {
+                    <li><a href="/vare/@i.Id">@i.Line()</a> <span class="k-small k-muted">· @(i.Box?.Code ?? "ingen kasse") · @Why(i)</span></li>
+                }
+            </ul>
+        </section>
+    }
+}
+
+@if (_small is { Count: > 0 })
+{
+    <section class="k-card" data-fold-closed>
+        <h2 class="k-card-title">Bøger med et lille billede (@_small.Count)</h2>
+        <p class="k-help">Billedet er under @FixedPrice.SmallBookPhoto pixels på den korte led. Se på dem – tag et nyt, hvis det er uskarpt.</p>
+        <div class="lg-quick">
+            @foreach (var i in _small)
+            {
+                <a class="k-card lg-quick-card" href="/vare/@i.Id"><img class="lg-quick-photo" src="/varefoto/@i.Id" alt="@i.Line()" loading="lazy" /><span class="k-small">@i.Line() · @(i.Box?.Code ?? "ingen kasse")</span></a>
+            }
+        </div>
+    </section>
+}
+
+@code {
+    private List<Item>? _needed, _small;
+
+    protected override async Task OnInitializedAsync() => (_needed, _small) = await Items.PhotoListAsync();
+
+    private static string Why(Item i) => FixedPrice.PhotoNeeded(i) switch
+    {
+        "intet billede" or "hele bunken" => "intet eget billede",
+        "smal stribe" => "kun ryggen",
+        "for lille" => "for lille",
+        "skjult" => "skjult",
+        { } other => other,
+        null => "",
+    };
+}

@@ -298,6 +298,17 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
     /// <summary>Every thing of one seller kind (for sale and sold), newest first - the Strik and Ting pages in Lager.</summary>
     public Task<List<Item>> HandmadeAsync(CancellationToken ct = default) => items.OfKindAsync(Kinds.Strik, ct);
 
+    /// <summary>Fotoliste (2026-11-24): things for sale that need a proper own photo (FixedPrice.PhotoNeeded), and books whose photo is
+    /// small - by kind, then title.</summary>
+    public async Task<(List<Item> Needed, List<Item> SmallBooks)> PhotoListAsync(CancellationToken ct = default)
+    {
+        var all = (await items.AllListedAsync(ct)).Where(i => i.Kind is Kinds.Bog or Kinds.Cd or Kinds.Dvd or Kinds.BluRay).ToList();
+        var needed = all.Where(i => FixedPrice.PhotoNeeded(i) is not null).OrderBy(i => i.Kind).ThenBy(i => i.Title, StringComparer.Create(new System.Globalization.CultureInfo("da-DK"), true)).ToList();
+        var small = all.Where(i => i.Kind == Kinds.Bog && FixedPrice.PhotoNeeded(i) is null && i.PhotoW is { } w && i.PhotoH is { } h && Math.Min(w, h) < FixedPrice.SmallBookPhoto)
+            .OrderBy(i => i.Title, StringComparer.Create(new System.Globalization.CultureInfo("da-DK"), true)).ToList();
+        return (needed, small);
+    }
+
     /// <summary>"Tjek bladenes billeder" (2026-11-24): blade of one kind for sale with their own photo, oldest first.</summary>
     public async Task<List<Item>> MagazinesWithPhotoAsync(string kind, CancellationToken ct = default) =>
         (await items.OfKindAsync(kind, ct)).Where(i => (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg) && i.ItemPhoto != "")

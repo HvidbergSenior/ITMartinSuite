@@ -37,6 +37,18 @@ public static class FixedPrice
     public static readonly string[] Magazines = [Kinds.AndersAnd, Kinds.Superhelte, Kinds.Tegneserie, Kinds.Magasin];
     public static bool BlurryMagazine(Item i) => Magazines.Contains(i.Kind) && i.ShopPhotoProblem != "";
 
+    /// <summary>Photo rules (user 2026-11-24): books ALWAYS need a proper own photo; a special CD/DVD (own price, "vurderes" or rare)
+    /// needs one too - ordinary CDs/DVDs are shown with a shared photo of a pile. Null = no photo needed, else why.</summary>
+    public static string? PhotoNeeded(Item i)
+    {
+        var special = i.Price is > 0 || i.PriceHint >= ITMartinVarer.Contracts.ShopDeals.AssessFromKr || i.Rare;
+        var needsOwn = i.Kind == Kinds.Bog || (special && i.Kind is Kinds.Cd or Kinds.Dvd or Kinds.BluRay);
+        return needsOwn && i.ShopPhotoProblem != "" ? i.ShopPhotoProblem : null;
+    }
+
+    /// <summary>A book photo that is there but small (short side under this) - Martin decides if it is good enough.</summary>
+    public const int SmallBookPhoto = 400;
+
     /// <summary>True when Martin must set the price: typical found price >= 2x the fixed price and >= 50 kr.</summary>
     public static bool NeedsOwnPrice(Item i, IEnumerable<PriceFind> finds) =>
         Applies(i) && i.Price is not > 0 && !BlurryMagazine(i) && Typical(finds) is { } t && StandardOf(i) is { } s && t >= Factor * s && t >= MinKr;

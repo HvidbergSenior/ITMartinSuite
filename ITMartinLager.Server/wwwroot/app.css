@@ -132,3 +132,6 @@
 .lg-blad-hidden { border-color: #c8102e; }
 .lg-blad-hidden .lg-quick-photo { opacity: .35; filter: grayscale(1); }
 .lg-blad-hidden .lg-blad-state { color: #c8102e; font-weight: 600; }
+
+/* Fotoliste (2026-11-24) */
+.lg-fotoliste { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
