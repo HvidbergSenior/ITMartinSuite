@@ -51,6 +51,10 @@ public class FixedPriceTests
         var blad = new Item { Kind = Kinds.AndersAnd, Category = ProductTypes.Serieblade, PricesAt = DateTime.UtcNow, Confidence = 1, ItemPhoto = "x.jpg", PhotoHidden = true };
         FixedPrice.NeedsOwnPrice(blad, [F("Faraos", 300)]).Should().BeFalse("a hidden (blurry) blad photo cannot prove the issue");
         blad.PhotoHidden = false;
-        FixedPrice.NeedsOwnPrice(blad, [F("Faraos", 300)]).Should().BeTrue();
+        FixedPrice.NeedsOwnPrice(blad, [F("Faraos", 300), F("Nemos Bibliotek", 280)]).Should().BeTrue();
     }
+
+    [Test]
+    public void One_listing_is_not_enough() =>
+        FixedPrice.NeedsOwnPrice(Dvd(), [F("Faraos", 300)]).Should().BeFalse("one listing is often another product");
 }

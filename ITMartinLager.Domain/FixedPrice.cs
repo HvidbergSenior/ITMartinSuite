@@ -13,6 +13,9 @@ public static class FixedPrice
     public const string Dba = "DBA";
     public const int Factor = 2;
     public const int MinKr = 50;
+    /// <summary>At least this many matching listings before a price is trusted (user 2026-11-24: "I dont believe the prices" - one
+    /// listing was often another product: Lorcana for "First Wave", a bust for "Green Hornet", a trykvariant).</summary>
+    public const int MinListings = 2;
 
     /// <summary>Kinds that follow the fixed price. The rest keep their own way (Magic, Ting, box sets, console games ...).</summary>
     public static bool Applies(Item i) =>
@@ -24,12 +27,18 @@ public static class FixedPrice
     /// <summary>The typical (middle) used price found: the other sources first, DBA only when they found nothing. Null = nothing found.</summary>
     public static int? Typical(IEnumerable<PriceFind> finds)
     {
-        var used = finds.Where(f => !f.IsNew && !f.Similar && f.Kr > 0).ToList();
-        var others = used.Where(f => Sources.Contains(f.Source)).Select(f => f.Kr).ToList();
-        var list = others.Count > 0 ? others : used.Where(f => f.Source == Dba).Select(f => f.Kr).ToList();
+        var list = Chosen(finds);
         if (list.Count == 0) return null;
         list.Sort();
         return list.Count % 2 == 1 ? list[list.Count / 2] : (list[list.Count / 2 - 1] + list[list.Count / 2]) / 2;
+    }
+
+    /// <summary>The used prices that count: the other sources, or DBA when they found nothing.</summary>
+    public static List<int> Chosen(IEnumerable<PriceFind> finds)
+    {
+        var used = finds.Where(f => !f.IsNew && !f.Similar && f.Kr > 0).ToList();
+        var others = used.Where(f => Sources.Contains(f.Source)).Select(f => f.Kr).ToList();
+        return others.Count > 0 ? others : used.Where(f => f.Source == Dba).Select(f => f.Kr).ToList();
     }
 
     /// <summary>Blade/magazines (user 2026-11-24 "this is just for magazines"): a blurry or missing photo = no photo in the shop and
@@ -51,7 +60,7 @@ public static class FixedPrice
 
     /// <summary>True when Martin must set the price: typical found price >= 2x the fixed price and >= 50 kr.</summary>
     public static bool NeedsOwnPrice(Item i, IEnumerable<PriceFind> finds) =>
-        Applies(i) && i.Price is not > 0 && !BlurryMagazine(i) && Typical(finds) is { } t && StandardOf(i) is { } s && t >= Factor * s && t >= MinKr;
+        Applies(i) && i.Price is not > 0 && !BlurryMagazine(i) && Chosen(finds) is { Count: >= MinListings } && Typical(finds) is { } t && StandardOf(i) is { } s && t >= Factor * s && t >= MinKr;
 
     /// <summary>The hint for a thing that follows the fixed price: the typical price when Martin must decide, else none (the shop
     /// then shows the fixed price). "Som ny" keeps its own rule (25 % under the new price) when that is higher. Not applicable =
