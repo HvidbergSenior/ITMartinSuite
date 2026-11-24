@@ -32,7 +32,12 @@ public sealed class ClaudeSummaryWriter(HttpClient http, IConfiguration cfg, ILo
 
             Svar KUN med resuméteksten — ingen overskrift, ingen forklaring.
             """;
-        var body = JsonSerializer.Serialize(new { model = Model, max_tokens = 600, messages = new[] { new { role = "user", content = prompt } } });
+        // Thinking OFF (2026-11-24): with it on, Haiku 5.5 spent all 600 tokens thinking and wrote no text (stop_reason max_tokens).
+        var body = JsonSerializer.Serialize(new
+        {
+            model = Model, max_tokens = 600, thinking = new { type = "disabled" },
+            messages = new[] { new { role = "user", content = prompt } },
+        });
 
         try
         {
