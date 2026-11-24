@@ -125,3 +125,10 @@
 .lg-quick-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .lg-quick-nr { max-width: 5em; }
 .lg-quick-done { opacity: .45; }
+
+/* Tjek bladenes billeder (2026-11-24): the whole card is the button; hidden = faded + red edge */
+.lg-blad { text-align: left; cursor: pointer; border: 2px solid transparent; font: inherit; color: inherit; }
+.lg-blad:focus-visible { outline: 2px solid var(--k-accent, #c8102e); outline-offset: 2px; }
+.lg-blad-hidden { border-color: #c8102e; }
+.lg-blad-hidden .lg-quick-photo { opacity: .35; filter: grayscale(1); }
+.lg-blad-hidden .lg-blad-state { color: #c8102e; font-weight: 600; }

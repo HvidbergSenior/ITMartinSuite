@@ -63,8 +63,9 @@ public class StoreTests
         strik.Touch(); ting.Touch(); bog.Touch();
         await Items.AddAsync([strik, ting, bog], default);
         string[] Titles(string band) => Items.ListedAsync(null, null, "", ShopSorts.Title, 0, 10, default, band).Result.Page.Select(i => i.Title).ToArray();
-        Titles(ShopDeals.Single).Should().BeEquivalentTo(["Stribet sweater", "Rubinglas-vase"]);
-        Titles(ShopDeals.NoPrice).Should().NotContain(["Stribet sweater", "Rubinglas-vase"]);   // never twice
+        // 2026-11-24 (user: Strikkeshop + Tingshop "hide these for later"): not on bogshoppen.dk at all for now.
+        Titles(ShopDeals.Single).Should().NotContain(["Stribet sweater", "Rubinglas-vase"]);
+        Titles(ShopDeals.NoPrice).Should().NotContain(["Stribet sweater", "Rubinglas-vase"]);
     }
 
     [Test]

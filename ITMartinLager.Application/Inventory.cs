@@ -210,6 +210,8 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
     {
         if (await items.GetAsync(id, ct) is not { } item) return "Varen findes ikke.";
         item.PhotoHidden = hidden;
+        // A hidden blad photo = the fixed price at once (user 2026-11-24): drop a "vurderes" hint unless Martin set his own price.
+        if (hidden && FixedPrice.BlurryMagazine(item) && FixedPrice.Applies(item) && item.Price is not > 0) item.PriceHint = null;
         item.Touch();
         await items.UpdateAsync([item], ct);
         return null;
@@ -295,6 +297,11 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
 
     /// <summary>Every thing of one seller kind (for sale and sold), newest first - the Strik and Ting pages in Lager.</summary>
     public Task<List<Item>> HandmadeAsync(CancellationToken ct = default) => items.OfKindAsync(Kinds.Strik, ct);
+
+    /// <summary>"Tjek bladenes billeder" (2026-11-24): blade of one kind for sale with their own photo, oldest first.</summary>
+    public async Task<List<Item>> MagazinesWithPhotoAsync(string kind, CancellationToken ct = default) =>
+        (await items.OfKindAsync(kind, ct)).Where(i => (i.Status == Statuses.Lager || i.Status == Statuses.TilSalg) && i.ItemPhoto != "")
+            .OrderBy(i => i.Id).ToList();
     public Task<List<Item>> ForSellerAsync(string kind, CancellationToken ct = default) => items.OfKindAsync(kind, ct);
 
     /// <summary>A photo of just this item, for auctions and the shop.</summary>

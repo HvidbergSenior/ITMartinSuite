@@ -1,0 +1,64 @@
+@page "/blade-billeder"
+@inject ItemUseCases Items
+
+@* Tjek bladenes billeder (user 2026-11-24: "all the pictures without a proper picture need to be without pictures... The pictures which are
+   blurry need to be as standard pricing" + "this is just for magazines"). Tap a photo = hide it (no photo on bogshoppen.dk, the fixed price
+   of its kind); tap again = show it. 40 at a time per kind, oldest first. Other kinds get their own rules later. *@
+<PageTitle>Bladenes billeder – Lager</PageTitle>
+
+<section class="k-card">
+    <h1 class="k-card-title">Tjek bladenes billeder</h1>
+    <p><b>Gør dette:</b> tryk på et billede, der er uskarpt eller ikke viser bladet ordentligt. Så bliver det <b>skjult</b>.
+       Tryk igen for at vise det.
+       <b>Du får:</b> bladet vises uden billede på bogshoppen.dk og får standardprisen for sin slags.</p>
+    <div class="lg-quick-row">
+        @foreach (var k in FixedPrice.Magazines)
+        {
+            <button class="k-btn k-btn-sm @(k == _kind ? "k-btn-primary" : "k-btn-secondary")" @onclick="() => Choose(k)">@k</button>
+        }
+    </div>
+    <p class="k-help">@(_all is null ? "Henter …" : $"{_all.Count} {_kind} med eget billede · {_all.Count(i => i.PhotoHidden)} skjult · side {_page + 1} af {Pages}")</p>
+    @if (_err is not null) { <p class="lg-warn" role="alert">⚠ @_err</p> }
+</section>
+
+@if (_all is { Count: > 0 })
+{
+    <div class="lg-quick">
+        @foreach (var i in _all.Skip(_page * PerPage).Take(PerPage))
+        {
+            <button type="button" class="k-card lg-quick-card lg-blad @(i.PhotoHidden ? "lg-blad-hidden" : "")" @onclick="() => Toggle(i)"
+                    aria-pressed="@(i.PhotoHidden ? "true" : "false")" title="@(i.PhotoHidden ? "Skjult – tryk for at vise" : "Tryk for at skjule")">
+                <img class="lg-quick-photo" src="/varefoto/@i.Id" alt="@i.Line()" loading="lazy" />
+                <span class="k-small">@i.Line()</span>
+                <span class="k-small lg-blad-state">@(i.PhotoHidden ? "Skjult – standardpris" : "Vises")</span>
+            </button>
+        }
+    </div>
+    <section class="k-card lg-quick-row">
+        <button class="k-btn k-btn-secondary" disabled="@(_page == 0)" @onclick="() => Go(-1)">← Forrige</button>
+        <button class="k-btn k-btn-primary" disabled="@(_page >= Pages - 1)" @onclick="() => Go(1)">Næste @PerPage →</button>
+    </section>
+}
+
+@code {
+    public const int PerPage = 40;
+    private string _kind = Kinds.AndersAnd;
+    private List<Item>? _all;
+    private int _page;
+    private string? _err;
+    private int Pages => Math.Max(1, ((_all?.Count ?? 0) + PerPage - 1) / PerPage);
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    private async Task Load() { _all = null; _page = 0; _all = await Items.MagazinesWithPhotoAsync(_kind); }
+
+    private async Task Choose(string kind) { _kind = kind; await Load(); }
+
+    private void Go(int step) => _page = Math.Clamp(_page + step, 0, Pages - 1);
+
+    private async Task Toggle(Item i)
+    {
+        _err = await Items.SetPhotoHiddenAsync(i.Id, !i.PhotoHidden);
+        if (_err is null) i.PhotoHidden = !i.PhotoHidden;
+    }
+}

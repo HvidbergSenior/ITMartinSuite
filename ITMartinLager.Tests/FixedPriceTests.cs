@@ -44,4 +44,13 @@ public class FixedPriceTests
     [Test]
     public void New_and_similar_listings_do_not_count() =>
         FixedPrice.Typical([F("Faraos", 300, isNew: true), F("Faraos", 300, similar: true)]).Should().BeNull();
+
+    [Test]
+    public void A_blurry_magazine_keeps_the_fixed_price()
+    {
+        var blad = new Item { Kind = Kinds.AndersAnd, Category = ProductTypes.Serieblade, PricesAt = DateTime.UtcNow, Confidence = 1, ItemPhoto = "x.jpg", PhotoHidden = true };
+        FixedPrice.NeedsOwnPrice(blad, [F("Faraos", 300)]).Should().BeFalse("a hidden (blurry) blad photo cannot prove the issue");
+        blad.PhotoHidden = false;
+        FixedPrice.NeedsOwnPrice(blad, [F("Faraos", 300)]).Should().BeTrue();
+    }
 }

@@ -32,9 +32,14 @@ public static class FixedPrice
         return list.Count % 2 == 1 ? list[list.Count / 2] : (list[list.Count / 2 - 1] + list[list.Count / 2]) / 2;
     }
 
+    /// <summary>Blade/magazines (user 2026-11-24 "this is just for magazines"): a blurry or missing photo = no photo in the shop and
+    /// the fixed price - never Martin's list (a blurry cover cannot prove which issue it is).</summary>
+    public static readonly string[] Magazines = [Kinds.AndersAnd, Kinds.Superhelte, Kinds.Tegneserie, Kinds.Magasin];
+    public static bool BlurryMagazine(Item i) => Magazines.Contains(i.Kind) && i.ShopPhotoProblem != "";
+
     /// <summary>True when Martin must set the price: typical found price >= 2x the fixed price and >= 50 kr.</summary>
     public static bool NeedsOwnPrice(Item i, IEnumerable<PriceFind> finds) =>
-        Applies(i) && i.Price is not > 0 && Typical(finds) is { } t && StandardOf(i) is { } s && t >= Factor * s && t >= MinKr;
+        Applies(i) && i.Price is not > 0 && !BlurryMagazine(i) && Typical(finds) is { } t && StandardOf(i) is { } s && t >= Factor * s && t >= MinKr;
 
     /// <summary>The hint for a thing that follows the fixed price: the typical price when Martin must decide, else none (the shop
     /// then shows the fixed price). "Som ny" keeps its own rule (25 % under the new price) when that is higher. Not applicable =
