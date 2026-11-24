@@ -106,4 +106,14 @@ public class FixedPriceTests
         FixedPrice.Applies(box).Should().BeTrue();
         FixedPrice.Hint(box, [new PriceFind { Source = "DBA", Kr = 400, Name = "DVD-bokse In Treatment sæson 1 og 2" }], 200m).Should().BeNull();
     }
+
+    [Test]
+    public void A_listing_for_another_year_of_a_numbered_issue_does_not_count()
+    {
+        // Skipper Skræk nr. 26 from 1960: Faraos had nr. 26 from 1958 and 1962 (2026-11-24).
+        var blad = new Item { Kind = Kinds.Tegneserie, Category = ProductTypes.Serieblade, Number = "26", Year = 1960, PricesAt = DateTime.UtcNow, Confidence = 1, ItemPhoto = "x.jpg" };
+        FixedPrice.OtherIssue(blad, "Skipper Skræk 1962 Nr. 26").Should().BeTrue();
+        FixedPrice.OtherIssue(blad, "Skipper Skræk 1960 Nr. 26").Should().BeFalse();
+        FixedPrice.Chosen([new PriceFind { Source = "Faraos", Kr = 12, Name = "Skipper Skræk 1962 Nr. 26" }, new PriceFind { Source = "Faraos", Kr = 10, Name = "Skipper Skræk 1958 Nr. 26" }], blad).Should().BeEmpty();
+    }
 }

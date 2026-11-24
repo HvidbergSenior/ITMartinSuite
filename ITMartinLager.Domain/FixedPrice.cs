@@ -55,10 +55,21 @@ public static class FixedPrice
 
     public static string OwnText(Item? i) => i is null ? "" : $"{i.Title} {i.Note} {i.Interest} {i.EditionHint}";
 
-    /// <summary>The used prices that count: the other sources, or DBA when they found nothing. Special versions are left out.</summary>
+    /// <summary>A listing for another issue (user 2026-11-24 "I dont think the matches are precise": Skipper Skræk nr. 26 from 1960 got
+    /// nr. 26 from 1958 and 1962): another number or edition, or - for a numbered issue - a year in the listing that is not ours.</summary>
+    public static bool OtherIssue(Item i, string listing)
+    {
+        listing ??= "";
+        if (Pricing.OtherNumber(i, listing) || Pricing.OtherEdition(i, listing) || Pricing.OtherYear(i, listing)) return true;
+        if (i.Number.Trim() == "" || i.Year is not > 0) return false;
+        var years = System.Text.RegularExpressions.Regex.Matches(listing, @"\b(19|20)\d{2}\b").Select(m => int.Parse(m.Value)).ToList();
+        return years.Count > 0 && !years.Contains(i.Year.Value);
+    }
+
+    /// <summary>The used prices that count: the other sources, or DBA when they found nothing. Special versions and other issues are left out.</summary>
     public static List<int> Chosen(IEnumerable<PriceFind> finds, Item? i = null)
     {
-        var used = finds.Where(f => !f.IsNew && !f.Similar && f.Kr > 0 && !SpecialVersion(f.Name, i)).ToList();
+        var used = finds.Where(f => !f.IsNew && !f.Similar && f.Kr > 0 && !SpecialVersion(f.Name, i) && (i is null || !OtherIssue(i, f.Name))).ToList();
         var others = used.Where(f => Sources.Contains(f.Source)).Select(f => f.Kr).ToList();
         return others.Count > 0 ? others : used.Where(f => f.Source == Dba).Select(f => f.Kr).ToList();
     }

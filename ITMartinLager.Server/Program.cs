@@ -177,6 +177,10 @@ app.MapPost("/api/priser/fast", async (PriceHuntUseCases hunt, CancellationToken
     return Results.Ok(new { kontrolleret = all, aendret = changed, skalVurderes = own });
 }).DisableAntiforgery();
 
+// Change the type of several things at once (2026-11-24) - behind the Lager PIN like every /api route.
+app.MapPost("/api/varer/type", async (KindChange body, ItemUseCases items, CancellationToken ct) =>
+    Results.Ok(new { aendret = await items.SetKindAsync(body.Ids ?? [], body.Kind ?? "", ct) })).DisableAntiforgery();
+
 app.MapGet("/api/eksport.csv", async (ExportUseCases export) =>
     Results.File(await export.ItemsCsvAsync(), "text/csv", $"bogshoppen-lager-{DateTime.Now:yyyy-MM-dd}.csv"));
 // Item photos as a zip: all, or one box (?kasse=K0001). Built in a temp file that deletes itself when sent - all photos
@@ -204,3 +208,5 @@ app.MapRazorComponents<App>()
 app.Run();
 
 public partial class Program;
+
+public sealed record KindChange(List<int>? Ids, string? Kind);

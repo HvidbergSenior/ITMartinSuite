@@ -298,6 +298,17 @@ public sealed class ItemUseCases(IItemRepository items, IPriceRepository prices,
     /// <summary>Every thing of one seller kind (for sale and sold), newest first - the Strik and Ting pages in Lager.</summary>
     public Task<List<Item>> HandmadeAsync(CancellationToken ct = default) => items.OfKindAsync(Kinds.Strik, ct);
 
+    /// <summary>Change the type of several things at once (2026-11-24: Basserne, Kong Kylie, Skipper Skræk, Jonah Hex ... were
+    /// "Superhelteblad"). The category follows the type. Returns how many changed.</summary>
+    public async Task<int> SetKindAsync(IReadOnlyCollection<int> ids, string kind, CancellationToken ct = default)
+    {
+        var k = Kinds.Normalise(kind);
+        var list = (await items.ByIdsAsync(ids.ToList(), ct)).Where(i => i.Kind != k).ToList();
+        foreach (var i in list) { i.Kind = k; i.Classify(); i.Touch(); }
+        if (list.Count > 0) await items.UpdateAsync(list, ct);
+        return list.Count;
+    }
+
     /// <summary>Fotoliste (2026-11-24): things for sale that need a proper own photo (FixedPrice.PhotoNeeded), and books whose photo is
     /// small - by kind, then title.</summary>
     public async Task<(List<Item> Needed, List<Item> SmallBooks)> PhotoListAsync(CancellationToken ct = default)
