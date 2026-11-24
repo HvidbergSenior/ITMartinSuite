@@ -40,7 +40,9 @@ public static class FixedPrice
     /// <summary>Words that mean a SPECIAL version, not an ordinary copy (user 2026-11-24, Anders And 17/1973: both listings were the rare
     /// "trykvariant uden dato" - ours has the date). Such a listing only counts when our own thing says the same word.</summary>
     public static readonly string[] SpecialWords =
-        ["trykvariant", "variant", "fejltryk", "uden dato", "til læg", "i pose", "billedhæfte", "guldbog", "signeret", "signed"];
+        ["trykvariant", "variant", "fejltryk", "uden dato", "til læg", "i pose", "billedhæfte", "guldbog", "signeret", "signed",
+         // Sealed/unopened is a special version too (Stikprøve 2026-11-24: "Rend mig i traditionerne (UÅBNET, stadig i folie)").
+         "uåbnet", "i folie", "forseglet", "sealed"];
 
     /// <summary>True when the listing is about a special version our thing is not marked as.</summary>
     public static bool SpecialVersion(string listing, Item? i) => SpecialVersion(listing, OwnText(i));
@@ -69,7 +71,10 @@ public static class FixedPrice
     /// <summary>The used prices that count: the other sources, or DBA when they found nothing. Special versions and other issues are left out.</summary>
     public static List<int> Chosen(IEnumerable<PriceFind> finds, Item? i = null)
     {
-        var used = finds.Where(f => !f.IsNew && !f.Similar && f.Kr > 0 && !SpecialVersion(f.Name, i) && (i is null || !OtherIssue(i, f.Name))).ToList();
+        // A CD with only the artist as title has no album to look for - no listing proves anything (Stikprøve rule 2).
+        if (i is not null && ListingMatch.NoAlbum(i)) return [];
+        var used = finds.Where(f => !f.IsNew && !f.Similar && f.Kr > 0 && !SpecialVersion(f.Name, i)
+            && (i is null || (!OtherIssue(i, f.Name) && !ListingMatch.Wrong(i, f.Name)))).ToList();
         var others = used.Where(f => Sources.Contains(f.Source)).Select(f => f.Kr).ToList();
         return others.Count > 0 ? others : used.Where(f => f.Source == Dba).Select(f => f.Kr).ToList();
     }
