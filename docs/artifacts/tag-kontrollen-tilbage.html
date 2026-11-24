@@ -1,0 +1,464 @@
+<title>Tag kontrollen tilbage</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+/* Layout: stepper (7 steps) on top, one step at a time below. Each step = what it is + how to do it + ticks + "Martins forløb" note. Last step = control overview. */
+:root {
+  --bg: #f5f6f8; --surface: #ffffff; --fg: #1b2030; --muted: #5d6475; --line: #dde1e8;
+  --accent: #2b5fd9; --accent-soft: #e6edfb; --warn: #a3471c; --warn-soft: #f8e7dd; --ok: #2f6f5a; --ok-soft: #e2efe9;
+  --bar: #2b5fd9; --bar-dim: #b9c8ee; --on-accent: #ffffff;
+  --display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --body: "Inter", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11141b; --surface: #1a1f2a; --fg: #e7eaf1; --muted: #9aa2b4; --line: #2b3242;
+    --accent: #7ea2ff; --accent-soft: #1d2740; --warn: #f0a37a; --warn-soft: #33221a; --ok: #7fc4aa; --ok-soft: #1c2c26;
+    --bar: #7ea2ff; --bar-dim: #3a4769; --on-accent: #0d1220; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11141b; --surface: #1a1f2a; --fg: #e7eaf1; --muted: #9aa2b4; --line: #2b3242;
+  --accent: #7ea2ff; --accent-soft: #1d2740; --warn: #f0a37a; --warn-soft: #33221a; --ok: #7fc4aa; --ok-soft: #1c2c26;
+  --bar: #7ea2ff; --bar-dim: #3a4769; --on-accent: #0d1220; color-scheme: dark;
+}
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 56px;
+}
+.wrap { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+.brand { font-family: var(--display); font-weight: 700; font-size: 0.82rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--display); font-size: clamp(1.8rem, 5vw, 2.5rem); line-height: 1.1; margin: 4px 0 0; text-wrap: balance; }
+h2 { font-family: var(--display); font-size: 1.35rem; margin: 0; text-wrap: balance; }
+h3 { font-size: 1rem; margin: 0; }
+p { margin: 0; max-width: 66ch; }
+.muted { color: var(--muted); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.privacy { background: var(--ok-soft); border-radius: 12px; padding: 12px 16px; font-weight: 500; }
+.privacy b { color: var(--ok); }
+
+.stepper { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+.stepper button { font: inherit; font-size: 0.85rem; font-weight: 600; flex: 0 0 auto; border: 1px solid var(--line); background: var(--surface); color: var(--fg);
+  border-radius: 99px; padding: 7px 12px; cursor: pointer; display: flex; gap: 6px; align-items: center; }
+.stepper button .dot { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 0.75rem; background: var(--line); color: var(--fg); }
+.stepper button.done .dot { background: var(--ok); color: var(--on-accent); }
+.stepper button[aria-current="step"] { border-color: var(--accent); background: var(--accent-soft); }
+.progress-line { display: flex; gap: 10px; align-items: center; font-size: 0.9rem; color: var(--muted); }
+.progress { flex: 1; height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; }
+.progress > i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .3s; }
+
+.why { font-size: 1.05rem; }
+.how { display: flex; flex-direction: column; gap: 10px; }
+.task { display: flex; gap: 12px; align-items: flex-start; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.task input[type=checkbox] { width: 22px; height: 22px; margin-top: 2px; accent-color: var(--ok); flex: none; }
+.task.checked { background: var(--ok-soft); border-color: transparent; }
+.task .t { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.task .path { font-size: 0.92rem; color: var(--muted); }
+.task .path b { color: var(--fg); }
+.task a { color: var(--accent); font-weight: 600; }
+.martin { border-left: 4px solid var(--warn); background: var(--warn-soft); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.martin .tag { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--warn); }
+.nav { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.btn { font: inherit; font-weight: 600; border: none; border-radius: 10px; padding: 10px 18px; background: var(--accent); color: var(--on-accent); cursor: pointer; }
+.btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn:focus-visible, .stepper button:focus-visible, summary:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.locked { background: var(--warn-soft); border-radius: 10px; padding: 12px 14px; font-weight: 500; }
+
+.drop { border: 2px dashed var(--accent); background: var(--accent-soft); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+#fil { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.bar { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; width: 100%; }
+.bar > i { display: block; height: 100%; width: 0; background: var(--accent); }
+.answer { border-left: 5px solid var(--accent); }
+.answer .big { font-family: var(--display); font-size: clamp(1.2rem, 3.4vw, 1.6rem); font-weight: 700; line-height: 1.3; }
+.example-tag { align-self: flex-start; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; background: var(--warn-soft); color: var(--warn); padding: 3px 10px; border-radius: 99px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.tile { background: var(--bg); border-radius: 10px; padding: 12px 14px; }
+.tile .n { font-family: var(--display); font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.tile .l { font-size: 0.86rem; color: var(--muted); }
+details.card > summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+details.card > summary::-webkit-details-marker { display: none; }
+details.card > summary::after { content: "Vis"; font-size: 0.85rem; color: var(--accent); font-weight: 600; }
+details.card[open] > summary::after { content: "Skjul"; }
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+td, th { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 0.75rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.chart { overflow-x: auto; }
+.chart svg { display: block; width: 100%; min-width: 520px; height: auto; }
+label.field { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 0.92rem; }
+input[type=text], input[type=email], textarea { font: inherit; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--fg); width: 100%; box-sizing: border-box; }
+textarea { min-height: 260px; font-size: 0.92rem; line-height: 1.5; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.control { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.ctl { border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.ctl.yes { background: var(--ok-soft); }
+.ctl.no { background: var(--warn-soft); }
+.ctl .s { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.ctl.yes .s { color: var(--ok); }
+.ctl.no .s { color: var(--warn); }
+ol, ul { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 4px; }
+footer { color: var(--muted); font-size: 0.88rem; border-top: 1px solid var(--line); padding-top: 14px; }
+footer span { color: var(--fg); user-select: all; }
+@media (max-width: 560px) { .row2 { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .progress > i { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand">ITMartin · gratis</div>
+    <h1>Tag kontrollen tilbage</h1>
+  </header>
+  <p>Facebook, Snapchat, Google og de andre ved mere om dig, end du tror – og de har dine billeder. Her går du det igennem trin for trin: se hvad de ved, få dine ting hjem, ryd op, og sig fra. Til sidst ser du, hvad du selv bestemmer over.</p>
+  <div class="privacy"><b>Alt bliver hos dig.</b> Dine filer læses i din egen browser, og dine flueben gemmes kun på denne computer. Intet sendes til ITMartin eller andre.</div>
+
+  <nav class="stepper" id="stepper" aria-label="Trin"></nav>
+  <div class="progress-line"><div class="progress"><i id="prog"></i></div><span id="progTxt"></span></div>
+
+  <main id="step"></main>
+
+  <footer>
+    Vil du have hjælp til et af trinene – især at få dine billeder hjem? <span>ITMartin@Mensa.dk</span> · <span>31 19 47 30</span>
+  </footer>
+</div>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => Number(n).toLocaleString('da-DK');
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem('tk_' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem('tk_' + k, JSON.stringify(v)); } catch {} }
+  };
+  let done = store.get('done', {});
+
+  // ---- The steps. Each task: id, title, path (how), optional link. "martin" = what happened in Martin's own case.
+  const STEPS = [
+    { id: 'hent', title: 'Hent dine data', short: 'Hent',
+      why: 'Alle store tjenester skal give dig dine data, når du beder om det (GDPR). Bestil dem først – de kan være flere dage om at komme.',
+      tasks: [
+        { id: 'fb-oplysninger', t: 'Facebook og Instagram: dine billeder, videoer og beskeder', p: 'Kontocenter → <b>Dine oplysninger og tilladelser</b> → <b>Download dine oplysninger</b>. Vælg alt, format <b>JSON</b>, kvalitet <b>høj</b>.' },
+        { id: 'fb-datalogge', t: 'Facebook: datalogge (det, Meta registrerer om dig)', p: 'Samme sted → vælg <b>datalogge</b>, format <b>JSON</b> og perioden <b>Hele tiden</b>. Skriv datoen ned, så du kan sammenligne næste gang. Store dele kan komme dage senere.' },
+        { id: 'snap', t: 'Snapchat: minder og data', p: '<b>accounts.snapchat.com</b> → <b>My Data</b>. Sæt flueben ved minder (Memories).' },
+        { id: 'google', t: 'Google: fotos, YouTube, placeringer', p: '<b>takeout.google.com</b> → vælg Google Fotos, <b>YouTube og YouTube Music</b> og det, du ellers vil se.' },
+        { id: 'icloud', t: 'Apple / iCloud', p: '<b>privacy.apple.com</b> → <b>Anmod om en kopi af dine data</b>.' },
+        { id: 'tiktok', t: 'TikTok (hvis du bruger det)', p: 'Profil → <b>Indstillinger</b> → <b>Konto</b> → <b>Download dine data</b>.' }
+      ],
+      martin: 'Martin hentede sin Facebook-eksport: 12.020 billeder og 1.593 videoer fra 2009 til i dag – de fleste lå i Messenger. Snapchat gav 3.039 billeder og 2.491 videoer. Datalogge kom i to dele; den sidste 24. november.' },
+
+    { id: 'se', title: 'Se hvad de ved', short: 'Se',
+      why: 'Datalogge viser, hvad Meta har registreret og gættet om dig. Vælg zip-filen her – den læses kun i din browser.',
+      analyzer: true,
+      tasks: [ { id: 'set-datalogge', t: 'Jeg har set, hvad Meta ved om mig', p: 'Vælg din datalog-zip ovenfor, og læs kortene igennem.' } ],
+      martin: 'Meta har 564.968 registreringer på Martin i 755 tabeller: gættet alder (40\'erne), Aarhus, iPhone og Samsung-tablet, 3.863 forskellige annoncer, 86 enheds-id\'er og 71 IP-adresser. Meta har også prøvet at få ham til at uploade sine kontakter.' },
+
+    { id: 'hjem', title: 'Få dine billeder hjem', short: 'Hjem',
+      why: 'Før du sletter noget, skal dine billeder ligge sikkert hos dig selv – sorteret, med rigtige datoer, og i to kopier.',
+      tasks: [
+        { id: 'samlet', t: 'Alt er samlet ét sted', p: 'Pak dine eksporter ud i én mappe – eller send dem til ITMartin via <b>upload.itmartin.dk</b>, så sorterer vi dem for dig.' },
+        { id: 'sorteret', t: 'Sorteret efter år og måned, med rigtige datoer', p: 'Facebook og Snapchat fjerner ofte datoen fra billederne. Den skal sættes på igen fra eksportens egne oplysninger.' },
+        { id: 'to-kopier', t: 'To kopier: én hjemme (disk/USB) og én andet sted', p: 'Fx en USB-disk i skuffen og et galleri med kode på nettet.' },
+        { id: 'tjekket', t: 'Jeg har tjekket, at de vigtigste billeder er der', p: 'Bladr i nogle år, du kender godt – fødselsdage, rejser, børnene.' }
+      ],
+      martin: 'Martins billeder fra Facebook ligger nu sorteret efter år i galleriet, med datoen hentet fra Facebooks egne sider. Snapchat-minderne bliver sorteret ind ved siden af.' },
+
+    { id: 'ryd', title: 'Ryd op hos Meta', short: 'Ryd op',
+      why: 'Nu ved du, hvad de har. Skru ned for det, de må bruge – én indstilling ad gangen.',
+      tasks: [
+        { id: 'mindre-personlige', t: 'Vælg mindre personlige annoncer (gratis)', p: 'Kontocenter → <b>Annoncepræferencer</b> → <b>Administrer oplysninger</b> / <b>Annonceoplevelse</b> → "Mindre personlige annoncer". Du får stadig annoncer, men de bygger på mindre om dig. Helt uden annoncer koster et månedligt abonnement hos Meta.' },
+        { id: 'annonceemner', t: 'Fjern annonceemner, du ikke vil have', p: 'Kontocenter → <b>Annoncepræferencer</b> → <b>Annonceemner</b> → "Se mindre".' },
+        { id: 'annoncoerer', t: 'Se, hvilke annoncører har dig på en liste', p: 'Annoncepræferencer → <b>Annoncører</b> / <b>Målgruppebaserede annoncer</b>. Skjul dem, du ikke kender.' },
+        { id: 'uden-for-meta', t: 'Kobl din aktivitet uden for Meta fra', p: 'Kontocenter → Dine oplysninger og tilladelser → <b>Din aktivitet uden for Meta-teknologier</b> → <b>Administrer fremtidig aktivitet</b> → Kobl fra.' },
+        { id: 'kontakter', t: 'Stop upload af dine kontakter – og slet de uploadede', p: 'I Facebook- og Messenger-appen: <b>Indstillinger</b> → <b>Upload kontakter</b> → slå fra.' },
+        { id: 'enheder', t: 'Log ud af apparater, du ikke kender', p: 'Kontocenter → <b>Adgangskode og sikkerhed</b> → <b>Hvor du er logget ind</b>.' },
+        { id: 'notifikationer', t: 'Slå de notifikationer fra, du ikke har brug for', p: 'Indstillinger → <b>Notifikationer</b>. Behold beskeder fra dem, du kender.' },
+        { id: 'gamle-opslag', t: 'Ryd gamle opslag (når billederne er hjemme)', p: 'Profil → ⋯ → <b>Administrer opslag</b> / <b>Aktivitetslog</b>. Arkivér eller slet i bunker.' }
+      ],
+      martin: 'Martins datalogge viste 745 forsøg på bl.a. "Contact import" og "Email acquisition" på få uger – derfor står kontakt-upload på listen.' },
+
+    { id: 'browser', title: 'Giv Meta sin egen browser', short: 'Browser', half: true, num: '4½',
+      why: 'Når du er logget ind på Facebook i den browser, du også handler og læser nyheder i, kan Meta koble dine besøg på andre sider til din konto. Giv Facebook sin egen browser – så er resten af nettet dit. To niveauer: det lette (de to første) er for alle, det fulde (alle fire) giver mest ro.',
+      tasks: [
+        { id: 'log-ud-browser', t: 'Let: log ud af Facebook i din almindelige browser', p: 'Brug Facebook i et <b>privat vindue</b>, eller tryk <b>Log ud</b>, når du er færdig.' },
+        { id: 'egen-profil', t: 'Let: giv Facebook sin egen browser eller profil', p: 'Chrome/Edge: dit profilbillede øverst til højre → <b>Tilføj</b> → kald den "Facebook". Firefox: tilføj <b>Facebook Container</b> fra Mozilla.' },
+        { id: 'annonceblokering', t: 'Fuld: sæt annonceblokering på den browser', p: 'Fx <b>uBlock Origin</b> (gratis) fra browserens udvidelser.' },
+        { id: 'app-vaek', t: 'Fuld: slet Facebook-appen på telefonen', p: 'Brug <b>facebook.com</b> i telefonens browser i stedet. Behold Messenger, hvis du har brug for den.' }
+      ],
+      martin: 'Hos Martin fylder appens egen logning mest: 163 MB tryk i iPhone-appen og 113 MB skift mellem skærme. Den forsvinder, når appen er væk. Webshops, der sender dine køb direkte til Meta, stopper en browser ikke – det klarer trin 4 og 6.' },
+
+    { id: 'google', title: 'Ryd op hos Google og YouTube', short: 'Google',
+      why: 'YouTube er Google. Google samler det, du ser, søger og hvor du er – men her er det gratis at slå personlige annoncer fra og lade historikken slette sig selv.',
+      tasks: [
+        { id: 'g-adcenter', t: 'Slå personlige annoncer fra (gratis)', p: '<b>myadcenter.google.com</b> → <b>Personlige annoncer</b> → Fra. Du får stadig annoncer, men ikke ud fra dig.' },
+        { id: 'g-yt-historik', t: 'Stop eller begræns YouTube-historikken', p: '<b>myactivity.google.com</b> → <b>YouTube-historik</b> → Sæt på pause, eller <b>Slet automatisk</b> efter 3 måneder.' },
+        { id: 'g-web-aktivitet', t: 'Begræns Web- og appaktivitet', p: 'myactivity.google.com → <b>Web- og appaktivitet</b> → <b>Slet automatisk</b> efter 3 måneder.' },
+        { id: 'g-placering', t: 'Tjek din placeringshistorik', p: '<b>Google Maps</b> → din profil → <b>Din tidslinje</b>. Slå den fra, eller slet det, du ikke vil gemme.' },
+        { id: 'g-enheder', t: 'Log ud af apparater, du ikke kender', p: '<b>myaccount.google.com</b> → <b>Sikkerhed</b> → <b>Dine enheder</b>.' },
+        { id: 'g-yt-uden-login', t: 'Se YouTube uden at være logget ind', p: 'Brug et privat vindue eller din "Facebook"-profil fra trin 4½ – medmindre du har brug for dine abonnementer.' }
+      ] },
+
+    { id: 'sig-fra', title: 'Sig fra skriftligt', short: 'Sig fra',
+      why: 'Du har ret til at sige fra over for brug af dine data til markedsføring (GDPR artikel 21) og til at Meta træner sin AI på dine opslag. Brevet her skriver sig selv – du kopierer og sender det.',
+      letter: true,
+      tasks: [
+        { id: 'ai', t: 'Sig fra til AI-træning', p: 'Metas <b>privatlivscenter</b> → indsigelse mod brug af dine oplysninger til AI hos Meta. Udfyld formularen.' },
+        { id: 'brev', t: 'Send indsigelsen om markedsføring', p: 'Kopiér brevet nedenfor, og send det via Metas privatlivsformular. Gem kvitteringen.' },
+        { id: 'klage', t: '(Hvis de ikke svarer inden 1 måned) Klag', p: 'Til <b>Datatilsynet</b> i Danmark. Meta i EU hører under det irske datatilsyn, men du kan klage i Danmark.' }
+      ],
+      martin: 'Meta har brugt offentlige opslag fra voksne i EU til at træne sin AI siden maj 2025 – medmindre man selv har sagt fra.' },
+
+    { id: 'skru-ned', title: 'Skru ned for dine clouds', short: 'Skru ned',
+      why: 'Når dine billeder ligger sikkert hjemme, behøver du ikke betale for plads, du ikke bruger.',
+      requires: 'hjem',
+      tasks: [
+        { id: 'se-abonnementer', t: 'Se, hvad du betaler for', p: 'iPhone: <b>Indstillinger → [dit navn] → iCloud</b>. Google: <b>one.google.com</b>. Notér beløbet pr. måned.' },
+        { id: 'slet-fra-cloud', t: 'Slet det, der allerede ligger sikkert hjemme', p: 'Kun det, du har set i din egen kopi. Tøm "Senest slettet" bagefter.' },
+        { id: 'nedgrader', t: 'Gå ned i størrelse – eller stop abonnementet', p: 'Fx iCloud fra 2 TB (89 kr/md) til 50 GB (9 kr/md) = 960 kr sparet om året.' }
+      ],
+      martin: 'En familie med flere 2 TB-abonnementer betaler mange penge for et "loft" hos amerikanske firmaer, hvor der aldrig bliver ryddet op.' },
+
+    { id: 'kontrol', title: 'Du har kontrollen', short: 'Kontrol', final: true, tasks: [] }
+  ];
+  // Step numbers for people: a half step (4½) does not move the numbers after it.
+  STEPS.forEach((s, i) => { if (!s.num) s.num = String(i + 1 - STEPS.slice(0, i).filter((x) => x.half).length); });
+
+  const allTasks = () => STEPS.flatMap((s) => s.tasks.map((t) => ({ ...t, step: s.id })));
+  const stepDone = (s) => s.tasks.length > 0 && s.tasks.every((t) => done[t.id]);
+
+  function renderStepper(cur) {
+    $('stepper').innerHTML = STEPS.map((s, i) =>
+      '<button type="button" data-i="' + i + '" class="' + (stepDone(s) ? 'done' : '') + '"' + (i === cur ? ' aria-current="step"' : '') + '>' +
+      '<span class="dot">' + (stepDone(s) ? '✓' : s.num) + '</span>' + esc(s.short) + '</button>').join('');
+    $('stepper').querySelectorAll('button').forEach((b) => b.onclick = () => go(+b.dataset.i));
+    const all = allTasks(), n = all.filter((t) => done[t.id]).length;
+    $('prog').style.width = Math.round(n / all.length * 100) + '%';
+    $('progTxt').textContent = n + ' af ' + all.length + ' gjort';
+  }
+
+  function go(i) {
+    i = Math.max(0, Math.min(STEPS.length - 1, i));
+    store.set('step', i);
+    try { history.replaceState(null, '', '#trin-' + (i + 1)); } catch {}
+    render(i);
+    window.scrollTo({ top: 0 });
+  }
+
+  function render(i) {
+    const s = STEPS[i]; renderStepper(i);
+    let h = '<section class="card"><p class="muted">Trin ' + s.num + ' af ' + STEPS.filter((x) => !x.half).length + '</p><h2>' + esc(s.title) + '</h2>';
+    if (s.final) { $('step').innerHTML = h + controlView() + navHtml(i) + '</section>'; bindNav(i); return; }
+    h += '<p class="why">' + s.why + '</p>';
+    const blocked = s.requires && !stepDone(STEPS.find((x) => x.id === s.requires));
+    if (blocked) h += '<div class="locked">Vent med dette trin, til dine billeder ligger sikkert hjemme (trin 3). Ellers risikerer du at slette noget, du ikke har en kopi af.</div>';
+    if (s.analyzer) h += analyzerHtml();
+    h += '<div class="how">' + s.tasks.map((t) =>
+      '<label class="task' + (done[t.id] ? ' checked' : '') + '"><input type="checkbox" data-t="' + t.id + '"' + (done[t.id] ? ' checked' : '') + (blocked ? ' disabled' : '') + '>' +
+      '<span class="t"><b>' + esc(t.t) + ' <span class="muted when">' + (typeof done[t.id] === 'string' ? '· gjort ' + dDa(done[t.id]) : '') + '</span></b><span class="path">' + t.p + '</span></span></label>').join('') + '</div>';
+    if (s.letter) h += letterHtml();
+    if (s.martin) h += '<div class="martin"><span class="tag">Martins forløb</span><p>' + esc(s.martin) + '</p></div>';
+    $('step').innerHTML = h + navHtml(i) + '</section>' + (s.analyzer ? '<div id="out"></div>' : '');
+    $('step').querySelectorAll('input[data-t]').forEach((c) => c.onchange = () => {
+      const today = ymd(new Date());
+      done[c.dataset.t] = c.checked ? today : false; store.set('done', done);
+      c.closest('.task').classList.toggle('checked', c.checked);
+      c.closest('.task').querySelector('.when').textContent = c.checked ? '· gjort ' + dDa(today) : '';
+      renderStepper(i);
+    });
+    bindNav(i);
+    if (s.analyzer) bindAnalyzer();
+    if (s.letter) bindLetter();
+  }
+
+  function navHtml(i) {
+    return '<div class="nav"><button type="button" class="btn ghost" id="prev"' + (i === 0 ? ' disabled' : '') + '>‹ Forrige</button>' +
+      (i < STEPS.length - 1 ? '<button type="button" class="btn" id="next">Næste: ' + esc(STEPS[i + 1].title) + ' ›</button>' : '') + '</div>';
+  }
+  function bindNav(i) { $('prev').onclick = () => go(i - 1); if ($('next')) $('next').onclick = () => go(i + 1); }
+
+  // ---- Final: control overview
+  function controlView() {
+    const items = [
+      ['Dine billeder', ['samlet', 'sorteret', 'to-kopier', 'tjekket'], 'Ligger hos dig, sorteret og i to kopier.', 'Ligger stadig kun hos de store tjenester.'],
+      ['Hvad de ved om dig', ['set-datalogge'], 'Du har set det med egne øjne.', 'Hent dine datalogge (trin 1–2).'],
+      ['Annoncer om dig', ['mindre-personlige', 'annonceemner', 'annoncoerer'], 'Du har skruet ned for emner og annoncører.', 'Meta bestemmer stadig selv.'],
+      ['Din færden uden for Meta', ['uden-for-meta'], 'Koblet fra fremover.', 'Andre sider og apps fortæller stadig Meta, hvad du gør.'],
+      ['Dine kontakter', ['kontakter'], 'Bliver ikke længere uploadet.', 'Din telefonbog kan blive uploadet.'],
+      ['Din browser', ['log-ud-browser', 'egen-profil'], 'Meta kan ikke følge dig rundt på resten af nettet.', 'Meta kan koble dine besøg på andre sider til din konto.'],
+      ['Google og YouTube', ['g-adcenter', 'g-yt-historik'], 'Ingen personlige annoncer, og historikken sletter sig selv.', 'Google bygger stadig en profil på det, du ser og søger.'],
+      ['Din konto', ['enheder'], 'Kun dine egne apparater er logget ind.', 'Tjek, hvem der er logget ind.'],
+      ['Din opmærksomhed', ['notifikationer'], 'Kun de beskeder, du vil have.', 'Appen kalder stadig på dig.'],
+      ['AI og markedsføring', ['ai', 'brev'], 'Du har sagt fra skriftligt.', 'Dine opslag kan bruges til AI og annoncer.'],
+      ['Dine clouds', ['se-abonnementer', 'slet-fra-cloud', 'nedgrader'], 'Du betaler kun for det, du vil.', 'Du betaler stadig for plads.']
+    ];
+    const yes = items.filter((x) => x[1].every((k) => done[k])).length;
+    let h = '<p class="why">' + (yes === items.length ? '<b>Du har kontrollen.</b> Alt er gennemgået.' :
+      'Du har kontrollen over <b>' + yes + ' af ' + items.length + '</b> områder. Resten kan du tage, når du har tid.') + '</p>';
+    h += '<div class="control">' + items.map(([name, keys, ok, notyet]) => {
+      const y = keys.every((k) => done[k]);
+      return '<div class="ctl ' + (y ? 'yes' : 'no') + '"><span class="s">' + (y ? 'Du bestemmer' : 'Mangler') + '</span><b>' + esc(name) + '</b><span>' + esc(y ? ok : notyet) + '</span></div>';
+    }).join('') + '</div>';
+    h += '<div class="martin"><span class="tag">Hold fast i det</span><p>Tjek igen om et år: hent nye datalogge, og se om indstillingerne stadig står, som du satte dem. Meta ændrer menuer og standardvalg jævnligt.</p></div>';
+    return h;
+  }
+
+  // ---- Step 5: objection letter (GDPR art. 21) - generated from name + email, copied by the user
+  function letterHtml() {
+    const me = store.get('me', { navn: '', mail: '' });
+    return '<div class="row2"><label class="field">Dit navn<input type="text" id="lNavn" value="' + esc(me.navn) + '" autocomplete="name"></label>' +
+      '<label class="field">Din mail på Facebook<input type="email" id="lMail" value="' + esc(me.mail) + '" autocomplete="email"></label></div>' +
+      '<label class="field">Dit brev (ret gerne)<textarea id="lTxt"></textarea></label>' +
+      '<div class="nav"><button type="button" class="btn" id="lCopy">Kopiér brevet</button><span class="muted" id="lMsg" aria-live="polite"></span></div>';
+  }
+  function letterText(navn, mail) {
+    const d = new Date().toLocaleDateString('da-DK');
+    return 'Til Meta Platforms Ireland Ltd.\n\nIndsigelse efter databeskyttelsesforordningen (GDPR) artikel 21\n\n' +
+      'Jeg gør hermed indsigelse mod, at mine personoplysninger behandles til direkte markedsføring, herunder profilering, der hænger sammen med direkte markedsføring (artikel 21, stk. 2). Jeg beder jer stoppe denne behandling (artikel 21, stk. 3).\n\n' +
+      'Jeg gør desuden indsigelse mod, at mine oplysninger bruges til at udvikle og træne AI hos Meta.\n\n' +
+      'Jeg beder om en skriftlig bekræftelse inden for én måned (artikel 12, stk. 3) på, at behandlingen er stoppet, og hvilke oplysninger det omfatter.\n\n' +
+      'Konto: ' + (mail || '[din mail]') + '\nNavn: ' + (navn || '[dit navn]') + '\nDato: ' + d + '\n\nVenlig hilsen\n' + (navn || '[dit navn]');
+  }
+  function bindLetter() {
+    const upd = () => { const navn = $('lNavn').value.trim(), mail = $('lMail').value.trim(); store.set('me', { navn, mail }); $('lTxt').value = letterText(navn, mail); };
+    $('lNavn').oninput = upd; $('lMail').oninput = upd; upd();
+    $('lCopy').onclick = async () => {
+      try { await navigator.clipboard.writeText($('lTxt').value); $('lMsg').textContent = 'Kopieret. Sæt det ind i Metas formular.'; }
+      catch { $('lTxt').select(); $('lMsg').textContent = 'Markeret – tryk Ctrl+C (eller Kopiér på telefonen).'; }
+    };
+  }
+
+  // ---- Step 2: the datalog reader (runs only in the browser)
+  function analyzerHtml() {
+    return '<div class="drop"><b>Vælg din datalog-zip fra Facebook</b><span class="muted">Fx facebook-ditnavn-24-11-2026-….zip. Har du flere dele, vælg dem alle. Du behøver ikke pakke den ud.</span>' +
+      '<label class="btn" for="fil">Vælg zip-fil</label><input type="file" id="fil" accept=".zip,application/zip" multiple>' +
+      '<div id="status" class="muted" hidden></div><div class="bar" id="lbar" hidden><i></i></div></div>';
+  }
+  function bindAnalyzer() {
+    $('fil').addEventListener('change', (e) => { if (e.target.files.length) readZips([...e.target.files]); });
+    renderResult(EXAMPLE, true);
+  }
+  function fixText(s) {
+    if (!/[Â-Ã][\u0080-¿]/.test(s)) return s;
+    try { return new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(s, (ch) => ch.charCodeAt(0) & 0xff)); } catch { return s; }
+  }
+  const bump = (m, k, n = 1) => m.set(k, (m.get(k) || 0) + n);
+  const ymd = (x) => x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0');
+  const dDa = (s) => String(s).split('-').reverse().join('.');
+  const MON = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+  function addFile(st, d, bytes) {
+    const name = fixText(d.name || 'Uden navn'), lname = name.toLowerCase(); let n = 0;
+    for (const page of d.pages || []) for (const r of page) {
+      n++;
+      const t = r.timestamp || 0;
+      if (t > 1.6e9) { const x = new Date(t * 1000); st.hours[x.getHours()]++; bump(st.days, ymd(x)); if (!st.first || x < st.first) st.first = x; if (!st.last || x > st.last) st.last = x; }
+      for (const lv of r.label_values || []) {
+        const l = lv.label; let v = lv.value; if (v === undefined || v === null) continue;
+        v = fixText(typeof v === 'string' ? v : JSON.stringify(v)); if (v === '-' || v === '') continue;
+        if (l === 'Annonce') st.ads.add(v);
+        else if (l === 'IP-adresse') st.ips.add(v);
+        else if (l === 'Enheds-id') st.devices.add(v);
+        else if (l === 'Procesnavn' && /contact|email/i.test(v)) st.dataGrab++;
+        if (lname.includes('forudsagte egenskaber') && l !== 'Dato') st.traits.set(l, v);
+        if (lname.includes('interesse') && /^(Emne|Emner|Interesse|Interesser)$/.test(l)) {
+          let tv = v; try { const o = JSON.parse(v); if (o && typeof o === 'object') tv = Object.values(o).join(', '); } catch {}
+          if (tv && !/^\[?[\d,\s]+\]?$/.test(tv)) bump(st.topics, tv);
+        }
+      }
+    }
+    const tb = st.tables.get(name) || { rows: 0, bytes: 0, desc: fixText(d.description || '') }; tb.rows += n; tb.bytes += bytes; st.tables.set(name, tb);
+    st.rows += n;
+  }
+  async function readZips(files) {
+    const st = { rows: 0, tables: new Map(), hours: Array(24).fill(0), days: new Map(), first: null, last: null, ads: new Set(), ips: new Set(), devices: new Set(), traits: new Map(), topics: new Map(), dataGrab: 0 };
+    const status = $('status'), bar = $('lbar'), fill = bar.firstElementChild; status.hidden = false; bar.hidden = false;
+    try {
+      const entries = [];
+      for (const f of files) { status.textContent = 'Åbner ' + f.name + ' …'; const zip = await JSZip.loadAsync(f); zip.forEach((p, e) => { if (!e.dir && p.endsWith('.json')) entries.push(e); }); }
+      if (!entries.length) throw new Error('Der er ingen datalogge i filen. Valgte du "datalogge" og formatet JSON?');
+      for (let i = 0; i < entries.length; i++) {
+        const txt = await entries[i].async('string');
+        try { addFile(st, JSON.parse(txt), txt.length); } catch {}
+        if (i % 10 === 0 || i === entries.length - 1) { fill.style.width = Math.round((i + 1) / entries.length * 100) + '%'; status.textContent = 'Læser tabel ' + fmt(i + 1) + ' af ' + fmt(entries.length) + ' …'; await new Promise((r) => setTimeout(r, 0)); }
+      }
+      status.textContent = 'Færdig: ' + fmt(st.rows) + ' registreringer i ' + fmt(st.tables.size) + ' tabeller. Intet er sendt nogen steder hen.';
+      // The period: the shortest stretch back from the newest day that holds 95 % of the records, plus months for the chart.
+      const dk = [...st.days.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1)), tot = dk.reduce((s, x) => s + x[1], 0);
+      let acc = 0, mainFrom = dk.length ? dk[dk.length - 1][0] : '';
+      for (const [d, n] of dk) { acc += n; if (acc >= 0.95 * tot) { mainFrom = d; break; } }
+      const months = new Map(); for (const [d, n] of st.days) bump(months, d.slice(0, 7), n);
+      const period = { mainFrom, mainTo: dk.length ? dk[0][0] : '', oldest: dk.length ? dk[dk.length - 1][0] : '',
+        months: [...months.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)).slice(-12) };
+      renderResult({
+        ...period, rows: st.rows, tableCount: st.tables.size, first: st.first ? st.first.toLocaleDateString('da-DK') : '', last: st.last ? st.last.toLocaleDateString('da-DK') : '',
+        hours: st.hours, ads: st.ads.size, ips: st.ips.size, devices: st.devices.size, dataGrab: st.dataGrab, traits: [...st.traits.entries()],
+        topics: [...st.topics.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map((x) => x[0]),
+        tables: [...st.tables.entries()].sort((a, b) => b[1].bytes - a[1].bytes).slice(0, 8).map(([name, t]) => ({ name, desc: t.desc, mb: t.bytes / 1e6, rows: t.rows }))
+      }, false);
+    } catch (err) { status.textContent = 'Det gik ikke: ' + (err && err.message ? err.message : err) + ' Prøv igen, eller skriv til ITMartin.'; }
+    bar.hidden = true;
+  }
+  const TRAIT_DA = { 'Forudsagt alder': 'Din alder (gættet)', 'Storbyområde': 'Område', 'Region': 'Region', 'Telefonmodel': 'Telefon', 'Tabletmodel': 'Tablet', 'Primært sprog': 'Første sprog', 'Sekundært sprog': 'Andet sprog' };
+  function hoursChart(h) {
+    const max = Math.max(1, ...h), W = 720, H = 180, pad = 8, padB = 24, bw = (W - pad * 2) / 24, cut = [...h].sort((a, b) => b - a)[3] || 0;
+    let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Aktivitet fordelt på døgnets timer">';
+    h.forEach((v, i) => { const bh = Math.max(1, v / max * (H - padB - 10)), x = pad + i * bw;
+      s += '<rect x="' + (x + 2).toFixed(1) + '" y="' + (H - padB - bh).toFixed(1) + '" width="' + (bw - 4).toFixed(1) + '" height="' + bh.toFixed(1) + '" rx="3" fill="' + (v >= cut && v > 0 ? 'var(--bar)' : 'var(--bar-dim)') + '"><title>kl. ' + i + ': ' + fmt(v) + '</title></rect>';
+      if (i % 3 === 0) s += '<text x="' + (x + bw / 2).toFixed(1) + '" y="' + (H - 7) + '" text-anchor="middle" font-size="12" fill="var(--muted)">' + String(i).padStart(2, '0') + '</text>'; });
+    return s + '</svg>';
+  }
+  const tile = (n, l) => '<div class="tile"><div class="n">' + n + '</div><div class="l">' + esc(l) + '</div></div>';
+  function renderResult(r, isExample) {
+    const tr = new Map(r.traits), age = (tr.get('Forudsagt alder') || '').replace(/[\[\]]/g, '').replace(/(\d+)s/, "$1'erne");
+    const who = [age && 'er i ' + age, tr.get('Storbyområde') && 'bor i ' + tr.get('Storbyområde'), /iphone/i.test(tr.get('Telefonmodel') || '') && 'har en iPhone'].filter(Boolean);
+    let h = '<section class="card answer">' + (isExample ? '<span class="example-tag">Eksempel – Martins egne data</span>' : '') +
+      '<p class="big">Meta tror, du ' + esc(who.length ? who.join(', ') : 'er en, de kender godt') + ' – og har vist dig ' + fmt(r.ads) + ' forskellige annoncer.</p>' +
+      '<p><b>Periode:</b> ' + (r.mainFrom ? '95 % af de ' + fmt(r.rows) + ' registreringer er fra ' + dDa(r.mainFrom) + ' til ' + dDa(r.mainTo) + '. De ældste er fra ' + dDa(r.oldest) + '.' : fmt(r.rows) + ' registreringer.') + '</p>' +
+      '<div class="tiles">' + tile(fmt(r.ads), 'forskellige annoncer') + tile(fmt(r.devices), 'enheds-id\'er') + tile(fmt(r.ips), 'IP-adresser') + tile(fmt(r.dataGrab), 'forsøg på at få kontakter og mail') + '</div></section>';
+    h += '<details class="card" open><summary><h2>Det har Meta regnet ud om dig</h2></summary>' + (r.traits.length ? '<div class="tbl"><table><tr><th>Hvad</th><th>Metas svar</th></tr>' +
+      r.traits.filter(([k]) => TRAIT_DA[k]).map(([k, v]) => '<tr><td>' + esc(TRAIT_DA[k]) + '</td><td>' + esc(v.replace(/[\[\]]/g, '')) + '</td></tr>').join('') + '</table></div>' : '<p class="muted">Ikke med i din fil.</p>') +
+      '<p class="muted">Det er de oplysninger, annoncører kan ramme dig på. Dem skruer du ned for i trin 4.</p></details>';
+    h += '<details class="card"><summary><h2>Emner, Meta har sat dig i</h2></summary>' + (r.topics.length ? '<ul>' + r.topics.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>' : '<p class="muted">Ikke med i din fil.</p>') + '</details>';
+    if (r.months && r.months.length) {
+      const mx = Math.max(1, ...r.months.map((x) => x[1]));
+      h += '<details class="card" open><summary><h2>Hvilken periode filen dækker</h2></summary><div class="tbl"><table><tr><th>Måned</th><th class="num">Registreringer</th><th></th></tr>' +
+        r.months.map(([k, n]) => '<tr><td>' + MON[+k.slice(5) - 1] + ' ' + k.slice(0, 4) + '</td><td class="num">' + fmt(n) + '</td><td style="width:45%"><div style="height:10px;border-radius:5px;background:var(--bar);width:' + Math.max(1, Math.round(n / mx * 100)) + '%"></div></td></tr>').join('') +
+        '</table></div><p class="muted">Meta gemmer de detaljerede logge i kort tid, så en fil viser mest den sidste måneds tid. Skriv perioden ned, og hent nye datalogge om et år – så kan du sammenligne og se, om dine indstillinger virker.</p></details>';
+    }
+    h += '<details class="card" open><summary><h2>Det Meta gemmer længst</h2></summary>' +
+      '<div class="tbl"><table><tr><th></th><th>Konklusionerne om dig</th><th>De rå klik</th></tr>' +
+      '<tr><td><b>Hvad</b></td><td>Gættet alder, by, apparater, sprog, emne-kasser</td><td>Hvert tryk, skærmskift, videosekund og hver annonce</td></tr>' +
+      '<tr><td><b>Hvor meget</b></td><td>Få rækker om dagen</td><td>Hundredtusinder af rækker om måneden</td></tr>' +
+      '<tr><td><b>Hvor længe</b></td><td>I årevis – opdateres hver dag</td><td>Kort tid – i din fil mest den sidste måned</td></tr>' +
+      '<tr><td><b>Bruges til</b></td><td>Annoncer rettet mod dig – det, Meta sælger</td><td>Dit feed, næste video, måling af annoncer – og til at opdatere konklusionerne</td></tr></table></div>' +
+      '<p><b>Derfor er det ikke nok at slette din historik.</b> Konklusionerne bliver, selv om klikkene forsvinder. Du skal rette selve profilen: annoncepræferencer og emner (trin 4) og din skriftlige indsigelse (trin 6). Og fordi profilen bygges om hele tiden ud fra nye klik, virker trin 4½ (egen browser, ingen app) med det samme.</p>' +
+      '<p class="muted">Filen viser kun det, Meta selv vælger at udlevere. Meta kan gemme mere internt, fx samlet eller anonymiseret.</p></details>';
+    h += '<details class="card"><summary><h2>Hvornår du bruger Facebook</h2></summary><div class="chart">' + hoursChart(r.hours) + '</div><p class="muted">En meget høj søjle ved samme time hver dag kan være Metas egne daglige opgørelser, ikke dig.</p></details>';
+    h += '<details class="card"><summary><h2>De største tabeller</h2></summary><div class="tbl"><table><tr><th>Tabel hos Meta</th><th class="num">MB</th></tr>' +
+      r.tables.map((t) => '<tr><td>' + esc(t.name) + '<br><span class="muted">' + esc(t.desc) + '</span></td><td class="num">' + t.mb.toFixed(1) + '</td></tr>').join('') + '</table></div></details>';
+    $('out').innerHTML = h;
+  }
+  const EXAMPLE = {
+    mainFrom: '2026-10-04', mainTo: '2026-11-12', oldest: '2020-09-13',
+    months: [['2025-12', 35], ['2026-01', 31], ['2026-02', 60], ['2026-03', 308], ['2026-04', 72], ['2026-05', 744], ['2026-06', 764], ['2026-07', 829], ['2026-08', 1768], ['2026-09', 6661], ['2026-10', 285585], ['2026-11', 254843]],
+    rows: 564968, tableCount: 755, first: '15.11.2023', last: '12.11.2026', ads: 3863, ips: 71, devices: 86, dataGrab: 119,
+    hours: [20933, 11912, 3557, 324, 133, 1952, 2435, 9976, 18976, 16609, 9240, 11081, 12791, 16180, 15692, 19803, 59196, 177264, 21483, 25447, 24517, 29427, 17926, 28627],
+    traits: [['Forudsagt alder', '[40s]'], ['Storbyområde', 'Aarhus'], ['Region', 'Central Denmark Region'], ['Telefonmodel', 'iphone18,3'], ['Tabletmodel', 'sm-t860'], ['Primært sprog', 'da'], ['Sekundært sprog', 'en']],
+    topics: ['Clothing & Accessories', 'US Politics and Satire', 'Learning & Career Growth', 'Prime Video Entertainment', 'British Comedy and Entertainment', 'Danish Politics and Activism'],
+    tables: [
+      { name: 'iOS-enhedsinteraktioner', desc: 'Det, du gør i appen på din iPhone', mb: 162.8 },
+      { name: 'Navigation i appen', desc: 'Hver skærm, du skifter til', mb: 113.2 },
+      { name: 'Facebook-feedinteraktioner', desc: 'Det, du gør i feedet', mb: 97.6 },
+      { name: 'Oplysninger om din videovisning', desc: 'Hvilke videoer og hvor længe', mb: 88.6 },
+      { name: 'Annoncevisningsaktivitet', desc: 'Annoncer, du har set og trykket på', mb: 80.2 }]
+  };
+
+  // Start on the step in the address (#trin-3) or the one used last.
+  const m = /^#trin-(\d+)$/.exec(location.hash);
+  go(m ? +m[1] - 1 : store.get('step', 0));
+  window.addEventListener('hashchange', () => { const k = /^#trin-(\d+)$/.exec(location.hash); if (k) render(+k[1] - 1); });
+})();
+</script>
