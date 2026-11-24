@@ -9,7 +9,14 @@
 
 <div class="poll-root">
     <header class="poll-header">
-        <a href="/" class="poll-back">← Tilbage</a>
+        @if (BackToSnak is { } snak)
+        {
+            <a href="@snak" class="poll-back">← Tilbage til Snak</a>
+        }
+        else
+        {
+            <a href="/" class="poll-back">← Tilbage</a>
+        }
     </header>
 
     @if (_poll is null)
@@ -203,6 +210,13 @@
 
 @code {
     [Parameter] public int DatePollId { get; set; }
+
+    // 2026-11-24 (user): a poll opened from a Snak room (?fra=https://snak.itmartin.dk/gruppe1) gets its way back there,
+    // instead of ending on Stem's front page. Only snak.itmartin.dk addresses are accepted, so the link cannot send people elsewhere.
+    [SupplyParameterFromQuery(Name = "fra")] public string? Fra { get; set; }
+
+    private string? BackToSnak =>
+        Uri.TryCreate(Fra, UriKind.Absolute, out var u) && u.Scheme == "https" && u.Host == "snak.itmartin.dk" ? u.ToString() : null;
 
     private static readonly (string Status, string Label)[] Answers = [("Yes", "Ja"), ("Maybe", "Måske"), ("No", "Nej")];
 
