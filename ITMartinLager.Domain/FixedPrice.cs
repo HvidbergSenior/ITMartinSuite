@@ -60,7 +60,7 @@ public static class FixedPrice
 
     /// <summary>True when Martin must set the price: typical found price >= 2x the fixed price and >= 50 kr.</summary>
     public static bool NeedsOwnPrice(Item i, IEnumerable<PriceFind> finds) =>
-        Applies(i) && i.Price is not > 0 && !BlurryMagazine(i) && Chosen(finds) is { Count: >= MinListings } && Typical(finds) is { } t && StandardOf(i) is { } s && t >= Factor * s && t >= MinKr;
+        Applies(i) && i.Price is not > 0 && !BlurryMagazine(i) && i.Confidence >= Pricing.MinConfidence && Chosen(finds) is { Count: >= MinListings } && Typical(finds) is { } t && StandardOf(i) is { } s && t >= Factor * s && t >= MinKr;
 
     /// <summary>The hint for a thing that follows the fixed price: the typical price when Martin must decide, else none (the shop
     /// then shows the fixed price). "Som ny" keeps its own rule (25 % under the new price) when that is higher. Not applicable =

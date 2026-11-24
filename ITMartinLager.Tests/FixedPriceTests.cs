@@ -57,4 +57,13 @@ public class FixedPriceTests
     [Test]
     public void One_listing_is_not_enough() =>
         FixedPrice.NeedsOwnPrice(Dvd(), [F("Faraos", 300)]).Should().BeFalse("one listing is often another product");
+
+    [Test]
+    public void An_unsure_reading_never_goes_on_the_list()
+    {
+        // "First Wave" (40 % sure): three DBA listings for a doll, a card game and a history book gave 1000 kr (2026-11-24).
+        var unsure = Dvd(); unsure.Confidence = 0.4;
+        FixedPrice.NeedsOwnPrice(unsure, [F("DBA", 329), F("DBA", 1000), F("DBA", 3300)]).Should().BeFalse();
+        FixedPrice.Hint(unsure, [F("DBA", 329), F("DBA", 1000), F("DBA", 3300)], 1000m).Should().BeNull();
+    }
 }
