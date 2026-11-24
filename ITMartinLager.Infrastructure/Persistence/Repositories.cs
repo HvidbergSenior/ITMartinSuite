@@ -533,7 +533,7 @@ public sealed class PriceRepository(IDbContextFactory<LagerDb> dbf) : IPriceRepo
         if (itemIds.Count == 0) return [];
         await using var db = await dbf.CreateDbContextAsync(ct);
         var finds = await db.PriceFinds.Where(f => itemIds.Contains(f.ItemId)).ToListAsync(ct);
-        var verdicts = await db.ListingVerdicts.Where(v => itemIds.Contains(v.ItemId) && !v.Right).ToListAsync(ct);
+        var verdicts = await db.ListingVerdicts.Where(v => itemIds.Contains(v.ItemId) && !v.Right && !v.CantSee).ToListAsync(ct);
         return ListingVerdict.WithoutWrong(finds, verdicts).GroupBy(f => f.ItemId).ToDictionary(g => g.Key, g => g.ToList());
     }
 
@@ -550,7 +550,7 @@ public sealed class PriceRepository(IDbContextFactory<LagerDb> dbf) : IPriceRepo
         await using var db = await dbf.CreateDbContextAsync(ct);
         var old = await db.ListingVerdicts.FirstOrDefaultAsync(v => v.ItemId == verdict.ItemId && v.ListingKey == verdict.ListingKey, ct);
         if (old is null) db.ListingVerdicts.Add(verdict);
-        else (old.Right, old.At, old.Kr, old.Name, old.Source) = (verdict.Right, verdict.At, verdict.Kr, verdict.Name, verdict.Source);
+        else (old.Right, old.CantSee, old.At, old.Kr, old.Name, old.Source) = (verdict.Right, verdict.CantSee, verdict.At, verdict.Kr, verdict.Name, verdict.Source);
         await db.SaveChangesAsync(ct);
     }
 

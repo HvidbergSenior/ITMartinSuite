@@ -155,3 +155,4 @@
 .lg-spot-btns { display: flex; gap: 6px; }
 .lg-spot-wrong { opacity: .55; text-decoration: line-through; }
 .lg-spot-right { outline: 2px solid #2e7d32; }
+.lg-spot-unsure { opacity: .7; outline: 2px dashed #8a8a8a; }

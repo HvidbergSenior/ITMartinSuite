@@ -121,6 +121,13 @@ public static class LagerDbInitializer
             if (Convert.ToInt32(cmd.ExecuteScalar()) == 0)
                 db.Database.ExecuteSqlRaw($"ALTER TABLE Items ADD COLUMN {col} {type}");
         }
+        {
+            // Stikprøve "Kan ikke se" (2026-11-24).
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('ListingVerdicts') WHERE name = 'CantSee'";
+            if (Convert.ToInt32(cmd.ExecuteScalar()) == 0)
+                db.Database.ExecuteSqlRaw("ALTER TABLE ListingVerdicts ADD COLUMN CantSee INTEGER NOT NULL DEFAULT 0");
+        }
         foreach (var (col, type) in new[] { ("BatchId", "TEXT NOT NULL DEFAULT ''"), ("BatchedAt", "TEXT NULL"), ("DismissedAt", "TEXT NULL") })
         {
             // The Batch API (2026-11-15).

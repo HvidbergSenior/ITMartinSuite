@@ -7,7 +7,15 @@ namespace ITMartinLager.Application;
 // the matches are.
 public sealed class SpotCheckUseCases(IItemRepository items, IPriceRepository prices)
 {
-    public sealed record Row(Item Item, List<PriceFind> Finds, Dictionary<string, bool> Marks, int? Standard);
+    /// <summary>Marks: listing key -> "rigtig", "forkert" or "kan-ikke-se".</summary>
+    public sealed record Row(Item Item, List<PriceFind> Finds, Dictionary<string, string> Marks, int? Standard);
+
+    public const string Rigtig = "rigtig", Forkert = "forkert", KanIkkeSe = "kan-ikke-se";
+
+    // 2026-11-24 (user: "all the cds from back cover I can not distinguish"): an ordinary CD sells at the fixed price whatever
+    // edition it is, so a CD is only in the sample when its price is above standard - the ones where the listings matter.
+    public static bool Worth(Item i) =>
+        i.Kind is not (Kinds.Cd or Kinds.Vinyl) || (i.PriceHint is { } h && FixedPrice.StandardOf(i) is { } s && h > s) || i.Price > 0 || i.Rare;
 
     /// <summary>A new random sample - or the same things again (ids from the address), so going back from a product keeps the list.</summary>
     public async Task<List<Row>> SampleAsync(int count = 20, IReadOnlyCollection<int>? same = null, CancellationToken ct = default)
@@ -21,7 +29,7 @@ public sealed class SpotCheckUseCases(IItemRepository items, IPriceRepository pr
         else
         {
             var withFinds = (await prices.ItemsWithUsedFindsAsync(ct)).ToHashSet();
-            var listed = (await items.AllListedAsync(ct)).Where(i => withFinds.Contains(i.Id) && i.Kind != Kinds.Ting && i.Kind != Kinds.Strik).ToList();
+            var listed = (await items.AllListedAsync(ct)).Where(i => withFinds.Contains(i.Id) && i.Kind != Kinds.Ting && i.Kind != Kinds.Strik && Worth(i)).ToList();
             pick = listed.OrderBy(_ => Random.Shared.Next()).Take(count).ToList();
         }
         var ids = pick.Select(i => i.Id).ToList();
@@ -32,17 +40,18 @@ public sealed class SpotCheckUseCases(IItemRepository items, IPriceRepository pr
             // Every used, exact listing - also the ones already marked Forkert, so a mark can be changed.
             var (finds, _) = await prices.ForItemAsync(i.Id, ct);
             var used = finds.Where(f => !f.IsNew && !f.Similar && f.Kr > 0).OrderByDescending(f => f.Kr).ToList();
-            rows.Add(new Row(i, used, verdicts[i.Id].ToDictionary(v => v.ListingKey, v => v.Right), FixedPrice.StandardOf(i)));
+            rows.Add(new Row(i, used, verdicts[i.Id].ToDictionary(v => v.ListingKey, v => v.CantSee ? KanIkkeSe : v.Right ? Rigtig : Forkert), FixedPrice.StandardOf(i)));
         }
         return rows;
     }
 
     /// <summary>Marks one listing; the thing's price is worked out again with the Forkert ones left out. Returns the new hint.</summary>
-    public async Task<decimal?> MarkAsync(int itemId, PriceFind find, bool right, CancellationToken ct = default)
+    public async Task<decimal?> MarkAsync(int itemId, PriceFind find, string mark, CancellationToken ct = default)
     {
+        var right = mark == Rigtig;
         await prices.SetVerdictAsync(new ListingVerdict
         {
-            ItemId = itemId, ListingKey = ListingVerdict.KeyOf(find), Source = find.Source, Name = find.Name, Kr = find.Kr, Right = right,
+            ItemId = itemId, ListingKey = ListingVerdict.KeyOf(find), Source = find.Source, Name = find.Name, Kr = find.Kr, Right = right, CantSee = mark == KanIkkeSe,
         }, ct);
         if (await items.GetAsync(itemId, ct) is not { } item) return null;
         if (!FixedPrice.Applies(item) || item.PricesAt is null) return item.PriceHint;

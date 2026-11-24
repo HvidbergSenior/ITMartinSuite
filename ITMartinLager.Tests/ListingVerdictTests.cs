@@ -1,3 +1,4 @@
+using ITMartinLager.Application;
 using FluentAssertions;
 using ITMartinLager.Domain;
 
@@ -24,4 +25,22 @@ public class ListingVerdictTests
     public void Stats_count_right_and_wrong_per_source() =>
         ListingVerdict.PerSource([new() { Source = "DBA", Right = false }, new() { Source = "DBA", Right = true }, new() { Source = "Faraos", Right = true }])
             .Should().BeEquivalentTo(new[] { ("DBA", 1, 1), ("Faraos", 1, 0) });
+
+    // "Kan ikke se" (2026-11-24): the listing still counts, and it is not in the right/wrong %.
+    [Test]
+    public void Cant_see_is_neither_right_nor_wrong()
+    {
+        var a = new PriceFind { ItemId = 1, Source = "DBA", Name = "A", Kr = 10 };
+        var v = new ListingVerdict { ItemId = 1, ListingKey = ListingVerdict.KeyOf(a), Source = "DBA", CantSee = true };
+        ListingVerdict.WithoutWrong([a], [v]).Should().ContainSingle();
+        ListingVerdict.PerSource([v]).Should().BeEmpty();
+    }
+
+    [Test]
+    public void Only_cds_above_standard_are_in_the_sample()
+    {
+        SpotCheckUseCases.Worth(new Item { Kind = Kinds.Cd, Title = "X" }).Should().BeFalse();
+        SpotCheckUseCases.Worth(new Item { Kind = Kinds.Cd, Title = "X", PriceHint = 60 }).Should().BeTrue();
+        SpotCheckUseCases.Worth(new Item { Kind = Kinds.Dvd, Title = "X" }).Should().BeTrue();
+    }
 }

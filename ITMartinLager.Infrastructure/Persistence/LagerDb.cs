@@ -22,6 +22,7 @@ public sealed class LagerDb(DbContextOptions<LagerDb> options) : DbContext(optio
 
     protected override void OnModelCreating(ModelBuilder b)
     {
+        b.Entity<ListingVerdict>().Ignore(x => x.Wrong);
         b.Entity<Box>().HasIndex(x => x.Code).IsUnique();
         b.Entity<Item>().HasIndex(x => x.Search);
         b.Entity<Item>().HasIndex(x => x.Kind);

@@ -9,7 +9,7 @@
 
 <section class="k-card">
     <h1 class="k-card-title">Stikprøve af priserne</h1>
-    <p><b>Gør dette:</b> se på hver annonce – er det <b>præcis den samme ting</b> (samme titel, nummer, år og udgave)? Tryk <b>Rigtig</b> eller <b>Forkert</b>.
+    <p><b>Gør dette:</b> se på hver annonce – er det <b>præcis den samme ting</b> (samme titel, nummer, år og udgave)? Tryk <b>Rigtig</b> eller <b>Forkert</b> – eller <b>Kan ikke se</b>, hvis billedet ikke viser det. Almindelige cd'er er ikke med, de har fast pris.
        <b>Du får:</b> forkerte annoncer tæller aldrig mere, prisen regnes om med det samme, og du kan se, hvor gode kilderne er.</p>
     @if (_stats is { Count: > 0 })
     {
@@ -53,14 +53,15 @@ else
                 @foreach (var f in row.Finds)
                 {
                     var key = ITMartinLager.Domain.ListingVerdict.KeyOf(f);
-                    var mark = row.Marks.TryGetValue(key, out var m) ? m : (bool?)null;
-                    <li class="@(mark == false ? "lg-spot-wrong" : mark == true ? "lg-spot-right" : "")">
+                    var mark = row.Marks.TryGetValue(key, out var m) ? m : "";
+                    <li class="@(mark == SpotCheckUseCases.Forkert ? "lg-spot-wrong" : mark == SpotCheckUseCases.Rigtig ? "lg-spot-right" : mark == SpotCheckUseCases.KanIkkeSe ? "lg-spot-unsure" : "")">
                         <span class="lg-spot-kr">@f.Kr kr</span>
                         <span class="lg-spot-src">@f.Source</span>
                         @if (f.Url.StartsWith("http")) { <a href="@f.Url" target="_blank" rel="noopener">@f.Name</a> } else { <span>@f.Name</span> }
                         <span class="lg-spot-btns">
-                            <button class="k-btn k-btn-sm @(mark == true ? "k-btn-primary" : "k-btn-secondary")" disabled="@_busy" @onclick="() => Mark(row, f, true)">Rigtig</button>
-                            <button class="k-btn k-btn-sm @(mark == false ? "k-btn-primary" : "k-btn-ghost")" disabled="@_busy" @onclick="() => Mark(row, f, false)">Forkert</button>
+                            <button class="k-btn k-btn-sm @(mark == SpotCheckUseCases.Rigtig ? "k-btn-primary" : "k-btn-secondary")" disabled="@_busy" @onclick="() => Mark(row, f, SpotCheckUseCases.Rigtig)">Rigtig</button>
+                            <button class="k-btn k-btn-sm @(mark == SpotCheckUseCases.Forkert ? "k-btn-primary" : "k-btn-ghost")" disabled="@_busy" @onclick="() => Mark(row, f, SpotCheckUseCases.Forkert)">Forkert</button>
+                            <button class="k-btn k-btn-sm @(mark == SpotCheckUseCases.KanIkkeSe ? "k-btn-primary" : "k-btn-ghost")" disabled="@_busy" @onclick="() => Mark(row, f, SpotCheckUseCases.KanIkkeSe)" title="Du kan ikke se, om det er den samme – tæller hverken som rigtig eller forkert">Kan ikke se</button>
                         </span>
                     </li>
                 }
@@ -98,13 +99,13 @@ else
         finally { _busy = false; }
     }
 
-    private async Task Mark(SpotCheckUseCases.Row row, PriceFind f, bool right)
+    private async Task Mark(SpotCheckUseCases.Row row, PriceFind f, string mark)
     {
         _busy = true;
         try
         {
-            row.Item.PriceHint = await Spot.MarkAsync(row.Item.Id, f, right);
-            row.Marks[ITMartinLager.Domain.ListingVerdict.KeyOf(f)] = right;
+            row.Item.PriceHint = await Spot.MarkAsync(row.Item.Id, f, mark);
+            row.Marks[ITMartinLager.Domain.ListingVerdict.KeyOf(f)] = mark;
             _stats = await Spot.StatsAsync();
         }
         finally { _busy = false; }
