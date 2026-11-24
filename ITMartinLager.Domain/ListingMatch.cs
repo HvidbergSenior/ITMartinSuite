@@ -22,8 +22,16 @@ public static partial class ListingMatch
     }
 
     /// <summary>Rule 2: a CD/LP whose title is just the artist - no album to look for.</summary>
-    public static bool NoAlbum(Item i) =>
-        i.Kind is Kinds.Cd or Kinds.Vinyl && i.Artist.Trim() != "" && Plain(i.Title) == Plain(i.Artist);
+    // 2026-11-24 (user, Stikprøve: Sanne Salomonsen's album "Sanne"): also when every word of the title is in the artist's name -
+    // then every listing of that artist matches (Evita, Freedom, 1996 ...).
+    public static bool NoAlbum(Item i)
+    {
+        if (i.Kind is not (Kinds.Cd or Kinds.Vinyl) || i.Artist.Trim() == "") return false;
+        var title = Words(i.Title).ToList();
+        if (title.Count == 0) return false;
+        var artist = Words(i.Artist).ToHashSet();
+        return title.All(artist.Contains);
+    }
 
     // ---------- 1. seasons ----------
     private static readonly Dictionary<string, int> Ordinals = new(StringComparer.OrdinalIgnoreCase)
@@ -69,8 +77,13 @@ public static partial class ListingMatch
     {
         var l = " " + listing.ToLowerInvariant() + " ";
         var own = " " + FixedPrice.OwnText(i).ToLowerInvariant() + " ";
-        return BundleWords.Any(w => l.Contains(w) && !own.Contains(w));
+        return BundleWords.Any(w => l.Contains(w) && !own.Contains(w))
+            // "3 x Cd", "10 stk", "4 titler" (2026-11-24, Sanne: "3 x CD" with our album bottom left). Two is left out: "2 x CD" is a double album.
+            || (CountRx().IsMatch(l) && !CountRx().IsMatch(own));
     }
+
+    [GeneratedRegex(@"\b([3-9]|\d{2,})\s*(x|stk|styk|stykker|titler)\b")]
+    private static partial Regex CountRx();
 
     // ---------- 4. our title words ----------
     private static readonly HashSet<string> Stop =

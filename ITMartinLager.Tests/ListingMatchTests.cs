@@ -40,6 +40,24 @@ public class ListingMatchTests
     public void Several_things_at_once_is_wrong(string listing) =>
         ListingMatch.Wrong(It(Kinds.Cd, "A Little Bit Longer", "Jonas Brothers"), listing).Should().BeTrue();
 
+    [TestCase("SANNE SALOMONSEN. 3 x Cd.")]
+    [TestCase("SANNE SALOMONSEN: 4 titler: stk. 20 kr. - Alle 50 ")]
+    [TestCase("Sanne Salomonsen 10 stk")]
+    public void A_count_of_things_is_a_bundle(string listing) =>
+        ListingMatch.Bundle(listing, It(Kinds.Cd, "In a New York Minute", "Sanne Salomonsen")).Should().BeTrue();
+
+    [Test]
+    public void A_double_album_is_not_a_bundle() =>
+        ListingMatch.Bundle("Sanne Salomonsen - Unplugged 2 x CD", It(Kinds.Cd, "Unplugged", "Sanne Salomonsen")).Should().BeFalse();
+
+    [Test]
+    public void An_album_named_after_part_of_the_artist_has_no_album() =>
+        ListingMatch.NoAlbum(It(Kinds.Cd, "Sanne", "Sanne Salomonsen")).Should().BeTrue();
+
+    [Test]
+    public void A_real_album_title_is_an_album() =>
+        ListingMatch.NoAlbum(It(Kinds.Cd, "Evita", "Sanne Salomonsen")).Should().BeFalse();
+
     [TestCase("Frokoster - Sund & slank året rundt, Inge Kauffeldt")]
     [TestCase("Deluxe - Sund & slank året rundt")]
     public void Another_book_in_the_series_is_wrong(string listing) =>
