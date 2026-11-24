@@ -78,4 +78,13 @@ public class FixedPriceTests
         aa.Note = "Trykvariant uden dato";
         FixedPrice.NeedsOwnPrice(aa, finds).Should().BeTrue("our own copy IS the variant");
     }
+
+    [Test]
+    public void A_gold_entry_for_a_special_version_only_matches_a_special_thing()
+    {
+        var gold = new List<GoldEntry> { new() { Category = "Anders And & Co.", Kind = Kinds.AndersAnd, Number = "17", Year = 1973, Kr = 1500,
+            Name = "Anders And & Co nr. 17 (25. årgang) – 1973 – Trykvariant – flot samler-eksemplar" } };
+        Gold.Match(gold, Kinds.AndersAnd, "Anders And & Co.", "Anders And & Co.", "17", 1973, "Anders And & Co.").Should().BeNull();
+        Gold.Match(gold, Kinds.AndersAnd, "Anders And & Co.", "Anders And & Co.", "17", 1973, "Anders And & Co. Trykvariant uden dato").Should().NotBeNull();
+    }
 }

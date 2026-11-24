@@ -39,12 +39,17 @@ public static class FixedPrice
         ["trykvariant", "variant", "fejltryk", "uden dato", "til læg", "i pose", "billedhæfte", "guldbog", "signeret", "signed"];
 
     /// <summary>True when the listing is about a special version our thing is not marked as.</summary>
-    public static bool SpecialVersion(string listing, Item? i)
+    public static bool SpecialVersion(string listing, Item? i) => SpecialVersion(listing, OwnText(i));
+
+    /// <summary>Same, with our thing's own words (title, note, interest, edition) as one text.</summary>
+    public static bool SpecialVersion(string listing, string ownText)
     {
         var l = (listing ?? "").ToLowerInvariant();
-        var own = i is null ? "" : $"{i.Title} {i.Note} {i.Interest} {i.EditionHint}".ToLowerInvariant();
+        var own = (ownText ?? "").ToLowerInvariant();
         return SpecialWords.Any(w => l.Contains(w) && !own.Contains(w));
     }
+
+    public static string OwnText(Item? i) => i is null ? "" : $"{i.Title} {i.Note} {i.Interest} {i.EditionHint}";
 
     /// <summary>The used prices that count: the other sources, or DBA when they found nothing. Special versions are left out.</summary>
     public static List<int> Chosen(IEnumerable<PriceFind> finds, Item? i = null)

@@ -24,7 +24,7 @@ public static class Shop
     /// gold list) - never "Måske", that is for us.</summary>
     public static string Badge(IReadOnlyList<GoldEntry> gold, Item i)
     {
-        var note = Gold.Interesting(gold, i.Kind, i.Title, i.Series, i.Number, i.Year, i.Price ?? i.PriceHint);
+        var note = Gold.Interesting(gold, i.Kind, i.Title, i.Series, i.Number, i.Year, i.Price ?? i.PriceHint, own: FixedPrice.OwnText(i));
         var badge = note is null || Gold.Rank(note) > Gold.LastShownRank ? "" : note.Split(" – ")[0];
         // Marked rare by a person (Item.Rare): always a mark, so the shop says "Sjælden – vi vurderer prisen" until it is priced.
         return badge == "" && i.Rare ? RareBadge : badge;

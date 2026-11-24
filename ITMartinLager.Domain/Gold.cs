@@ -195,8 +195,11 @@ public static partial class Gold
     /// (when the hunter has one), then the exact issue on the list, then "the series has valuable issues - check".
     /// Null = ordinary, nothing to dig into.</summary>
     public static string? Interesting(IReadOnlyList<GoldEntry> list, string kind, string title, string series, string number, int? year, decimal? ownPrice = null,
-        int? want = null, int? have = null)
+        int? want = null, int? have = null, string own = "")
     {
+        // A gold entry for a SPECIAL version (trykvariant, uden dato, signeret ...) only counts for a thing marked so (user 2026-11-24:
+        // Anders And 17/1973 was gold from a "Trykvariant" listing - ours has the date).
+        list = list.Where(e => !FixedPrice.SpecialVersion(e.Name, own == "" ? title : own)).ToList();
         var hot = Hot(want, have);
         if (ownPrice is { } p && p >= PlatinFrom)
             return hot ? $"{BadgeOf(Up(TierOf((int)p)))} – vurderet til ca. {p:0} kr · {DemandText(want, have)}" : $"{BadgeOf(TierOf((int)p))} – vurderet til ca. {p:0} kr";
@@ -222,8 +225,9 @@ public static partial class Gold
     /// <summary>The mark as bidders on Live Auktion see it (2026-10-12: "put interesting and bronze, silver, gold on
     /// liveauctions"): the badge and what it goes for elsewhere - no internal words like "Guld-listen".</summary>
     public static string? ForAuction(IReadOnlyList<GoldEntry> list, string kind, string title, string series, string number, int? year, decimal? ownPrice = null,
-        int? want = null, int? have = null)
+        int? want = null, int? have = null, string own = "")
     {
+        list = list.Where(e => !FixedPrice.SpecialVersion(e.Name, own == "" ? title : own)).ToList();
         var hot = Hot(want, have);
         if (ownPrice is { } p && p >= PlatinFrom)
             return $"{BadgeOf(hot ? Up(TierOf((int)p)) : TierOf((int)p))} – sælges for ca. {p:0} kr andre steder" + (hot ? " · eftertragtet af samlere" : "");
@@ -242,8 +246,9 @@ public static partial class Gold
 
     /// <summary>Is this thing on the gold list? Same kind, the category's words in its title or series, and the same
     /// issue: number when the entry has one, year when the entry has one.</summary>
-    public static GoldEntry? Match(IReadOnlyList<GoldEntry> list, string kind, string title, string series, string number, int? year)
+    public static GoldEntry? Match(IReadOnlyList<GoldEntry> list, string kind, string title, string series, string number, int? year, string own = "")
     {
+        list = list.Where(e => !FixedPrice.SpecialVersion(e.Name, own == "" ? title : own)).ToList();
         var words = ListingParse.Words($"{title} {series}");
         var num = number.Trim().TrimStart('0');
         return list.Where(e => e.Kind == kind && Categories.FirstOrDefault(c => c.Name == e.Category) is { } c

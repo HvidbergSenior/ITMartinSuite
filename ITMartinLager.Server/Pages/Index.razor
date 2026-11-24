@@ -329,7 +329,7 @@
     }
 
     private List<GoldEntry> _gold = [];
-    private string? NoteOf(Item i) => ITMartinLager.Domain.Gold.Interesting(_gold, i.Kind, i.Title, i.Series, i.Number, i.Year, i.Price ?? i.PriceHint, i.Want, i.Have);
+    private string? NoteOf(Item i) => ITMartinLager.Domain.Gold.Interesting(_gold, i.Kind, i.Title, i.Series, i.Number, i.Year, i.Price ?? i.PriceHint, i.Want, i.Have, ITMartinLager.Domain.FixedPrice.OwnText(i));
 
     // Said in words and with a sign, not only in colour.
     private static string ValIcon(string v) => v switch { Valuations.Valued => "✓", Valuations.InDeal => "%", Valuations.Waiting => "⏳", _ => "?" };

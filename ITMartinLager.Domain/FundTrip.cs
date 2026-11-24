@@ -15,7 +15,7 @@ public static class FundRules
 
     /// <summary>Interesting first (guld, sølv, bronze, måske), then the dearest; the ones still waiting for a price last.</summary>
     public static List<FundRow> Rows(IEnumerable<Item> items, IReadOnlyList<GoldEntry> gold) =>
-        items.Select(i => new FundRow(i, Gold.Interesting(gold, i.Kind, i.Title, i.Series, i.Number, i.Year, i.Price ?? i.PriceHint, i.Want, i.Have), Kr(i)))
+        items.Select(i => new FundRow(i, Gold.Interesting(gold, i.Kind, i.Title, i.Series, i.Number, i.Year, i.Price ?? i.PriceHint, i.Want, i.Have, FixedPrice.OwnText(i)), Kr(i)))
             .OrderBy(r => r.Item.PricesAt is null)
             .ThenBy(r => r.Note is null ? int.MaxValue : Gold.Rank(r.Note))
             .ThenByDescending(r => r.Kr ?? 0)

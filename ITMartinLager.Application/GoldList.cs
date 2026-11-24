@@ -50,7 +50,7 @@ public sealed class GoldUseCases(IEnumerable<IDearestListings> sites, IGoldRepos
     }
 
     public async Task<GoldEntry?> MatchAsync(Item i, CancellationToken ct = default) =>
-        Gold.Match(await AllAsync(ct), i.Kind, i.Title, i.Series, i.Number, i.Year);
+        Gold.Match(await AllAsync(ct), i.Kind, i.Title, i.Series, i.Number, i.Year, FixedPrice.OwnText(i));
 
     public async Task<List<string?>> InterestingAsync(IReadOnlyList<Found> found, CancellationToken ct = default)
     {
