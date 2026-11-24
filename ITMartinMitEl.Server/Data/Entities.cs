@@ -42,6 +42,17 @@ public sealed class UserAccount
     public DateTime? LastLoginUtc { get; set; }
 }
 
+/// <summary>A "Glemt adgangskoden?" ticket: only the hash of the mailed token is kept (see PasswordResetTicket).</summary>
+public sealed class PasswordReset
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid UserId { get; set; }
+    public string TokenHash { get; set; } = "";
+    public DateTime CreatedAtUtc { get; set; }
+    public DateTime ExpiresAtUtc { get; set; }
+    public DateTime? UsedAtUtc { get; set; }
+}
+
 /// <summary>
 /// A code the household owner hands to an advisor. It is the customer's consent:
 /// no advisor can reach a household without one, and the owner can take it back.

@@ -21,9 +21,53 @@ public static class LoginPages
             <button type="submit">Log ind</button>
             <p class="alt">Ny her? <a href="/opret">Opret en konto</a></p>
             <p class="alt">Bare priserne? <a href="https://elpriser.itmartin.dk">ElPriser</a> er gratis og åben for alle.</p>
-            <p class="alt small">Glemt adgangskoden? Skriv til <a href="mailto:ITMartin@Mensa.dk">ITMartin@Mensa.dk</a>, så nulstiller Martin den.</p>
+            <p class="alt"><a href="/glemt">Glemt adgangskoden?</a></p>
         </form>
         """);
+
+    // "Glemt adgangskoden?" (2026-11-24): the page says what happens and what to do next - the same answer whether or not
+    // the mail has an account, so nobody can use it to find out who is a customer.
+    public static string Forgot(bool sent, bool mailOff, string email) => Page(
+        title: "Glemt adgangskode",
+        body: $"""
+        <form method="post" action="/glemt">
+            <div class="logo">🔑</div>
+            <h1>Glemt adgangskoden?</h1>
+            <p class="sub">Skriv din mail. Så sender vi et link, hvor du vælger en ny adgangskode.</p>
+            {(sent ? Message(null, "Tjek din mail. Har du en konto med den mail, får du et link om et øjeblik. Linket virker i 1 time. Kig også i spam/uønsket post.") : "")}
+            {(mailOff ? Message("Vi kan ikke sende mail lige nu. Skriv til ITMartin@Mensa.dk eller ring 31 19 47 30, så hjælper Martin dig.", null) : "")}
+            <label for="email">Mail</label>
+            <input id="email" type="email" name="email" value="{Escape(email)}" autocomplete="username" required autofocus>
+            <button type="submit">Send link</button>
+            <p class="alt"><a href="/login">Tilbage til log ind</a></p>
+            <p class="alt small">Ingen mail efter 5 minutter? Skriv til <a href="mailto:ITMartin@Mensa.dk">ITMartin@Mensa.dk</a> eller ring 31 19 47 30.</p>
+        </form>
+        """);
+
+    public static string Reset(string token, bool linkWorks, string? error) => !linkWorks
+        ? Page(title: "Linket virker ikke", body: $"""
+            <form method="get" action="/glemt">
+                <div class="logo">⏰</div>
+                <h1>Linket virker ikke længere</h1>
+                <p class="sub">Et link til ny adgangskode holder 1 time og kan kun bruges én gang.</p>
+                <button type="submit">Bed om et nyt link</button>
+                <p class="alt"><a href="/login">Tilbage til log ind</a></p>
+            </form>
+            """)
+        : Page(title: "Ny adgangskode", body: $"""
+            <form method="post" action="/nulstil">
+                <div class="logo">🔑</div>
+                <h1>Vælg ny adgangskode</h1>
+                <p class="sub">Skriv den samme adgangskode to gange. Bagefter logger du ind med den.</p>
+                {Message(error, null)}
+                <input type="hidden" name="t" value="{Escape(token)}">
+                <label for="password">Ny adgangskode (mindst {AccountService.MinPasswordLength} tegn)</label>
+                <input id="password" type="password" name="password" autocomplete="new-password" required minlength="{AccountService.MinPasswordLength}" autofocus>
+                <label for="repeat">Skriv den igen</label>
+                <input id="repeat" type="password" name="repeat" autocomplete="new-password" required minlength="{AccountService.MinPasswordLength}">
+                <button type="submit">Gem ny adgangskode</button>
+            </form>
+            """);
 
     // needsCode: sign-up is by invitation (MitEl:SignupCode set) - user 2026-10-09, MinElpris is the paid app.
     public static string Register(string? error, string email, bool needsCode = false) => Page(

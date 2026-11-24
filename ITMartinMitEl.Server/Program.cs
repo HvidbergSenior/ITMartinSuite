@@ -45,6 +45,9 @@ builder.Services.AddKolibri(k =>
 // registration would throw the cache away every call.
 // The four price/CO2/supplier/grid sources once each, by type and by port (the same as the free app).
 builder.Services.AddElPriserSources();
+builder.Services.AddMinElprisMail();                        // "Glemt adgangskoden?" mail (2026-11-24)
+builder.Services.AddScoped<IResetAccounts, ResetAccounts>();
+builder.Services.AddScoped(sp => new PasswordResetUseCases(sp.GetRequiredService<IResetAccounts>(), sp.GetRequiredService<IMailSender>()));
 builder.Services.AddMinElprisPaid(builder.Configuration);   // free vs paid (2026-11-12): sign-up needs the paid tick in Kunder
 // Accounts and per-household data (phase 2). The stores are resolved per request
 // from the signed-in user's household, so a page can only ever read its own home.
@@ -150,7 +153,8 @@ app.UseAntiforgery();
 
 app.MapGet("/login", (HttpContext ctx) => Results.Content(LoginPages.SignIn(
     error: ctx.Request.Query.ContainsKey("err") ? "Forkert mail eller adgangskode." : null,
-    notice: ctx.Request.Query.ContainsKey("ny") ? "Kontoen er oprettet – log ind." : null,
+    notice: ctx.Request.Query.ContainsKey("ny") ? "Kontoen er oprettet – log ind."
+          : ctx.Request.Query.ContainsKey("nulstillet") ? "Din nye adgangskode er gemt – log ind med den." : null,
     email: ctx.Request.Query["mail"].ToString()), "text/html")).AllowAnonymous();
 
 app.MapPost("/login", async (HttpContext ctx, AccountService accounts) =>
@@ -163,6 +167,45 @@ app.MapPost("/login", async (HttpContext ctx, AccountService accounts) =>
 
     await SignInAsync(ctx, result.User);
     return Results.Redirect(result.User.Role == UserRoles.Advisor ? "/kunder" : "/");
+}).AllowAnonymous();
+
+// Forgotten password by mail (2026-11-24). The link always points at the public address, never at the request's Host
+// header (which a caller could fake). Every request answers the same and takes about the same time.
+var publicUrl = (app.Configuration["MitEl:PublicUrl"] ?? "https://minelpris.itmartin.dk").TrimEnd('/');
+
+app.MapGet("/glemt", (HttpContext ctx) => Results.Content(LoginPages.Forgot(
+    sent: ctx.Request.Query.ContainsKey("sendt"),
+    mailOff: ctx.Request.Query.ContainsKey("slukket"),
+    email: ctx.Request.Query["mail"].ToString()), "text/html")).AllowAnonymous();
+
+app.MapPost("/glemt", async (HttpContext ctx, PasswordResetUseCases reset) =>
+{
+    var form = await ctx.Request.ReadFormAsync();
+    var email = form["email"].ToString();
+    var started = DateTime.UtcNow;
+    var answer = await reset.RequestAsync(email, publicUrl + "/nulstil", ctx.RequestAborted);
+    var spent = DateTime.UtcNow - started;
+    if (spent < TimeSpan.FromSeconds(2)) await Task.Delay(TimeSpan.FromSeconds(2) - spent);
+    return Results.Redirect(answer == ResetRequest.MailOff
+        ? $"/glemt?slukket=1&mail={Uri.EscapeDataString(email)}"
+        : $"/glemt?sendt=1&mail={Uri.EscapeDataString(email)}");
+}).AllowAnonymous();
+
+app.MapGet("/nulstil", async (HttpContext ctx, PasswordResetUseCases reset) =>
+{
+    var token = ctx.Request.Query["t"].ToString();
+    return Results.Content(LoginPages.Reset(token, await reset.LinkWorksAsync(token),
+        ctx.Request.Query["fejl"].ToString() is { Length: > 0 } e ? e : null), "text/html");
+}).AllowAnonymous();
+
+app.MapPost("/nulstil", async (HttpContext ctx, PasswordResetUseCases reset) =>
+{
+    var form = await ctx.Request.ReadFormAsync();
+    var token = form["t"].ToString();
+    var done = await reset.CompleteAsync(token, form["password"].ToString(), form["repeat"].ToString(), AccountService.MinPasswordLength);
+    return done.Ok
+        ? Results.Redirect("/login?nulstillet=1")
+        : Results.Redirect($"/nulstil?t={Uri.EscapeDataString(token)}&fejl={Uri.EscapeDataString(done.Error ?? "Noget gik galt.")}");
 }).AllowAnonymous();
 
 // Sign-up (free vs paid, user 2026-11-12): a new account needs a kundenummer that Martin has ticked "MinElpris: betalt" in

@@ -29,6 +29,13 @@ public static class DependencyInjection
         return services;
     }
 
+    /// <summary>MinElpris: mail for "Glemt adgangskoden?" (from ITMartin@mensa.dk via ImprovMX, see SmtpMailSender).</summary>
+    public static IServiceCollection AddMinElprisMail(this IServiceCollection services)
+    {
+        services.AddSingleton<IMailSender, SmtpMailSender>();
+        return services;
+    }
+
     /// <summary>MinElpris: Kunder answers whether a kundenummer has the paid tick (sign-up gate, 2026-11-12).</summary>
     public static IServiceCollection AddMinElprisPaid(this IServiceCollection services, IConfiguration config)
     {
