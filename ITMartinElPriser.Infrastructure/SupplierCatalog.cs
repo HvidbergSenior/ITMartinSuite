@@ -67,7 +67,9 @@ public sealed class SupplierCatalog(HttpClient http, ILogger<SupplierCatalog> lo
             .OrderByDescending(x => x.ValidFrom <= now && (x.ValidTo is null || x.ValidTo >= now))
             .ThenByDescending(x => x.ValidFrom)
             .FirstOrDefault();
-        if (price is null) return null;
+        // No price rows = elpris.dk does not know the price (EGO Spot El, ENLY Grøn Variabel 2026-11):
+        // reading that as 0 kr made them "the cheapest" with "ca. 0 kr/år". Leave them out.
+        if (price is null || price.Matrix.Count == 0) return null;
 
         // The matrix can split the day (time-of-day prices) and the year (volume steps).
         // Compare on the hour-weighted price of the first volume step.

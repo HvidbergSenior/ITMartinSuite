@@ -30,7 +30,19 @@ public static class DemoHousehold
             var sourceEmail = AccountService.Normalise(config["MitEl:DemoSourceEmail"] ?? "itmartin@mensa.dk");
             var source = db.Users.FirstOrDefault(u => u.Email == sourceEmail && u.HouseholdId != null);
             var sourceRow = source is null ? null : db.Households.Find(source.HouseholdId);
-            if (sourceRow is null) { logger.LogWarning("Demo: no source household for {Email}", sourceEmail); return; }
+            if (sourceRow is null)
+            {
+                // No source (owner started from scratch 2026-11-24 for prod): keep the demo household
+                // that is already saved, so "Se demo" keeps working with its last real numbers.
+                var existing = db.Users.FirstOrDefault(u => u.Email == Email);
+                if (existing?.HouseholdId is { } kept && db.Households.Find(kept) is not null)
+                {
+                    Id = kept;
+                    logger.LogInformation("Demo: no source household for {Email} - keeping saved demo {Id}", sourceEmail, kept);
+                }
+                else logger.LogWarning("Demo: no source household for {Email} and no saved demo", sourceEmail);
+                return;
+            }
 
             var data = HouseholdStore.Parse(sourceRow.DataJson);
             data.Settings.EloverblikToken = "";
