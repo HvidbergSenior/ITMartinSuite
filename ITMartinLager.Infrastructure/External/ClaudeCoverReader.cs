@@ -124,6 +124,10 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
         - Tomme diske er ikke varer: blanke CD-R/DVD-R/RW (Fujifilm, TDK, Verbatim, Maxell, "CD-Recordable", "650MB",
           "700MB") og hjemmebrændte diske uden trykt omslag kommer IKKE med på listen.
         - Magic-kort: titel = kortets navn, serie = udgivelsen hvis den kan ses.
+        - Særlig udgave (user 2026-11-24: "it should mark products i have if they are special when taking pictures"): ser du tegn på,
+          at netop DENNE vare er en særlig udgave, så skriv det med disse ord i note, så prisen kan findes: "Signeret" (en håndskrevet
+          signatur), "I pose" eller "Til læg" (forseglet med tillæg/gave), "Uden dato" (et ugeblad, hvor datoen mangler i toppen,
+          hvor den normalt står), "Fejltryk" (tydelig trykfejl), "Trykvariant" (afviger fra den normale forside). Kun det, du KAN se.
         - Stand ud fra hvad der kan ses (rifter, fold, slid, mangler): Som ny, Meget god, God, Slidt, Defekt.
         - usage: "Ny" kun når tingen tydeligt er ny og aldrig solgt (forseglet i plastik, butikkens mærkat). Ellers "Brugt".
         - language: sproget på varens egen tekst (titel, omslag): Dansk, Engelsk eller Andet sprog.
