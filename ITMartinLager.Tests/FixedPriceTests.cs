@@ -87,4 +87,14 @@ public class FixedPriceTests
         Gold.Match(gold, Kinds.AndersAnd, "Anders And & Co.", "Anders And & Co.", "17", 1973, "Anders And & Co.").Should().BeNull();
         Gold.Match(gold, Kinds.AndersAnd, "Anders And & Co.", "Anders And & Co.", "17", 1973, "Anders And & Co. Trykvariant uden dato").Should().NotBeNull();
     }
+
+    [Test]
+    public void Our_price_is_under_the_market_and_under_the_new_price()
+    {
+        // Caza "Fantasier fra forstæderne": Nemos 375 + Faraos 130 (typical 252), Bog & idé new 300 (2026-11-24).
+        var bog = new Item { Kind = Kinds.Bog, Category = ProductTypes.Boeger, PricesAt = DateTime.UtcNow, Confidence = 1, ItemPhoto = "x.jpg" };
+        var hint = FixedPrice.Hint(bog, [F("Nemos Bibliotek", 375), F("Faraos", 130), F("Bog & idé", 300, isNew: true)], null);
+        hint.Should().BeLessThanOrEqualTo(180, "at most 60 % of the new price");
+        FixedPrice.OurPrice(252, null).Should().BeLessThan(252, "10-25 % under the market");
+    }
 }

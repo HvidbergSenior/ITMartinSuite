@@ -59,9 +59,9 @@ public class UseCaseTests
         checks.Select(c => (c.Source, c.Ok)).Should().BeEquivalentTo(new[] { ("Accord", true), ("eBay", false), ("Amazon.de", true) });
         finds.Should().HaveCount(3);   // a book: the Danish listings only - Amazon.de is foreign (user 2026-11-06)
         var saved = await Items.GetAsync(item.Id, default);
-        // Fixed price per kind (2026-11-24): a book is 25 kr; Accord's typical 50 kr is >= 2x and >= 50 kr, so Martin sets the price
-        // (hint 50 = the shop says "vi vurderer prisen"). Before: 25 % under 50 = the 30 kr step.
-        saved!.PriceHint.Should().Be(50);
+        // Fixed price per kind (2026-11-24): a book is 25 kr; Accord's typical 50 kr is 30 kr as OUR price (25 % under) - under 50 kr,
+        // so no own price needed: no hint = the shop shows the fixed 25 kr.
+        saved!.PriceHint.Should().BeNull();
         saved.PricesAt.Should().NotBeNull();
         hunt.SourceList.Should().Be("Brugt: Accord og eBay. Ny: Amazon.de.");   // names from the test sources above
     }

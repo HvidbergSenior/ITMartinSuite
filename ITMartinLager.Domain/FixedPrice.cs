@@ -16,6 +16,8 @@ public static class FixedPrice
     /// <summary>At least this many matching listings before a price is trusted (user 2026-11-24: "I dont believe the prices" - one
     /// listing was often another product: Lorcana for "First Wave", a bust for "Green Hornet", a trykvariant).</summary>
     public const int MinListings = 2;
+    /// <summary>A used copy is at most this share of the new price (user 2026-11-24, Caza: used 250 kr while Bog & idé sells it new for 300).</summary>
+    public const decimal MaxShareOfNew = 0.6m;
 
     /// <summary>Kinds that follow the fixed price. The rest keep their own way (Magic, Ting, box sets, console games ...).</summary>
     public static bool Applies(Item i) =>
@@ -78,7 +80,8 @@ public static class FixedPrice
 
     /// <summary>True when Martin must set the price: typical found price >= 2x the fixed price and >= 50 kr.</summary>
     public static bool NeedsOwnPrice(Item i, IEnumerable<PriceFind> finds) =>
-        Applies(i) && i.Price is not > 0 && !BlurryMagazine(i) && i.Confidence >= Pricing.MinConfidence && Chosen(finds, i) is { Count: >= MinListings } && Typical(finds, i) is { } t && StandardOf(i) is { } s && t >= Factor * s && t >= MinKr;
+        Applies(i) && i.Price is not > 0 && !BlurryMagazine(i) && i.Confidence >= Pricing.MinConfidence && Chosen(finds, i) is { Count: >= MinListings } && Typical(finds, i) is { } typ
+        && OurPrice(typ, NewTypical(finds.ToList())) is var t && StandardOf(i) is { } s && t >= Factor * s && t >= MinKr;
 
     /// <summary>The hint for a thing that follows the fixed price: the typical price when Martin must decide, else none (the shop
     /// then shows the fixed price). "Som ny" keeps its own rule (25 % under the new price) when that is higher. Not applicable =
@@ -87,9 +90,18 @@ public static class FixedPrice
     {
         if (!Applies(i)) return current;
         var list = finds.ToList();
-        decimal? hint = NeedsOwnPrice(i, list) ? Pricing.OnStep(Typical(list, i)!.Value) : null;
+        // Our price, not the market's: the usual 10-25 % under (Pricing.ShopPrice), and never over 60 % of the new price (2026-11-24).
+        decimal? hint = NeedsOwnPrice(i, list) ? OurPrice(Typical(list, i)!.Value, NewTypical(list)) : null;
         if (Pricing.LikeNew(i.Usage) && Pricing.AsNewPrice(NewTypical(list)) is { } asNew && asNew > (hint ?? 0)) hint = asNew;
         return hint;
+    }
+
+    /// <summary>The shop price from the typical used price, capped by the new price.</summary>
+    public static int OurPrice(int typicalUsed, int? newKr)
+    {
+        var kr = Pricing.ShopPrice(typicalUsed) ?? typicalUsed;
+        if (newKr is > 0 && kr > newKr.Value * MaxShareOfNew) kr = Pricing.OnStep(newKr.Value * MaxShareOfNew);
+        return kr;
     }
 
     private static int? NewTypical(List<PriceFind> finds)
