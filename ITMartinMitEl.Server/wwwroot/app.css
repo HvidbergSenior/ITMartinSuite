@@ -348,6 +348,11 @@ details.opt > summary::-webkit-details-marker { display: none; }
 .opt-kr { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .opt-off { opacity: .55; }
 
+/* The hours the machine runs in (user 2026-11-24): a band behind the columns, so the run reads as one block. */
+.bar-col.in-run { background: color-mix(in srgb, var(--k-accent) 16%, transparent); }
+.bar-col.in-run + .bar-col.in-run { box-shadow: -2px 0 0 color-mix(in srgb, var(--k-accent) 16%, transparent); }
+/* "i morgen" on one line under the chart - it may run into the empty neighbours (user 2026-11-24 screenshot). */
+.bar-axis span.axis-word { white-space: nowrap; overflow: visible; }
 /* ---- MinElpris only (2026-10-29): above is the free ElPriser app.css as is - the same template; below, what only
    MinElpris pages use. Same selector = the free app's rule wins (it is above and these were removed). ---- */
 .muted { color: var(--muted); }
