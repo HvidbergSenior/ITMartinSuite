@@ -24,7 +24,15 @@
             </tbody>
         </table>
     }
-    <button class="k-btn k-btn-secondary k-mt" disabled="@_busy" @onclick="NewSample">Nye @Count</button>
+    <div class="lg-spot-fix">
+        <button class="k-btn k-btn-secondary k-mt" disabled="@_busy" @onclick="NewSample">Nye @Count</button>
+        @* 2026-11-25 (user: "I need to look at all my prices before the new batch"): exactly the things Martin prices himself. *@
+        <button class="k-btn @(_onlyAssess ? "k-btn-primary" : "k-btn-secondary") k-mt" disabled="@_busy" @onclick="OnlyAssess">Kun skal vurderes</button>
+    </div>
+    @if (_onlyAssess && _rows is not null)
+    {
+        <p class="k-small k-muted">Viser de @_rows.Count ting, du selv skal give en pris – dyreste forslag først. Tryk Forkert på de annoncer, der ikke er præcis den samme ting; prisen regnes om med det samme.</p>
+    }
 </section>
 
 @if (_rows is null) { <section class="k-card"><p>Henter …</p></section> }
@@ -126,23 +134,28 @@ else
 
     // The 20 live in the address (?ids=1,2,3), so Back from a product - or a reload - shows the same list (user 2026-11-24).
     [SupplyParameterFromQuery(Name = "ids")] public string? Ids { get; set; }
+    [SupplyParameterFromQuery(Name = "skal")] public string? Skal { get; set; }
 
-    protected override async Task OnInitializedAsync() => await Load(ParseIds(Ids));
+    private bool _onlyAssess;
+    public const int AssessMax = 60;
+
+    protected override async Task OnInitializedAsync() { _onlyAssess = Skal == "1"; await Load(ParseIds(Ids)); }
 
     private static List<int> ParseIds(string? s) =>
         (s ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => int.TryParse(x, out var n) ? n : 0).Where(n => n > 0).ToList();
 
-    private Task NewSample() => Load([]);
+    private Task NewSample() { _onlyAssess = false; return Load([]); }
+    private Task OnlyAssess() { _onlyAssess = true; return Load([]); }
 
     private async Task Load(List<int> same)
     {
         _busy = true; _rows = null;
         try
         {
-            _rows = await Spot.SampleAsync(Count, same);
+            _rows = await Spot.SampleAsync(_onlyAssess ? AssessMax : Count, same, _onlyAssess);
             _stats = await Spot.StatsAsync();
             var ids = string.Join(",", _rows.Select(r => r.Item.Id));
-            if (ids != (Ids ?? "")) Nav.NavigateTo($"/stikproeve?ids={ids}", replace: true);
+            if (ids != (Ids ?? "") || (Skal == "1") != _onlyAssess) Nav.NavigateTo($"/stikproeve?{(_onlyAssess ? "skal=1&" : "")}ids={ids}", replace: true);
         }
         finally { _busy = false; }
     }

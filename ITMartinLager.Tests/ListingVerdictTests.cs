@@ -1,3 +1,4 @@
+using Moq;
 using ITMartinLager.Application;
 using FluentAssertions;
 using ITMartinLager.Domain;
@@ -42,5 +43,29 @@ public class ListingVerdictTests
         SpotCheckUseCases.Worth(new Item { Kind = Kinds.Cd, Title = "X" }).Should().BeFalse();
         SpotCheckUseCases.Worth(new Item { Kind = Kinds.Cd, Title = "X", PriceHint = 60 }).Should().BeTrue();
         SpotCheckUseCases.Worth(new Item { Kind = Kinds.Dvd, Title = "X" }).Should().BeTrue();
+    }
+
+    // 2026-11-25: "Kun skal vurderes" shows exactly the things Martin prices himself, dearest first - not a random sample.
+    [Test]
+    public async Task Only_assess_lists_the_things_that_need_an_own_price()
+    {
+        Item Dvd(int id, string title) => new() { Id = id, Kind = Kinds.Dvd, Title = title, Confidence = 1, PricesAt = DateTime.UtcNow };
+        static PriceFind Named(PriceFind f, string name) { f.Name = name; return f; }   // a listing must name our title, or it is Forkert by rule
+        var dear = Dvd(1, "Dear film");
+        var plain = Dvd(2, "Plain film");
+        var items = new Mock<IItemRepository>();
+        items.Setup(r => r.AllListedAsync(default)).ReturnsAsync([plain, dear]);
+        var prices = new Mock<IPriceRepository>();
+        prices.Setup(r => r.FindsForAsync(It.IsAny<IReadOnlyCollection<int>>(), default)).ReturnsAsync(new Dictionary<int, List<PriceFind>>
+        {
+            [1] = [Named(F(1, "Faraos", 400, "a"), "Dear film"), Named(F(1, "Faraos", 420, "b"), "Dear film")],
+            [2] = [Named(F(2, "Faraos", 5, "c"), "Plain film"), Named(F(2, "Faraos", 6, "d"), "Plain film")],
+        });
+        prices.Setup(r => r.VerdictsForAsync(It.IsAny<IReadOnlyCollection<int>>(), default)).ReturnsAsync([]);
+        prices.Setup(r => r.ForItemAsync(It.IsAny<int>(), default)).ReturnsAsync((new List<PriceFind>(), new List<PriceCheck>()));
+
+        var rows = await new SpotCheckUseCases(items.Object, prices.Object).SampleAsync(60, null, onlyAssess: true);
+
+        rows.Select(r => r.Item.Id).Should().Equal(1);
     }
 }

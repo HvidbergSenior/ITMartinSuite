@@ -18,13 +18,21 @@ public sealed class SpotCheckUseCases(IItemRepository items, IPriceRepository pr
         i.Kind is not (Kinds.Cd or Kinds.Vinyl) || (i.PriceHint is { } h && FixedPrice.StandardOf(i) is { } s && h > s) || i.Price > 0 || i.Rare;
 
     /// <summary>A new random sample - or the same things again (ids from the address), so going back from a product keeps the list.</summary>
-    public async Task<List<Row>> SampleAsync(int count = 20, IReadOnlyCollection<int>? same = null, CancellationToken ct = default)
+    public async Task<List<Row>> SampleAsync(int count = 20, IReadOnlyCollection<int>? same = null, bool onlyAssess = false, CancellationToken ct = default)
     {
         List<Item> pick;
         if (same is { Count: > 0 })
         {
             var order = same.ToList();
             pick = (await items.ByIdsAsync(order, ct)).OrderBy(i => order.IndexOf(i.Id)).ToList();
+        }
+        else if (onlyAssess)
+        {
+            // 2026-11-25 (user: "I need to look at all my prices before the new batch"): exactly the things Martin must price himself
+            // (the same rule as "skalVurderes" in the price run), dearest suggestion first, not a random sample.
+            var all = (await items.AllListedAsync(ct)).Where(i => i.PricesAt is not null && FixedPrice.Applies(i)).ToList();
+            var finds = await prices.FindsForAsync(all.Select(i => i.Id).ToList(), ct);
+            pick = all.Where(i => FixedPrice.NeedsOwnPrice(i, finds.GetValueOrDefault(i.Id) ?? [])).OrderByDescending(i => i.PriceHint ?? 0).Take(count).ToList();
         }
         else
         {
@@ -44,6 +52,7 @@ public sealed class SpotCheckUseCases(IItemRepository items, IPriceRepository pr
                 IssueHints.Applies(i) ? IssueHints.For(i, used) : null));
         }
         // 2026-11-25: the doubtful magazines (listings disagree with each other or with us) first; the sample keeps its order otherwise.
+        if (onlyAssess && (same is null || same.Count == 0)) return rows;
         return rows.Select((r, n) => (r, n)).OrderBy(x => x.r.Hint?.Order ?? 3).ThenBy(x => x.n).Select(x => x.r).ToList();
     }
 
