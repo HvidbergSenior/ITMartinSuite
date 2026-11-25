@@ -35,6 +35,13 @@ public sealed partial class FaraosListings(HttpClient http, ILogger<FaraosListin
                 Cache[key] = (DateTime.UtcNow, exact);
                 return exact;
             }
+            // The same for the other numbered series: the category page lists every number, in stock or not.
+            if (CategoryFor(query) is { } cat && await CategoryJsonAsync(cat, ct) is { } listed
+                && Parse(listed, title, author, SearchUrl(query)) is { Count: > 0 } inCat)
+            {
+                Cache[key] = (DateTime.UtcNow, inCat);
+                return inCat;
+            }
             // Their search answers 500 on some "Nr. 3" searches (2026-10-07: "Tintin Nr 3" fails, "Tintin 3" works),
             // so "Nr." is left out; if it still fails, once more with the words only.
             var json = await SearchAsync(NrRx().Replace(query, " "), ct)
@@ -84,6 +91,68 @@ public sealed partial class FaraosListings(HttpClient http, ILogger<FaraosListin
         var yr = m.Groups["yr"].Success ? m.Groups["yr"].Value : m.Groups["yr2"].Value;
         var nr = m.Groups["nr"].Success ? m.Groups["nr"].Value : m.Groups["nr2"].Value;
         return (int.Parse(yr), int.Parse(nr));
+    }
+
+
+    // The shop's own category tree below "antikvarisk" (menu ids from shopws.faraos.dk/api/1/menu/items, 2026-11-25).
+    // A category page lists every number of a series, also those with no copy in stock - the search does not.
+    internal sealed record Category(string Name, int Level2, int Level3, string Number);
+
+    private static readonly (System.Text.RegularExpressions.Regex Rx, string Name, int Level2, int Level3)[] Categories =
+    [
+        (R(@"jumbob"), "jumboboeger", 130391, 130438),
+        (R(@"m[åa]neds|maaneds|ekstrah[æa]fte"), "maanedshaefter", 130391, 1266922),
+        (R(@"spider-?man|edderkop"), "spiderman", 1266919, 1266940),
+        (R(@"x-?men"), "x-men", 1266919, 1266943),
+        (R(@"batman"), "batman", 1266919, 1266925),
+        (R(@"superman"), "superman", 1266919, 1266942),
+        (R(@"hulk"), "hulk", 1266919, 1266935),
+        (R(@"fantastiske fire|fantastic four"), "fantastiskefire", 1266919, 1266930),
+        (R(@"fantomet"), "fantomet", 130390, 130415),
+        (R(@"seri[e]?magasinet"), "seriemagasinet", 130390, 156871),
+        (R(@"basserne"), "basserne", 130390, 130413),
+        (R(@"skipper skr"), "skipperskraek", 130390, 130424),
+        (R(@"kong kylie"), "kongkylie", 130390, 130421),
+        (R(@"tarzan"), "tarzan", 130390, 130428),
+    ];
+
+    private static System.Text.RegularExpressions.Regex R(string p) =>
+        new(p, System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"(?<![\d])(?!(?:19|20)\d\d)(\d{1,3})(?!\d)")]
+    private static partial System.Text.RegularExpressions.Regex IssueNumberRx();
+
+    internal static Category? CategoryFor(string query)
+    {
+        var hit = Categories.FirstOrDefault(c => c.Rx.IsMatch(query));
+        if (hit.Rx is null) return null;
+        var nr = IssueNumberRx().Matches(query).LastOrDefault()?.Value;
+        return nr is null ? null : new Category(hit.Name, hit.Level2, hit.Level3, nr);
+    }
+
+    // The category page, searched for "Nr. 41" (a page is 8 items; the exact number comes first), three pages at most.
+    private async Task<string?> CategoryJsonAsync(Category cat, CancellationToken ct)
+    {
+        var all = new System.Text.Json.Nodes.JsonArray();
+        for (var page = 1; page <= 3; page++)
+        {
+            var body = JsonSerializer.Serialize(new
+            {
+                subPage = 0, page, sortOrder = 0, searchString = $"Nr. {cat.Number}", tag = (string?)null,
+                currentMenuId = cat.Level3, menuIdLevel1 = 130388, menuIdLevel2 = cat.Level2, menuIdLevel3 = cat.Level3,
+                menuIdLevel4 = (int?)null, menuLevel = 3, inSearchDialog = false, htmlDocumentId = 25,
+            });
+            using var req = new HttpRequestMessage(HttpMethod.Post, Api) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
+            req.Headers.TryAddWithoutValidation("Origin", "https://www.faraos.dk");
+            req.Headers.UserAgent.ParseAdd("BogshoppenLager/1.0 (ITMartin@Mensa.dk)");
+            using var res = await http.SendAsync(req, ct);
+            if (!res.IsSuccessStatusCode) return null;
+            var node = System.Text.Json.Nodes.JsonNode.Parse(await res.Content.ReadAsStringAsync(ct));
+            if (node?["items"] is not System.Text.Json.Nodes.JsonArray items || items.Count == 0) break;
+            foreach (var it in items.ToList()) { items.Remove(it); all.Add(it); }
+            if (all.Count >= (node["totalItemsCount"]?.GetValue<int>() ?? 0)) break;
+        }
+        return new System.Text.Json.Nodes.JsonObject { ["items"] = all }.ToJsonString();
     }
 
     // The menu node "Anders And & Co" in the shop's own menu; one node per year below it, and one leaf below that.

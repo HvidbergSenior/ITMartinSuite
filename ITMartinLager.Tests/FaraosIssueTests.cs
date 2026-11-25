@@ -31,4 +31,14 @@ public sealed class FaraosIssueTests
         r.Proof.Select(o => o.Price).Should().BeEquivalentTo(new decimal?[] { 3, 18 });
         r.Proof.Should().OnlyContain(o => o.Url == "https://www.faraos.dk/antikvarisk/disney/andersandco/andersandco1969/andersandco1969/anders-and-co.-1969-nr.-19");
     }
+
+    [TestCase("Jumbobog 41", "jumboboeger", "41")]
+    [TestCase("Walt Disney Jumbobog Nr. 12", "jumboboeger", "12")]
+    [TestCase("Den fantastiske Spider-Man 7 1995", "spiderman", "7")]
+    public void A_numbered_series_is_looked_up_in_its_category(string query, string name, string nr) =>
+        FaraosListings.CategoryFor(query).Should().Be(new FaraosListings.Category(name, FaraosListings.CategoryFor(query)!.Level2, FaraosListings.CategoryFor(query)!.Level3, nr));
+
+    [TestCase("Jumbobog")]
+    [TestCase("Tintin 3")]
+    public void No_category_or_no_number_means_the_normal_search(string query) => FaraosListings.CategoryFor(query).Should().BeNull();
 }
