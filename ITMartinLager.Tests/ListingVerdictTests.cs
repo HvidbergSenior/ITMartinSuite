@@ -81,4 +81,30 @@ public class ListingVerdictTests
         SpotCheckUseCases.Reviewed(new SpotCheckUseCases.Row(item, [a, b], marks, 3)).Should().BeTrue();
         SpotCheckUseCases.Reviewed(new SpotCheckUseCases.Row(item, [], [], 3)).Should().BeFalse();
     }
+
+    // 2026-11-25: Stikprøve showed listings the rules already throw out; they need no answer and do not count in the source table.
+    [Test]
+    public void A_listing_for_another_season_is_excluded_by_the_rules()
+    {
+        var house = new Item { Id = 1, Kind = Kinds.Dvd, Title = "House – Season Three" };
+        FixedPrice.CountsByName(house, "House M.D. sæson 3 DVD-boks").Should().BeTrue();
+        FixedPrice.CountsByName(house, "House MD sæson 1 DVD-boks fra Universal").Should().BeFalse();
+    }
+
+    [Test]
+    public void Excluded_listings_need_no_mark_to_make_a_thing_reviewed()
+    {
+        var item = new Item { Id = 1, Kind = Kinds.Dvd, Title = "House – Season Three" };
+        var right = new PriceFind { ItemId = 1, Source = "Faraos", Kr = 50, Url = "a", Name = "House sæson 3" };
+        var other = new PriceFind { ItemId = 1, Source = "GulogGratis", Kr = 32, Url = "b", Name = "House MD sæson 1 DVD-boks" };
+        var marks = new Dictionary<string, string> { [ListingVerdict.KeyOf(right)] = SpotCheckUseCases.Rigtig };
+        SpotCheckUseCases.Reviewed(new SpotCheckUseCases.Row(item, [right, other], marks, 3)).Should().BeTrue();
+    }
+
+    [Test]
+    public void AbeBooks_and_Accord_no_longer_set_our_price()
+    {
+        FixedPrice.Sources.Should().NotContain(["AbeBooks", "Accord"]);
+        FixedPrice.Sources.Should().Contain(["Faraos", "GulogGratis", "Nemos Bibliotek", "Discogs"]);
+    }
 }

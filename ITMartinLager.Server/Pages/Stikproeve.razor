@@ -119,7 +119,9 @@ else
                 {
                     var key = ITMartinLager.Domain.ListingVerdict.KeyOf(f);
                     var mark = row.Marks.TryGetValue(key, out var m) ? m : "";
-                    <li class="@(mark == SpotCheckUseCases.Forkert ? "lg-spot-wrong" : mark == SpotCheckUseCases.Rigtig ? "lg-spot-right" : mark == SpotCheckUseCases.KanIkkeSe ? "lg-spot-unsure" : "")">
+                    // 2026-11-25: a listing the rules already throw out (another year, season, issue ...) never counted - no answer needed.
+                    var excluded = mark == "" && !ITMartinLager.Domain.FixedPrice.Counts(row.Item, f);
+                    <li class="@(excluded ? "lg-spot-excluded" : mark == SpotCheckUseCases.Forkert ? "lg-spot-wrong" : mark == SpotCheckUseCases.Rigtig ? "lg-spot-right" : mark == SpotCheckUseCases.KanIkkeSe ? "lg-spot-unsure" : "")">
                         @* 2026-11-24 (user: "look at the pictures from front cover"): the listing's own picture, so another edition's cover shows at a glance. *@
                         @if (f.Image.StartsWith("http"))
                         {
@@ -132,11 +134,18 @@ else
                         <span class="lg-spot-kr">@f.Kr kr</span>
                         <span class="lg-spot-src">@f.Source</span>
                         @if (f.Url.StartsWith("http")) { <a href="@f.Url" target="_blank" rel="noopener">@f.Name</a> } else { <span>@f.Name</span> }
+                        @if (excluded)
+                        {
+                            <span class="k-small k-muted">udelukket af reglerne – intet svar nødvendigt</span>
+                        }
+                        else
+                        {
                         <span class="lg-spot-btns">
                             <button class="k-btn k-btn-sm @(mark == SpotCheckUseCases.Rigtig ? "k-btn-primary" : "k-btn-secondary")" disabled="@_busy" @onclick="() => Mark(row, f, SpotCheckUseCases.Rigtig)">Rigtig</button>
                             <button class="k-btn k-btn-sm @(mark == SpotCheckUseCases.Forkert ? "k-btn-primary" : "k-btn-ghost")" disabled="@_busy" @onclick="() => Mark(row, f, SpotCheckUseCases.Forkert)">Forkert</button>
                             <button class="k-btn k-btn-sm @(mark == SpotCheckUseCases.KanIkkeSe ? "k-btn-primary" : "k-btn-ghost")" disabled="@_busy" @onclick="() => Mark(row, f, SpotCheckUseCases.KanIkkeSe)" title="Du kan ikke se, om det er den samme – tæller hverken som rigtig eller forkert">Kan ikke se</button>
                         </span>
+                        }
                     </li>
                 }
             </ul>

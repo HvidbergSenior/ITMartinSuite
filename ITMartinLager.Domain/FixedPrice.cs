@@ -9,7 +9,8 @@ namespace ITMartinLager.Domain;
 public static class FixedPrice
 {
     /// <summary>Used shops/markets that count. DBA only when none of the others found the thing (its asking prices run high).</summary>
-    public static readonly string[] Sources = ["Faraos", "GulogGratis", "Nemos Bibliotek", "Discogs", "AbeBooks", "Accord"];
+    // 2026-11-25 (Stikprøve: AbeBooks 0 of 4 right, Accord 0 of 3 - other volumes / other albums): those two no longer set our price.
+    public static readonly string[] Sources = ["Faraos", "GulogGratis", "Nemos Bibliotek", "Discogs"];
     public const string Dba = "DBA";
     public const int Factor = 2;
     public const int MinKr = 50;
@@ -68,13 +69,20 @@ public static class FixedPrice
         return years.Count > 0 && !years.Contains(i.Year.Value);
     }
 
+    /// <summary>True when the rules let this listing count for the thing: not a special version, another cover/issue/season/edition, or
+    /// a different thing. Stikprøve shows listings the rules already throw out as "udelukket" - they need no answer.</summary>
+    public static bool Counts(Item i, PriceFind f) => CountsByName(i, f.Name) && !CoverMatch.OtherEdition(f);
+
+    /// <summary>Same by the listing's title alone (a saved Rigtig/Forkert mark has no picture to compare).</summary>
+    public static bool CountsByName(Item i, string name) =>
+        !SpecialVersion(name, i) && !OtherIssue(i, name) && !ListingMatch.Wrong(i, name) && !ListingMatch.NoAlbum(i);
+
     /// <summary>The used prices that count: the other sources, or DBA when they found nothing. Special versions and other issues are left out.</summary>
     public static List<int> Chosen(IEnumerable<PriceFind> finds, Item? i = null)
     {
         // A CD with only the artist as title has no album to look for - no listing proves anything (Stikprøve rule 2).
         if (i is not null && ListingMatch.NoAlbum(i)) return [];
-        var used = finds.Where(f => !f.IsNew && !f.Similar && f.Kr > 0 && !SpecialVersion(f.Name, i) && !CoverMatch.OtherEdition(f)
-            && (i is null || (!OtherIssue(i, f.Name) && !ListingMatch.Wrong(i, f.Name)))).ToList();
+        var used = finds.Where(f => !f.IsNew && !f.Similar && f.Kr > 0 && (i is null ? !SpecialVersion(f.Name, i) && !CoverMatch.OtherEdition(f) : Counts(i, f))).ToList();
         if (i is not null && ListingMatch.UnknownIssue(i, used.Select(f => f.Name))) return [];
         var others = used.Where(f => Sources.Contains(f.Source)).Select(f => f.Kr).ToList();
         return others.Count > 0 ? others : used.Where(f => f.Source == Dba).Select(f => f.Kr).ToList();

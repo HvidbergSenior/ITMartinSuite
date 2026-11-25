@@ -10,8 +10,13 @@ public sealed class SpotCheckUseCases(IItemRepository items, IPriceRepository pr
     /// <summary>Marks: listing key -> "rigtig", "forkert" or "kan-ikke-se".</summary>
     public sealed record Row(Item Item, List<PriceFind> Finds, Dictionary<string, string> Marks, int? Standard, IssueHint? Hint = null);
 
-    /// <summary>Every listing behind the price already has a mark (Rigtig, Forkert or Kan ikke se) - nothing left to judge.</summary>
-    public static bool Reviewed(Row r) => r.Finds.Count > 0 && r.Finds.All(f => r.Marks.ContainsKey(ListingVerdict.KeyOf(f)));
+    /// <summary>Every listing that counts behind the price already has a mark (Rigtig, Forkert or Kan ikke se) - nothing left to judge.
+    /// Listings the rules already throw out need no answer (2026-11-25), so only the ones that count are looked at.</summary>
+    public static bool Reviewed(Row r)
+    {
+        var counting = r.Finds.Where(f => FixedPrice.Counts(r.Item, f)).ToList();
+        return counting.Count > 0 && counting.All(f => r.Marks.ContainsKey(ListingVerdict.KeyOf(f)));
+    }
 
     public const string Rigtig = "rigtig", Forkert = "forkert", KanIkkeSe = "kan-ikke-se";
 
@@ -93,6 +98,12 @@ public sealed class SpotCheckUseCases(IItemRepository items, IPriceRepository pr
         return item.PriceHint;
     }
 
-    public async Task<List<(string Source, int Right, int Wrong)>> StatsAsync(CancellationToken ct = default) =>
-        ListingVerdict.PerSource(await prices.AllVerdictsAsync(ct));
+    /// <summary>How good each source is - only on listings the rules let through (2026-11-25: marks on listings the rules had already
+    /// thrown out - another year, another season - pulled Faraos down to 50 %). A mark on a thing that is gone is left out.</summary>
+    public async Task<List<(string Source, int Right, int Wrong)>> StatsAsync(CancellationToken ct = default)
+    {
+        var verdicts = await prices.AllVerdictsAsync(ct);
+        var byId = (await items.ByIdsAsync(verdicts.Select(v => v.ItemId).Distinct().ToList(), ct)).ToDictionary(i => i.Id);
+        return ListingVerdict.PerSource(verdicts.Where(v => byId.TryGetValue(v.ItemId, out var i) && FixedPrice.CountsByName(i, v.Name)));
+    }
 }
