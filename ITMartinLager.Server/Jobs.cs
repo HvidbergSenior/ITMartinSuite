@@ -140,9 +140,7 @@ public sealed class IntakeJob(IServiceScopeFactory scopes, IConfiguration cfg, I
             {
                 var read = await intake.ReadWantedAsync(stop);
                 if (read > 0) log.LogInformation("Box photos and scans read: {Count}", read);
-                // The Batch API (2026-11-15): the evening batch, and the answers of earlier ones.
-                var sent = await intake.SendBatchAsync(stop);
-                if (sent > 0) log.LogInformation("Batch sent: {Count} pile photos", sent);
+                // The Batch API: only the answers of batches Martin sent with Send nu (nothing is sent by itself, 2026-11-25).
                 var answered = await intake.CollectBatchesAsync(stop);
                 if (answered > 0) log.LogInformation("Batch answers read: {Count} pile photos", answered);
                 var forgotten = await scope.ServiceProvider.GetRequiredService<FundUseCases>().ForgetOldDaysAsync(stop);

@@ -13,8 +13,13 @@
     <h1 class="k-card-title">Ret de svære</h1>
     @if (_waiting.NotSent + _waiting.Sent > 0)
     {
-        @* The Batch API (2026-11-15): half price, read in the evening. *@
-        <p class="k-small" role="status">@(_waiting.NotSent > 0 ? $"{_waiting.NotSent} billeder venter på aftenens læsning (kl. {ITMartinLager.Domain.AiBatching.SendHour} – til halv pris). " : "")@(_waiting.Sent > 0 ? $"{_waiting.Sent} er sendt og bliver læst nu – de kommer her af sig selv." : "")</p>
+        @* The Batch API: half price, sent only when Martin says Send nu (2026-11-25: "no automatic"). *@
+        <p class="k-small" role="status">@(_waiting.NotSent > 0 ? $"{_waiting.NotSent} billeder venter på dig – de bliver først læst, når du trykker Send nu (halv pris). " : "")@(_waiting.Sent > 0 ? $"{_waiting.Sent} er sendt og bliver læst nu – de kommer her af sig selv." : "")</p>
+        @if (_waiting.NotSent > 0)
+        {
+            <button class="k-btn k-btn-primary" disabled="@_sending" @onclick="SendNow">Send nu – læs de @_waiting.NotSent billeder</button>
+        }
+        @if (_sendMsg is not null) { <p class="lg-ok" role="status">@_sendMsg</p> }
     }
     @if (_unsure.Count == 0)
     {
@@ -220,6 +225,22 @@
     }
     private List<int> _unsure = [];
     private (int NotSent, int Sent) _waiting;
+    private bool _sending;
+    private string? _sendMsg;
+
+    // "Send nu" (user 2026-11-25: "no automatic - I say go when I am done"): the waiting photos go off as one batch, half price.
+    private async Task SendNow()
+    {
+        _sending = true; _sendMsg = null;
+        try
+        {
+            var n = await Intake.SendBatchAsync();
+            _sendMsg = n == 0 ? "Der var intet at sende." : $"{n} billeder er sendt til læsning (halv pris). Svaret kommer som regel inden for en time – tingene dukker op her af sig selv.";
+            _waiting = await Intake.WaitingAsync();
+        }
+        catch (Exception ex) { _sendMsg = "Det lykkedes ikke: " + ex.Message; }
+        finally { _sending = false; }
+    }
     private List<ITMartinLager.Domain.BoxShot> _unreadable = [];
     private List<Item> _hopeless = [];
     private Dictionary<int, string> _discarded = [];

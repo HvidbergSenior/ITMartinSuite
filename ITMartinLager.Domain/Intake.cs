@@ -30,29 +30,12 @@ public sealed record PileReading(List<Found> Items, string Retake = "")
 }
 
 /// <summary>The Batch API (user 2026-11-15: "i would rather take a lot of pictures. And then api on as many as possible fewer
-/// calls" -> "i want batch"): the day's photos are read together at half price. Sent at SendHour (Danish time) or as soon as
-/// Max are waiting; the answers come back within the hour as a rule (at most 24 hours).</summary>
+/// calls" -> "i want batch"): the photos are read together at half price. 2026-11-25 (user: "no automatic... i can wait a week if i
+/// want to"): NOTHING is sent by itself - Martin says Send nu on the front page when he is done; up to Max go in one batch and the
+/// answers come back within the hour as a rule (at most 24 hours).</summary>
 public static class AiBatching
 {
-    public const int SendHour = 21, Max = 100;
-
-    public static bool Due(DateTime utcNow, DateTime? lastSentUtc, int waiting)
-    {
-        if (waiting == 0) return false;
-        if (waiting >= Max) return true;
-        var now = TimeZoneInfo.ConvertTimeFromUtc(utcNow, Copenhagen);
-        if (now.Hour < SendHour) return false;
-        if (lastSentUtc is not { } last) return true;
-        var sent = TimeZoneInfo.ConvertTimeFromUtc(last, Copenhagen);
-        return sent < now.Date.AddHours(SendHour);   // nothing sent since this evening's send time
-    }
-
-    private static readonly TimeZoneInfo Copenhagen = Find();
-    private static TimeZoneInfo Find()
-    {
-        try { return TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen"); }
-        catch (TimeZoneNotFoundException) { return TimeZoneInfo.FindSystemTimeZoneById("Romance Standard Time"); }
-    }
+    public const int Max = 100;
 }
 
 public sealed class BoxShot

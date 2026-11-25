@@ -168,7 +168,7 @@ public class IntakeTests
         (await Items.InBoxAsync(box.Id, default)).Should().OnlyContain(i => i.Status != Statuses.Fund);
     }
 
-    // The Batch API (2026-11-15: "i want batch"): nothing is read at once; the evening batch sends the photos, the answers come in
+    // The Batch API (2026-11-15: "i want batch"): nothing is read at once; Send nu sends the photos (never by itself, 2026-11-25), the answers come in
     // later - then the things are made just as before. A photo whose answer failed waits for the next batch.
     [Test]
     public async Task Photos_wait_for_the_batch_and_its_answers_make_the_things()
@@ -198,18 +198,6 @@ public class IntakeTests
         (await intake.CollectBatchesAsync()).Should().Be(1);
         (await Items.InBoxAsync((await Boxes.GetOrAddAsync("K5040", default)).Id, default)).Select(i => i.Title).Should().BeEquivalentTo("Mort", "Eric");
         (await intake.WaitingAsync()).Should().Be((1, 0));                                 // the failed one waits for the next batch
-    }
-
-    [Test]
-    public void The_batch_goes_in_the_evening_or_when_100_wait()
-    {
-        DateTime Dk(int h, int day = 16) => new DateTime(2026, 11, day, h, 0, 0, DateTimeKind.Utc).AddHours(-1);   // CET = UTC+1
-        AiBatching.Due(Dk(14), null, 5).Should().BeFalse();
-        AiBatching.Due(Dk(14), null, 100).Should().BeTrue();
-        AiBatching.Due(Dk(21), null, 5).Should().BeTrue();
-        AiBatching.Due(Dk(22), Dk(21), 3).Should().BeFalse();       // already sent this evening
-        AiBatching.Due(Dk(21), Dk(22, 15), 3).Should().BeTrue();    // last one was yesterday
-        AiBatching.Due(Dk(23), null, 0).Should().BeFalse();
     }
 
     // "Tag igen" (2026-11-15: "if the picture is rotated and so on it should be taken again"): nothing is made, the reason is kept.

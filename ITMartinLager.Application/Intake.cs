@@ -72,7 +72,7 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
     public async Task<int> ReadWantedAsync(CancellationToken ct = default)
     {
         var done = await LookUpScansAsync(ct);
-        if (!reader.Enabled || reader.Batch) return done;   // with the Batch API the piles go in the evening batch (SendBatchAsync)
+        if (!reader.Enabled || reader.Batch) return done;   // with the Batch API the piles wait for Send nu (SendBatchAsync)
         var hints = new Dictionary<string, string>();
         foreach (var shot in await intake.WantedShotsAsync(ReadPerRound, ct))
         {
@@ -99,13 +99,13 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
         return done;
     }
 
-    /// <summary>Sends the waiting pile photos as one Batch API batch when it is time (AiBatching.Due). Returns how many were sent.</summary>
+    /// <summary>"Send nu" (user 2026-11-25: "no automatic"): sends the waiting pile photos (up to AiBatching.Max) as one Batch API batch. Nothing calls this by itself. Returns how many were sent.</summary>
     public async Task<int> SendBatchAsync(CancellationToken ct = default)
     {
         if (!reader.Enabled || !reader.Batch) return 0;
         var now = clock.GetUtcNow().UtcDateTime;
         var waiting = await intake.WantedShotsAsync(AiBatching.Max, ct);
-        if (!AiBatching.Due(now, await intake.LastBatchedAtAsync(ct), waiting.Count)) return 0;
+        if (waiting.Count == 0) return 0;
         var piles = new List<PileRequest>();
         var hints = new Dictionary<string, string>();
         var sent = new List<BoxShot>();
@@ -161,7 +161,7 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
         return done;
     }
 
-    /// <summary>For the front page: photos waiting for the evening batch, and photos sent and waiting for the answer.</summary>
+    /// <summary>For the front page: photos waiting for Send nu, and photos sent and waiting for the answer.</summary>
     public Task<(int NotSent, int Sent)> WaitingAsync(CancellationToken ct = default) => intake.WaitingAsync(ct);
     public bool Batching => reader.Enabled && reader.Batch;
 
