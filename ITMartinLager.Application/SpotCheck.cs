@@ -10,6 +10,9 @@ public sealed class SpotCheckUseCases(IItemRepository items, IPriceRepository pr
     /// <summary>Marks: listing key -> "rigtig", "forkert" or "kan-ikke-se".</summary>
     public sealed record Row(Item Item, List<PriceFind> Finds, Dictionary<string, string> Marks, int? Standard, IssueHint? Hint = null);
 
+    /// <summary>Every listing behind the price already has a mark (Rigtig, Forkert or Kan ikke se) - nothing left to judge.</summary>
+    public static bool Reviewed(Row r) => r.Finds.Count > 0 && r.Finds.All(f => r.Marks.ContainsKey(ListingVerdict.KeyOf(f)));
+
     public const string Rigtig = "rigtig", Forkert = "forkert", KanIkkeSe = "kan-ikke-se";
 
     // 2026-11-24 (user: "all the cds from back cover I can not distinguish"): an ordinary CD sells at the fixed price whatever

@@ -166,6 +166,7 @@
 .lg-spot-issue a { color: inherit; text-decoration: none; }
 .lg-spot-issue-missing a { color: #b3261e; }
 .lg-spot-strip { display: block; width: min(100%, 560px); margin: 4px 0 6px; border-radius: 4px; overflow: hidden; background-color: #0001; }
+.lg-spot-done > summary { cursor: pointer; padding: 6px 0; }
 .lg-spot-strip img { display: block; width: 100%; height: auto; }
 .lg-spot-list-mag .lg-spot-thumb { width: 200px; height: 270px; }
 .lg-spot-hint { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 6px 10px; border-radius: 6px; margin: 4px 0 6px; font-weight: 600; background: #0000000a; }

@@ -31,15 +31,33 @@
     </div>
     @if (_onlyAssess && _rows is not null)
     {
-        <p class="k-small k-muted">Viser de @_rows.Count ting, du selv skal give en pris – dyreste forslag først. Tryk Forkert på de annoncer, der ikke er præcis den samme ting; prisen regnes om med det samme.</p>
+        <p class="k-small k-muted">Viser de @_rows.Count ting, du selv skal give en pris – dyreste forslag først (@(_rows.Count - _doneAtLoad.Count) mangler et svar, @_doneAtLoad.Count er gennemgået). Tryk Forkert på de annoncer, der ikke er præcis den samme ting; prisen regnes om med det samme.</p>
     }
 </section>
 
 @if (_rows is null) { <section class="k-card"><p>Henter …</p></section> }
 else
 {
-    @foreach (var row in _rows)
+    @foreach (var row in _rows.Where(r => !_doneAtLoad.Contains(r.Item.Id)))
     {
+        @Card(row)
+    }
+    @* 2026-11-25 (user: "put them in a category so I can check if I want"): things whose every listing already has a mark when the list is
+       loaded wait here, closed. A card finished during this visit stays where it is (no jumps). *@
+    @if (_doneAtLoad.Count > 0)
+    {
+        <details class="k-card lg-spot-done">
+            <summary><b>Gennemgået (@_doneAtLoad.Count)</b> – alle annoncer har et svar. Åbn for at tjekke eller ændre.</summary>
+            @foreach (var row in _rows.Where(r => _doneAtLoad.Contains(r.Item.Id)))
+            {
+                @Card(row)
+            }
+        </details>
+    }
+}
+
+@code {
+    private RenderFragment Card(SpotCheckUseCases.Row row) => @<text>
         <section class="k-card lg-spot">
             <div class="lg-spot-head">
                 @* 2026-11-24 (user: "Will Young · Keep On no picture"): no own photo yet -> the pile photo it was read from, so you can see what it is. *@
@@ -123,10 +141,8 @@ else
                 }
             </ul>
         </section>
-    }
-}
+    </text>;
 
-@code {
     public const int Count = 20;
     private List<SpotCheckUseCases.Row>? _rows;
     private List<(string Source, int Right, int Wrong)>? _stats;
@@ -137,6 +153,7 @@ else
     [SupplyParameterFromQuery(Name = "skal")] public string? Skal { get; set; }
 
     private bool _onlyAssess;
+    private HashSet<int> _doneAtLoad = [];
     public const int AssessMax = 60;
 
     protected override async Task OnInitializedAsync() { _onlyAssess = Skal == "1"; await Load(ParseIds(Ids)); }
@@ -153,6 +170,7 @@ else
         try
         {
             _rows = await Spot.SampleAsync(_onlyAssess ? AssessMax : Count, same, _onlyAssess);
+            _doneAtLoad = _onlyAssess ? _rows.Where(SpotCheckUseCases.Reviewed).Select(r => r.Item.Id).ToHashSet() : [];
             _stats = await Spot.StatsAsync();
             var ids = string.Join(",", _rows.Select(r => r.Item.Id));
             if (ids != (Ids ?? "") || (Skal == "1") != _onlyAssess) Nav.NavigateTo($"/stikproeve?{(_onlyAssess ? "skal=1&" : "")}ids={ids}", replace: true);

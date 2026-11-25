@@ -68,4 +68,17 @@ public class ListingVerdictTests
 
         rows.Select(r => r.Item.Id).Should().Equal(1);
     }
+
+    // 2026-11-25 (user: "put them in a category so I can check if I want"): a thing is Gennemgået when every listing has a mark.
+    [Test]
+    public void A_thing_is_reviewed_when_every_listing_has_a_mark()
+    {
+        var a = F(1, "Faraos", 100, "a"); var b = F(1, "Faraos", 120, "b");
+        var item = new Item { Id = 1, Title = "x" };
+        var marks = new Dictionary<string, string> { [ListingVerdict.KeyOf(a)] = SpotCheckUseCases.Rigtig };
+        SpotCheckUseCases.Reviewed(new SpotCheckUseCases.Row(item, [a, b], marks, 3)).Should().BeFalse();
+        marks[ListingVerdict.KeyOf(b)] = SpotCheckUseCases.KanIkkeSe;
+        SpotCheckUseCases.Reviewed(new SpotCheckUseCases.Row(item, [a, b], marks, 3)).Should().BeTrue();
+        SpotCheckUseCases.Reviewed(new SpotCheckUseCases.Row(item, [], [], 3)).Should().BeFalse();
+    }
 }
