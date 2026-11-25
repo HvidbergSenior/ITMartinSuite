@@ -27,6 +27,14 @@ public sealed partial class FaraosListings(HttpClient http, ILogger<FaraosListin
         await Gate.WaitAsync(ct);
         try
         {
+            // An Anders And & Co. issue has its own page with a price per condition even when no copy is in stock, and the
+            // search only lists copies in stock (2026-11-25: "1969 nr. 19" was on the site but the app found nothing).
+            if (IssueQuery(query) is { } issue && await IssueJsonAsync(issue.Year, issue.Number, ct) is { } direct
+                && Parse(direct, title, author, SearchUrl(query)) is { Count: > 0 } exact)
+            {
+                Cache[key] = (DateTime.UtcNow, exact);
+                return exact;
+            }
             // Their search answers 500 on some "Nr. 3" searches (2026-10-07: "Tintin Nr 3" fails, "Tintin 3" works),
             // so "Nr." is left out; if it still fails, once more with the words only.
             var json = await SearchAsync(NrRx().Replace(query, " "), ct)
@@ -62,6 +70,60 @@ public sealed partial class FaraosListings(HttpClient http, ILogger<FaraosListin
 
     [System.Text.RegularExpressions.GeneratedRegex(@"\bnr\.?\s*", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
     private static partial System.Text.RegularExpressions.Regex NrRx();
+
+    // "Anders And & Co. 19 1969" (the hunter's own query: number, then year) or "Anders And & Co. 1969 Nr. 19".
+    [System.Text.RegularExpressions.GeneratedRegex(
+        @"^\s*(?:Walt Disney'?s\s+)?Anders And\s*(?:&|og|and)?\s*Co\.?\s+(?:(?<nr>\d{1,3})\s+(?<yr>(?:19|20)\d\d)|(?<yr2>(?:19|20)\d\d)\s+(?:nr\.?\s*)?(?<nr2>\d{1,3}))\s*$",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex IssueRx();
+
+    internal static (int Year, int Number)? IssueQuery(string query)
+    {
+        var m = IssueRx().Match(query);
+        if (!m.Success) return null;
+        var yr = m.Groups["yr"].Success ? m.Groups["yr"].Value : m.Groups["yr2"].Value;
+        var nr = m.Groups["nr"].Success ? m.Groups["nr"].Value : m.Groups["nr2"].Value;
+        return (int.Parse(yr), int.Parse(nr));
+    }
+
+    // The menu node "Anders And & Co" in the shop's own menu; one node per year below it, and one leaf below that.
+    private const int AndersAndCoMenu = 130430;
+    private static readonly ConcurrentDictionary<int, (int Id, string Path)> YearMenu = new();
+
+    private async Task<string?> GetAsync(string url, CancellationToken ct)
+    {
+        using var req = new HttpRequestMessage(HttpMethod.Get, url);
+        req.Headers.TryAddWithoutValidation("Origin", "https://www.faraos.dk");
+        req.Headers.UserAgent.ParseAdd("BogshoppenLager/1.0 (ITMartin@Mensa.dk)");
+        using var res = await http.SendAsync(req, ct);
+        return res.IsSuccessStatusCode ? await res.Content.ReadAsStringAsync(ct) : null;
+    }
+
+    /// <summary>The issue's page as the same {"items":[...]} shape the search gives, or null when the shop has no such page.</summary>
+    private async Task<string?> IssueJsonAsync(int year, int number, CancellationToken ct)
+    {
+        if (!YearMenu.TryGetValue(year, out var leaf))
+        {
+            var years = await GetAsync($"https://shopws.faraos.dk/api/1/menu/items/{AndersAndCoMenu}/children/3", ct);
+            if (years is null) return null;
+            int? yearId = null;
+            foreach (var n in JsonDocument.Parse(years).RootElement.EnumerateArray())
+                if (Str(n, "name") == $"andersandco{year}" && n.TryGetProperty("id", out var id)) yearId = id.GetInt32();
+            if (yearId is null) return null;
+            var leaves = await GetAsync($"https://shopws.faraos.dk/api/1/menu/items/{yearId}/children/4", ct);
+            if (leaves is null) return null;
+            foreach (var n in JsonDocument.Parse(leaves).RootElement.EnumerateArray())
+                if (n.TryGetProperty("id", out var id)) { leaf = (id.GetInt32(), Str(n, "path")); break; }
+            if (leaf.Id == 0) return null;
+            YearMenu[year] = leaf;
+        }
+        var item = await GetAsync($"https://shopws.faraos.dk/api/1/items/byitempath/{leaf.Id}/anders-and-co.-{year}-nr.-{number}/25", ct);
+        if (item is null) return null;
+        var node = System.Text.Json.Nodes.JsonNode.Parse(item);
+        if (node is not System.Text.Json.Nodes.JsonObject obj) return null;
+        obj["menuPath"] = leaf.Path;
+        return new System.Text.Json.Nodes.JsonObject { ["items"] = new System.Text.Json.Nodes.JsonArray(obj) }.ToJsonString();
+    }
 
     internal static Listings Parse(string json, string title, string author, string url)
     {
