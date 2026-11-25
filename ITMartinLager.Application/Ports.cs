@@ -157,6 +157,9 @@ public interface IPhotoStore
     Task<byte[]> StraightenAsync(byte[] jpeg, double degrees, CancellationToken ct);
     /// <summary>The photo turned a quarter clockwise (90) or back (270), as JPEG.</summary>
     Task<byte[]> RotateAsync(byte[] jpeg, int degrees, CancellationToken ct);
+    /// <summary>The top edge of the cover, zoomed, for reading the issue line (Stikprøve). Plain margin around the cover (a black table,
+    /// a white wall) is trimmed first, so the strip starts at the real cover. Null = nothing to read there (blank strip).</summary>
+    Task<byte[]?> IssueStripAsync(byte[] jpeg, CancellationToken ct);
     /// <summary>Width and height from the file's header (nothing decoded), or null when it cannot be read.</summary>
     Task<(int W, int H)?> SizeAsync(string path, CancellationToken ct);
 }

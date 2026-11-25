@@ -70,6 +70,11 @@ public sealed class ItemPhotoUseCases(IItemRepository items, IPhotoStore photos,
         return todo.Count;
     }
 
+    /// <summary>The zoomed top edge of the thing's own cover photo (Stikprøve), plain margin trimmed. Null = no photo or nothing to read.</summary>
+    public async Task<byte[]?> IssueStripAsync(int id, CancellationToken ct = default) =>
+        await items.GetAsync(id, ct) is { ItemPhoto: not "" } item && await photos.ReadAsync(item.ItemPhoto, ct) is { } jpeg
+            ? await photos.IssueStripAsync(jpeg, ct) : null;
+
     /// <summary>The pile photo the thing was read from (Vareinfo's reading copy), or null.</summary>
     public async Task<byte[]?> PileAsync(int id, CancellationToken ct = default) =>
         vareinfo is not null && await items.GetAsync(id, ct) is { PhotoId: { } photo } ? await vareinfo.PhotoAsync(photo, null, ct) : null;

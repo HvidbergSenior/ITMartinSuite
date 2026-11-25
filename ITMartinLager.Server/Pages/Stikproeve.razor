@@ -66,8 +66,10 @@ else
                         }
                         @if (row.Item.ItemPhoto != "")
                         {
-                            <a class="lg-spot-strip" href="/varefoto/@row.Item.Id?v=@Ver(row.Item)" target="_blank" rel="noopener" title="Toppen af forsiden, forstørret – åbner billedet stort"
-                               style="background-image:url('/varefoto/@row.Item.Id?v=@Ver(row.Item)')"></a>
+                            @* 2026-11-25: the strip is cut on the server from the cover without its plain margin; blank = 404 = no strip. *@
+                            <a class="lg-spot-strip" href="/varefoto/@row.Item.Id?v=@Ver(row.Item)" target="_blank" rel="noopener" title="Toppen af forsiden, forstørret – åbner billedet stort">
+                                <img src="/varestrimmel/@row.Item.Id?v=@Ver(row.Item)" alt="" loading="lazy" onerror="this.parentElement.style.display='none'" />
+                            </a>
                         }
                         @* The cover often lies sideways (2026-11-25 first look): Drej, then the strip shows the issue line. Type the number you read. *@
                         <div class="lg-spot-fix">

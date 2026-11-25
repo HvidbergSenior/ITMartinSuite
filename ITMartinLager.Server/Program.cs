@@ -163,6 +163,14 @@ app.MapGet("/api/logout", (HttpContext ctx) => { ctx.Response.Cookies.Delete("la
 // Photos: the item's own photo and its kolofon are here; the box photos are in Vareinfo (old links are sent on).
 static IResult Jpeg(string? file) => file is null ? Results.NotFound() : Results.File(file, "image/jpeg");
 app.MapGet("/varefoto/{id:int}", async (int id, int? n, ItemUseCases items) => Jpeg(await items.PhotoFileAsync(id, n ?? 1)));
+// 2026-11-25: the zoomed top edge of the cover with the plain margin trimmed (Stikprøve); 404 when there is nothing to read there.
+app.MapGet("/varestrimmel/{id:int}", async (int id, ItemPhotoUseCases photos, HttpContext c) =>
+{
+    var strip = await photos.IssueStripAsync(id, c.RequestAborted);
+    if (strip is null) return Results.NotFound();
+    c.Response.Headers.CacheControl = "private, max-age=3600";
+    return Results.File(strip, "image/jpeg");
+});
 app.MapGet("/foto/{id:int}", (int id, VareinfoLinks v) => Results.Redirect(v.Photo(id)));
 // 2026-11-24: the pile photo itself, fetched from Vareinfo server to server (its own /foto needs a Vareinfo login) - Stikprøve shows
 // it for things without their own photo. Behind Lager's login like every page.

@@ -116,6 +116,79 @@ public sealed class FilePhotoStore(string dataDir) : IPhotoStore
         return ms.ToArray();
     }
 
+    // 2026-11-25 (user: the strip on the Elementals card was "just a black rectangle"): the strip was the top 56 px of the photo, and a
+    // cover shot on a black table has black rows on top. Now the plain margin is trimmed first (rows/columns with almost no detail),
+    // the strip is the top 18 % of what is left, and a strip with no detail at all is not shown.
+    internal const double StripShare = 0.18;
+    internal const double MarginDetail = 0.25;   // a row/column with less than this share of the typical detail is margin
+    internal const double MinStripDetail = 3.0;  // mean neighbour difference (0-255) below which the strip shows nothing
+
+    public async Task<byte[]?> IssueStripAsync(byte[] jpeg, CancellationToken ct)
+    {
+        using var img = Image.Load<L8>(jpeg);
+        var box = ContentBox(img);
+        int h = Math.Max(24, (int)(box.Height * StripShare));
+        if (box.Width < 60 || box.Height < 80) return null;
+        var strip = new Rectangle(box.X, box.Y, box.Width, Math.Min(h, box.Height));
+        if (Detail(img, strip) < MinStripDetail) return null;
+        using var rgb = Image.Load<Rgb24>(jpeg);
+        using var cut = rgb.Clone(c => c.Crop(strip));
+        if (cut.Width > 900) cut.Mutate(c => c.Resize(new ResizeOptions { Mode = ResizeMode.Max, Size = new Size(900, 900) }));
+        using var ms = new MemoryStream();
+        await cut.SaveAsJpegAsync(ms, new JpegEncoder { Quality = 88 }, ct);
+        return ms.ToArray();
+    }
+
+    /// <summary>The part of the photo with detail: plain rows/columns around the edge are cut away.</summary>
+    internal static Rectangle ContentBox(Image<L8> img)
+    {
+        var rows = new double[img.Height];
+        var cols = new double[img.Width];
+        img.ProcessPixelRows(a =>
+        {
+            for (var y = 0; y < a.Height; y++)
+            {
+                var row = a.GetRowSpan(y);
+                for (var x = 1; x < row.Length; x++)
+                {
+                    var d = Math.Abs(row[x].PackedValue - row[x - 1].PackedValue);
+                    rows[y] += d; cols[x] += d;
+                }
+                rows[y] /= Math.Max(1, row.Length - 1);
+            }
+        });
+        for (var x = 0; x < cols.Length; x++) cols[x] /= Math.Max(1, img.Height);
+        int top = Edge(rows, fromStart: true), bottom = Edge(rows, fromStart: false);
+        int left = Edge(cols, fromStart: true), right = Edge(cols, fromStart: false);
+        return right - left < 20 || bottom - top < 20 ? new Rectangle(0, 0, img.Width, img.Height)
+            : new Rectangle(left, top, right - left + 1, bottom - top + 1);
+    }
+
+    // First (or last) index whose detail is a real share of the typical (median) detail.
+    private static int Edge(double[] detail, bool fromStart)
+    {
+        var sorted = detail.OrderBy(v => v).ToArray();
+        var limit = sorted[sorted.Length / 2] * MarginDetail;
+        if (fromStart) { for (var i = 0; i < detail.Length; i++) if (detail[i] > limit) return i; return 0; }
+        for (var i = detail.Length - 1; i >= 0; i--) if (detail[i] > limit) return i;
+        return detail.Length - 1;
+    }
+
+    /// <summary>Mean difference between neighbouring pixels inside the area (0-255): 0 = plain colour.</summary>
+    internal static double Detail(Image<L8> img, Rectangle area)
+    {
+        double sum = 0; long n = 0;
+        img.ProcessPixelRows(a =>
+        {
+            for (var y = area.Top; y < area.Bottom && y < a.Height; y++)
+            {
+                var row = a.GetRowSpan(y);
+                for (var x = area.Left + 1; x < area.Right && x < row.Length; x++) { sum += Math.Abs(row[x].PackedValue - row[x - 1].PackedValue); n++; }
+            }
+        });
+        return n == 0 ? 0 : sum / n;
+    }
+
     public async Task<(int W, int H)?> SizeAsync(string path, CancellationToken ct)
     {
         if (Inside(path) is not { } full || !File.Exists(full)) return null;
