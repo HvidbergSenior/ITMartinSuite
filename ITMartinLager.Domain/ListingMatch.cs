@@ -41,7 +41,7 @@ public static partial class ListingMatch
     {
         ["first"] = 1, ["second"] = 2, ["third"] = 3, ["fourth"] = 4, ["fifth"] = 5, ["sixth"] = 6, ["seventh"] = 7, ["eighth"] = 8,
         ["ninth"] = 9, ["tenth"] = 10, ["one"] = 1, ["two"] = 2, ["three"] = 3, ["four"] = 4, ["five"] = 5, ["six"] = 6, ["seven"] = 7,
-        ["eight"] = 8, ["nine"] = 9, ["ten"] = 10, ["første"] = 1, ["anden"] = 2, ["tredje"] = 3, ["fjerde"] = 4, ["femte"] = 5,
+        ["eight"] = 8, ["nine"] = 9, ["ten"] = 10, ["to"] = 2, ["tre"] = 3, ["fire"] = 4, ["fem"] = 5, ["seks"] = 6, ["syv"] = 7, ["otte"] = 8, ["ni"] = 9, ["ti"] = 10, ["første"] = 1, ["anden"] = 2, ["tredje"] = 3, ["fjerde"] = 4, ["femte"] = 5,
     };
 
     /// <summary>Every season number a text names ("sæson 1-7" = 1..7, "sæson 3, 4 og 8" = 3, 4, 8, "The Second Season" = 2).</summary>
@@ -151,8 +151,16 @@ public static partial class ListingMatch
         return words.All(theirs.Contains);
     }
 
+    // 2026-11-25 (user: "House - Season Three, three can be 3, make rule"): the number words one-ten are the digits everywhere words are
+    // compared (title words, sequel marks), so "Shamanic Dream Two" is "Shamanic Dream 2".
+    private static readonly Dictionary<string, string> NumberWords = new()
+    {
+        ["one"] = "1", ["two"] = "2", ["three"] = "3", ["four"] = "4", ["five"] = "5", ["six"] = "6", ["seven"] = "7", ["eight"] = "8",
+        ["nine"] = "9", ["ten"] = "10",
+    };
+
     private static IEnumerable<string> Words(string text) =>
-        WordRx().Matches(Plain(text)).Select(m => m.Value);
+        WordRx().Matches(Plain(text)).Select(m => NumberWords.TryGetValue(m.Value, out var d) ? d : m.Value);
 
     /// <summary>Lower case without accents (é -> e) but with æ/ø/å kept, so "Café" and "Cafe" match.</summary>
     private static string Plain(string text)
@@ -163,13 +171,13 @@ public static partial class ListingMatch
         return sb.ToString().Normalize(NormalizationForm.FormC).Trim();
     }
 
-    [GeneratedRegex(@"\b(?:sæson(?:er)?|seasons?|sesong|staffel|serie)\s*(?<list>\d+(?:\s*(?:-|–|,|og|and|&)\s*\d+)*)", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b(?:sæson(?:er)?|seasons?|sesong|staffel|serie)\s*(?<list>\d+(?:\s*(?:-|–|,|og|and|&)\s*\d+(?!\d)(?!\s*(?:disc|discs|disk|dvd|cd)\b))*)", RegexOptions.IgnoreCase)]
     private static partial Regex SeasonNumbersRx();
 
     [GeneratedRegex(@"(\d+)(?:\s*(?:-|–)\s*(\d+))?")]
     private static partial Regex RangeRx();
 
-    [GeneratedRegex(@"\b(?<w>first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|første|anden|tredje|fjerde|femte)\s+(?:complete\s+)?(?:season|sæson)\b|\bseason\s+(?<w>one|two|three|four|five|six|seven|eight|nine|ten)\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b(?<w>first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|første|anden|tredje|fjerde|femte)\s+(?:complete\s+)?(?:season|sæson)\b|\b(?:season|sæson|sesong)\s+(?<w>one|two|three|four|five|six|seven|eight|nine|ten|to|tre|fire|fem|seks|syv|otte|ni|ti)\b", RegexOptions.IgnoreCase)]
     private static partial Regex OrdinalSeasonRx();
 
     [GeneratedRegex(@"[\p{L}\p{N}]+")]

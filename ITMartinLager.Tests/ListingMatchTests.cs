@@ -70,4 +70,23 @@ public class ListingMatchTests
     [Test]
     public void Sealed_is_a_special_version() =>
         FixedPrice.SpecialVersion("Rend Mig I Traditionerne (UÅBNET, stadig i folie)", It(Kinds.Dvd, "Rend mig i traditionerne")).Should().BeTrue();
+
+    // 2026-11-25 (user: "House - Season Three, three can be 3, make rule").
+    [TestCase("House sæson 3")]
+    [TestCase("House M.D. - Season 3 (DVD)")]
+    [TestCase("House sæson tre")]
+    [TestCase("House - Season Three")]
+    [TestCase("House - Sæson 3 - 6 disc")]
+    public void A_season_in_words_is_the_same_as_in_digits(string listing) =>
+        ListingMatch.Wrong(new Item { Kind = Kinds.Dvd, Title = "House – Season Three" }, listing).Should().BeFalse();
+
+    [TestCase("House sæson 4")]
+    [TestCase("House sæson fire")]
+    [TestCase("House Season 1-3")]
+    public void Another_season_is_still_wrong(string listing) =>
+        ListingMatch.Wrong(new Item { Kind = Kinds.Dvd, Title = "House – Season Three" }, listing).Should().BeTrue();
+
+    [Test]
+    public void Number_words_are_digits_for_part_marks_too() =>
+        ListingMatch.Wrong(It(Kinds.Cd, "Shamanic Dream Two"), "Anugama - Shamanic Dream 2").Should().BeFalse();
 }
