@@ -41,6 +41,14 @@ public class IssueHintTests
     }
 
     [Test]
+    public void NoNumber_when_we_have_none_and_the_listings_name_many_issues()
+    {
+        var h = IssueHints.For(Blad(""), [F("Anders And nr. 15"), F("Anders And nr. 40"), F("Anders And nr. 10")]);
+        h.Kind.Should().Be(IssueHintKind.NoNumber);
+        h.SuggestedNumber.Should().BeNull();
+    }
+
+    [Test]
     public void A_clear_majority_for_our_number_is_still_agree()
     {
         var h = IssueHints.For(Blad("12"), [F("nr. 12"), F("nr. 12"), F("nr. 12"), F("nr. 15")]);

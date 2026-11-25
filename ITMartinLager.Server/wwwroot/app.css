@@ -171,3 +171,5 @@
 .lg-spot-hint-agree { outline: 2px solid #2e7d32; }
 .lg-spot-hint-other { outline: 2px solid #b26a00; background: #fff3e0; color: #4e2c00; }
 .lg-spot-hint-mixed { outline: 2px solid #b3261e; background: #fdecea; color: #5c0f0a; }
+.lg-spot-fix { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 4px 0 6px; }
+.lg-spot-nr { width: 5.5em; }

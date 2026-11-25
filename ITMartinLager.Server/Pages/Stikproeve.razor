@@ -1,6 +1,7 @@
 @page "/stikproeve"
 @inject SpotCheckUseCases Spot
 @inject NavigationManager Nav
+@inject ItemPhotoUseCases ItemPhotos
 
 @* Stikprøve (user 2026-11-24: "if the listings are not precise or the rules are bad... How?" -> "yes" to spot checks): 20 random things
    with the used listings behind their price. Rigtig / Forkert on each listing. Forkert = never counts again for that thing, and its
@@ -42,7 +43,7 @@ else
                 }
                 else
                 {
-                    <img class="lg-spot-photo @(IsMagazine(row.Item) ? "lg-spot-photo-mag" : "")" src="/varefoto/@row.Item.Id" alt="" loading="lazy" />
+                    <img class="lg-spot-photo @(IsMagazine(row.Item) ? "lg-spot-photo-mag" : "")" src="/varefoto/@row.Item.Id?v=@Ver(row.Item)" alt="" loading="lazy" />
                 }
                 <div>
                     @* 2026-11-25 (user: "only necessary here is the number, årgang and the front page picture"): a magazine shows the number and
@@ -65,9 +66,17 @@ else
                         }
                         @if (row.Item.ItemPhoto != "")
                         {
-                            <a class="lg-spot-strip" href="/varefoto/@row.Item.Id" target="_blank" rel="noopener" title="Toppen af forsiden, forstørret – åbner billedet stort"
-                               style="background-image:url('/varefoto/@row.Item.Id')"></a>
+                            <a class="lg-spot-strip" href="/varefoto/@row.Item.Id?v=@Ver(row.Item)" target="_blank" rel="noopener" title="Toppen af forsiden, forstørret – åbner billedet stort"
+                               style="background-image:url('/varefoto/@row.Item.Id?v=@Ver(row.Item)')"></a>
                         }
+                        @* The cover often lies sideways (2026-11-25 first look): Drej, then the strip shows the issue line. Type the number you read. *@
+                        <div class="lg-spot-fix">
+                            @if (row.Item.ItemPhoto != "") { <button class="k-btn k-btn-sm k-btn-secondary" disabled="@_busy" @onclick="() => Rotate(row)" title="Drej en kvart omgang med uret">Drej ↻</button> }
+                            <input class="k-input lg-spot-nr" inputmode="numeric" placeholder="nr." aria-label="Nummer på @row.Item.Id"
+                                   value="@_typed.GetValueOrDefault(row.Item.Id, "")" @onchange="e => Typed(row.Item.Id, e)" />
+                            <button class="k-btn k-btn-sm k-btn-primary" disabled="@_busy" @onclick="() => SaveTyped(row)">Gem nummer</button>
+                        </div>
+                        @if (_err is not null) { <p class="lg-warn" role="alert">⚠ @_err</p> }
                         <div class="k-small k-muted">@row.Item.Kind · @(row.Item.Box?.Code ?? "ingen kasse") · standard @(row.Standard is { } sm ? $"{sm} kr" : "–") · @PriceNow(row.Item)</div>
                     }
                     else
@@ -149,6 +158,28 @@ else
     }
 
     private static bool IsMagazine(Item i) => FixedPrice.Magazines.Contains(i.Kind);
+
+    private readonly Dictionary<int, string> _typed = [];
+    private readonly Dictionary<int, int> _photoVer = [];
+    private string? _err;
+
+    private int Ver(Item i) => _photoVer.GetValueOrDefault(i.Id);
+    private void Typed(int id, ChangeEventArgs e) => _typed[id] = e.Value?.ToString() ?? "";
+
+    private async Task Rotate(SpotCheckUseCases.Row row)
+    {
+        _err = await ItemPhotos.RotateAsync(row.Item.Id, 90);
+        if (_err is null) _photoVer[row.Item.Id] = Ver(row.Item) + 1;
+    }
+
+    private async Task SaveTyped(SpotCheckUseCases.Row row)
+    {
+        var n = _typed.GetValueOrDefault(row.Item.Id, "").Trim();
+        if (n == "" || !n.All(char.IsDigit)) { _err = "Skriv kun cifre – nummeret på bladet."; return; }
+        _err = null;
+        await SetNumber(row, n);
+        _typed.Remove(row.Item.Id);
+    }
 
     private static IssueHint HintOf(SpotCheckUseCases.Row row) => IssueHints.For(row.Item, row.Finds);
 

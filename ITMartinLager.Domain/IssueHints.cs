@@ -4,12 +4,12 @@ namespace ITMartinLager.Domain;
 // Every listing names its own issue ("nr. 15"). What the listings say about the number is a sign of how sure our thing is:
 // they agree with us = fine; they agree with each other but not with us = ours is probably wrong; they disagree = unsure + the price
 // is made of different issues. A listing with the same cover (CoverMatch) counts double, one with another edition's cover is left out.
-public enum IssueHintKind { None, Agree, Other, Mixed }
+public enum IssueHintKind { None, Agree, Other, Mixed, NoNumber }
 
 public sealed record IssueHint(IssueHintKind Kind, string Text, string? SuggestedNumber)
 {
     /// <summary>The worst first: Mixed, Other, then None and Agree.</summary>
-    public int Order => Kind switch { IssueHintKind.Mixed => 0, IssueHintKind.Other => 1, IssueHintKind.None => 2, _ => 3 };
+    public int Order => Kind switch { IssueHintKind.Mixed => 0, IssueHintKind.Other => 1, IssueHintKind.NoNumber => 1, IssueHintKind.None => 2, _ => 3 };
 }
 
 public static class IssueHints
@@ -38,6 +38,9 @@ public static class IssueHints
             return new IssueHint(IssueHintKind.Other,
                 ours == "" ? $"Annoncerne siger nr. {only} – din har intet nummer." : $"Annoncerne siger nr. {only} – du har nr. {ours}.", only);
         }
+        // 2026-11-25 (first look at real data): a thing with NO number got listings for 14 different issues - they say nothing about it.
+        if (ours == "")
+            return new IssueHint(IssueHintKind.NoNumber, "Din har intet nummer, og annoncerne nævner mange numre – de siger intet om din. Læs nummeret på forsiden og skriv det her.", null);
         var top = votes.OrderByDescending(v => v.Value).First();
         var total = votes.Values.Sum();
         if (top.Key == ours && top.Value * 3 >= total * 2) return new IssueHint(IssueHintKind.Agree, $"De fleste annoncer siger nr. {ours} (de andre: {list}).", null);
