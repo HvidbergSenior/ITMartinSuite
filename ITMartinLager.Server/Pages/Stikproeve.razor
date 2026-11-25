@@ -42,14 +42,42 @@ else
                 }
                 else
                 {
-                    <img class="lg-spot-photo" src="/varefoto/@row.Item.Id" alt="" loading="lazy" />
+                    <img class="lg-spot-photo @(IsMagazine(row.Item) ? "lg-spot-photo-mag" : "")" src="/varefoto/@row.Item.Id" alt="" loading="lazy" />
                 }
                 <div>
+                    @* 2026-11-25 (user: "only necessary here is the number, årgang and the front page picture"): a magazine shows the number and
+                       årgang BIG (the title is what the AI read off the cover - "Bjørn" from a bear), and a zoomed strip of the cover's top edge,
+                       where the issue line is printed too small to read. *@
+                    @if (IsMagazine(row.Item))
+                    {
+                        <div class="lg-spot-issue @(MagazineIssue(row.Item) is null ? "lg-spot-issue-missing" : "")">
+                            <a href="/vare/@row.Item.Id" target="_blank" rel="noopener" title="Åbner i en ny fane – listen her bliver stående">@(MagazineIssue(row.Item) ?? "nr. mangler")</a>
+                        </div>
+                        @if (HintOf(row) is { Kind: not IssueHintKind.None } hint)
+                        {
+                            <div class="lg-spot-hint lg-spot-hint-@hint.Kind.ToString().ToLowerInvariant()" role="status">
+                                @hint.Text
+                                @if (hint.SuggestedNumber is { } sn)
+                                {
+                                    <button class="k-btn k-btn-sm k-btn-primary" disabled="@_busy" @onclick="() => SetNumber(row, sn)">Ret nummer til @sn</button>
+                                }
+                            </div>
+                        }
+                        @if (row.Item.ItemPhoto != "")
+                        {
+                            <a class="lg-spot-strip" href="/varefoto/@row.Item.Id" target="_blank" rel="noopener" title="Toppen af forsiden, forstørret – åbner billedet stort"
+                               style="background-image:url('/varefoto/@row.Item.Id')"></a>
+                        }
+                        <div class="k-small k-muted">@row.Item.Kind · @(row.Item.Box?.Code ?? "ingen kasse") · standard @(row.Standard is { } sm ? $"{sm} kr" : "–") · @PriceNow(row.Item)</div>
+                    }
+                    else
+                    {
                     <b><a href="/vare/@row.Item.Id" target="_blank" rel="noopener" title="Åbner i en ny fane – listen her bliver stående">@row.Item.Line()</a></b>
                     <div class="k-small k-muted">@row.Item.Kind · @(row.Item.Box?.Code ?? "ingen kasse") · standard @(row.Standard is { } s ? $"{s} kr" : "–") · @PriceNow(row.Item)</div>
+                    }
                 </div>
             </div>
-            <ul class="lg-spot-list">
+            <ul class="lg-spot-list @(IsMagazine(row.Item) ? "lg-spot-list-mag" : "")">
                 @foreach (var f in row.Finds)
                 {
                     var key = ITMartinLager.Domain.ListingVerdict.KeyOf(f);
@@ -119,6 +147,26 @@ else
         }
         finally { _busy = false; }
     }
+
+    private static bool IsMagazine(Item i) => FixedPrice.Magazines.Contains(i.Kind);
+
+    private static IssueHint HintOf(SpotCheckUseCases.Row row) => IssueHints.For(row.Item, row.Finds);
+
+    private async Task SetNumber(SpotCheckUseCases.Row row, string number)
+    {
+        _busy = true;
+        try
+        {
+            row.Item.PriceHint = await Spot.SetNumberAsync(row.Item.Id, number);
+            row.Item.Number = number;
+            _stats = await Spot.StatsAsync();
+        }
+        finally { _busy = false; }
+    }
+
+    // "Nr. 12 · årgang 1998" - null when the number is missing (the page then shows a red "nr. mangler").
+    private static string? MagazineIssue(Item i) =>
+        i.Number == "" ? null : i.Year is { } y ? $"Nr. {i.Number} · årgang {y}" : $"Nr. {i.Number} · årgang mangler";
 
     private static string PriceNow(Item i) =>
         i.Price is > 0 ? $"din pris {i.Price:0} kr" : i.PriceHint is > 0 ? $"forslag {i.PriceHint:0} kr" : "standardprisen";

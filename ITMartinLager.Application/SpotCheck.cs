@@ -8,7 +8,7 @@ namespace ITMartinLager.Application;
 public sealed class SpotCheckUseCases(IItemRepository items, IPriceRepository prices)
 {
     /// <summary>Marks: listing key -> "rigtig", "forkert" or "kan-ikke-se".</summary>
-    public sealed record Row(Item Item, List<PriceFind> Finds, Dictionary<string, string> Marks, int? Standard);
+    public sealed record Row(Item Item, List<PriceFind> Finds, Dictionary<string, string> Marks, int? Standard, IssueHint? Hint = null);
 
     public const string Rigtig = "rigtig", Forkert = "forkert", KanIkkeSe = "kan-ikke-se";
 
@@ -40,9 +40,11 @@ public sealed class SpotCheckUseCases(IItemRepository items, IPriceRepository pr
             // Every used, exact listing - also the ones already marked Forkert, so a mark can be changed.
             var (finds, _) = await prices.ForItemAsync(i.Id, ct);
             var used = finds.Where(f => !f.IsNew && !f.Similar && f.Kr > 0).OrderByDescending(f => f.Kr).ToList();
-            rows.Add(new Row(i, used, verdicts[i.Id].ToDictionary(v => v.ListingKey, v => v.CantSee ? KanIkkeSe : v.Right ? Rigtig : Forkert), FixedPrice.StandardOf(i)));
+            rows.Add(new Row(i, used, verdicts[i.Id].ToDictionary(v => v.ListingKey, v => v.CantSee ? KanIkkeSe : v.Right ? Rigtig : Forkert), FixedPrice.StandardOf(i),
+                IssueHints.Applies(i) ? IssueHints.For(i, used) : null));
         }
-        return rows;
+        // 2026-11-25: the doubtful magazines (listings disagree with each other or with us) first; the sample keeps its order otherwise.
+        return rows.Select((r, n) => (r, n)).OrderBy(x => x.r.Hint?.Order ?? 3).ThenBy(x => x.n).Select(x => x.r).ToList();
     }
 
     /// <summary>Marks one listing; the thing's price is worked out again with the Forkert ones left out. Returns the new hint.</summary>
@@ -59,6 +61,24 @@ public sealed class SpotCheckUseCases(IItemRepository items, IPriceRepository pr
         var hint = FixedPrice.Hint(item, finds, item.PriceHint);
         if (hint != item.PriceHint) { item.PriceHint = hint; item.Touch(); await items.UpdateAsync([item], ct); }
         return hint;
+    }
+
+    /// <summary>"Ret nummer til X": the listings agree on the number and ours is another (or empty). Returns the thing's price hint.</summary>
+    public async Task<decimal?> SetNumberAsync(int itemId, string number, CancellationToken ct = default)
+    {
+        if (await items.GetAsync(itemId, ct) is not { } item || !IssueHints.Applies(item)) return null;
+        number = number.Trim();
+        if (number == "" || !number.All(char.IsDigit)) return item.PriceHint;
+        item.Number = number;
+        item.Touch();
+        await items.UpdateAsync([item], ct);
+        if (FixedPrice.Applies(item) && item.PricesAt is not null)
+        {
+            var finds = (await prices.FindsForAsync([itemId], ct)).GetValueOrDefault(itemId) ?? [];
+            var hint = FixedPrice.Hint(item, finds, item.PriceHint);
+            if (hint != item.PriceHint) { item.PriceHint = hint; item.Touch(); await items.UpdateAsync([item], ct); }
+        }
+        return item.PriceHint;
     }
 
     public async Task<List<(string Source, int Right, int Wrong)>> StatsAsync(CancellationToken ct = default) =>
