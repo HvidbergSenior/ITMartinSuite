@@ -72,6 +72,15 @@ else
                     <img class="lg-spot-photo @(IsMagazine(row.Item) ? "lg-spot-photo-mag" : "")" src="/varefoto/@row.Item.Id?v=@Ver(row.Item)" alt="" loading="lazy" />
                 }
                 <div>
+                    @* 2026-11-25 (user: "the forslag text should be more visible"): the suggested price big, at the top of the card. *@
+                    @if (row.Item.Price is > 0)
+                    {
+                        <div class="lg-spot-suggest lg-spot-suggest-own">Din pris <b>@row.Item.Price.Value.ToString("0") kr</b></div>
+                    }
+                    else if (row.Item.PriceHint is > 0)
+                    {
+                        <div class="lg-spot-suggest">Forslag <b>@row.Item.PriceHint.Value.ToString("0") kr</b></div>
+                    }
                     @* 2026-11-25 (user: "only necessary here is the number, årgang and the front page picture"): a magazine shows the number and
                        årgang BIG (the title is what the AI read off the cover - "Bjørn" from a bear), and a zoomed strip of the cover's top edge,
                        where the issue line is printed too small to read. *@
