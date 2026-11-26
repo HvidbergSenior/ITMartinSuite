@@ -285,7 +285,7 @@ public sealed class HomeMachine
     /// Null = no span shown for this device.</summary>
     public (double LowKwh, string Low, double HighKwh, string High)? Span => Kind switch
     {
-        DishKind => (0.5, "Ny maskine", 2.0, "gammel på intensiv"),
+        DishKind => (0.5, "Hvis din er ny", 2.0, "gammel på intensiv"),   // user 2026-11-26: "write hvis din"
         _ => null,
     };
 

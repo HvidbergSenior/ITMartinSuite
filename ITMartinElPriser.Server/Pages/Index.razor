@@ -176,7 +176,7 @@ else
             @* The span in kr when the device has one (dishwasher), else what the average depends on (user 2026-11-26). *@
             @if (m.Span is { } kwhSpan && run is not null)
             {
-                <div class="k-muted small u-center">@kwhSpan.Low (@Kwh(kwhSpan.LowKwh) kWh) <b>@Kr(run.CostKr * kwhSpan.LowKwh / m.Kwh) kr</b> · @kwhSpan.High (@Kwh(kwhSpan.HighKwh) kWh) <b>@Kr(run.CostKr * kwhSpan.HighKwh / m.Kwh) kr</b></div>
+                <div class="k-muted small u-center">@kwhSpan.Low (@Kwh(kwhSpan.LowKwh) kWh): <b>@Kr(run.CostKr * kwhSpan.LowKwh / m.Kwh) kr</b> · @kwhSpan.High (@Kwh(kwhSpan.HighKwh) kWh): <b>@Kr(run.CostKr * kwhSpan.HighKwh / m.Kwh) kr</b></div>
             }
             else
             {
