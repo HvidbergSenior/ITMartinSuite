@@ -381,3 +381,8 @@ details.opt > summary::-webkit-details-marker { display: none; }
 .calc-fold > summary::-webkit-details-marker { display: none; }
 .calc-fold > summary::after { content: " ▾"; }
 .calc-fold[open] > summary::after { content: " ▴"; }
+
+/* The sum and what its kr/kWh is, as one block (user 2026-11-26). */
+.calc-pair { display: inline-block; padding: 6px 10px; border-left: 3px solid var(--border); text-align: left; }
+.calc-pair .calc-why { font-weight: 400; font-size: .85rem; margin-top: 2px; }
+.calc-pair u { text-decoration-thickness: 1px; text-underline-offset: 2px; }

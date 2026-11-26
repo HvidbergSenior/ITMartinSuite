@@ -169,9 +169,11 @@ else
             {
                 @* The sum behind the big number, small and neutral (user 2026-11-26: "and the calculation in small letters"). *@
                 var perKwh = RunKrPerKwh(run, m);
-                <div class="now-calc">@Kwh(m.Kwh) kWh × @Kr(perKwh) kr/kWh @(Math.Abs(Math.Round(perKwh * m.Kwh, 2) - run.CostKr) < 0.005 ? "=" : "≈") @Kr(run.CostKr) kr</div>
-                @* Which columns the price is the average of (user 2026-11-26: "4,99 is average of the two columns" -> "yes"). *@
-                <div class="now-calc">@RunColumnsText(QuarterNow(), m.Hours)</div>
+                @* One block, the second line explaining the kr/kWh of the first (user 2026-11-26: "should look associated"). *@
+                <div class="now-calc calc-pair">
+                    <div>@Kwh(m.Kwh) kWh × <u>@Kr(perKwh) kr/kWh</u> @(Math.Abs(Math.Round(perKwh * m.Kwh, 2) - run.CostKr) < 0.005 ? "=" : "≈") @Kr(run.CostKr) kr</div>
+                    <div class="calc-why"><u>@Kr(perKwh) kr/kWh</u> @RunColumnsText(QuarterNow(), m.Hours)</div>
+                </div>
             }
             @* The span in kr when the device has one (dishwasher), else what the average depends on (user 2026-11-26). *@
             @if (m.Span is { } kwhSpan && run is not null)
