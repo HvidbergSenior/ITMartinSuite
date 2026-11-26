@@ -145,7 +145,7 @@ else
             <div class="now-device">Prisen nu: <b>@Kr(nowKr) kr/kWh</b></div>
         }
         @* Fewer words (user 2026-11-26). *@
-        <div class="now-device">@m.Name · @Kwh(m.Kwh) kWh @m.Amount</div>
+        <div class="now-device">@m.Name · @Kwh(m.Kwh) kWh @m.Amount i @Hours(m.Hours)</div>
         <div class="now-price @lvl">@(run is null ? "–" : Kr(run.CostKr)) KR</div>
         <div class="k-muted small u-center">@m.DependsOn</div>
         @* User 2026-11-26: "maybe like price in one hour, in two hours" - the same machine started later. *@
