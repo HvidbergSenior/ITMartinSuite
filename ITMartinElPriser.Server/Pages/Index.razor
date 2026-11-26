@@ -154,7 +154,7 @@ else
         }
         <div class="now-verdict @lvl">@(run is null ? "Priserne dækker ikke hele perioden endnu" : Verdict(rank))</div>
         @* The explanation folded away (user 2026-11-26: "some of the info could be in a tab or otherwise hidden"). *@
-        <details class="calc-fold">
+        <details class="calc-fold" data-remember="regnet-pris">
             <summary>Sådan er det regnet</summary>
             @* Simple (user 2026-11-26: "needs to be more simple"): kWh, hours and the sum line are hidden with ShowDetails. *@
             @* The price for the run itself (user 2026-11-26: "it should be the price for running the opvaskemaskine in 2 hours"):
@@ -229,53 +229,57 @@ else
         var cheapLabel = cheap is null ? "" : cheap == eveRun ? "Før natten" : "I nat";
         <section class="k-card">
             <h2 class="k-card-title">Hvad koster 100 km?</h2>
-            @* Columns (user 2026-11-26: "winter summer and speed" -> "is it not temperature?"): 20 °C / 0 °C, each also at 130 km/t,
-               at today's price now, plus the 20 °C trip charged at the cheap time. *@
-            <div class="tbl-wrap">
-                <table class="small ev-table">
-                    <thead>
-                        <tr>
-                            <th>Bil</th><th>20 °C</th><th>20 °C<br />130 km/t</th><th>0 °C</th><th>0 °C<br />130 km/t</th>
-                            @if (cheap is not null)
-                            {
-                                <th>@cheapLabel</th>
-                            }
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var car in new[] { EvExample.Small, EvExample.Big })
-                        {
+            @* Short like the dishwasher (user 2026-11-26: "should be a little like the opvaskemaskine"): the span visible, the table folded. *@
+            <div class="now-device">Fra <b>@(EvKr(EvExample.Small, run, m.Kwh, EvExample.BestFactor)) kr</b> til <b>@(EvKr(EvExample.Big, run, m.Kwh, EvExample.WorstFactor)) kr</b> for 100 km ladet nu</div>
+            <div class="k-muted small u-center">Lille bil, 110 km/t, mildt vejr · stor bil, 130 km/t, frost</div>
+
+            @* The explanation folded away, like in the price box (user 2026-11-26). *@
+            <details class="calc-fold" data-remember="regnet-elbil">
+                <summary>Sådan er det regnet</summary>
+                @* Columns (user 2026-11-26: "winter summer and speed" -> "is it not temperature?"): 20 °C / 0 °C, each also at 130 km/t,
+                   at today's price now, plus the 20 °C trip charged at the cheap time. *@
+                <div class="tbl-wrap">
+                    <table class="small ev-table">
+                        <thead>
                             <tr>
-                                <td>@car.Name</td>
-                                <td>@(EvKr(car, run, m.Kwh)) kr</td>
-                                <td>@(EvKr(car, run, m.Kwh, EvExample.MotorwayFactor)) kr</td>
-                                <td>@(EvKr(car, run, m.Kwh, EvExample.WinterFactor)) kr</td>
-                                <td>@(EvKr(car, run, m.Kwh, EvExample.WinterFactor * EvExample.MotorwayFactor)) kr</td>
+                                <th>Bil</th><th>20 °C</th><th>20 °C<br />130 km/t</th><th>0 °C</th><th>0 °C<br />130 km/t</th>
                                 @if (cheap is not null)
                                 {
-                                    <td><b>@(EvKr(car, cheap, m.Kwh)) kr</b></td>
+                                    <th>@cheapLabel</th>
                                 }
                             </tr>
-                        }
-                        <tr class="ev-diff">
-                            <td>Forskel</td>
-                            <td>@(DiffKr(run, m.Kwh)) kr</td>
-                            <td>@(DiffKr(run, m.Kwh, EvExample.MotorwayFactor)) kr</td>
-                            <td>@(DiffKr(run, m.Kwh, EvExample.WinterFactor)) kr</td>
-                            <td>@(DiffKr(run, m.Kwh, EvExample.WinterFactor * EvExample.MotorwayFactor)) kr</td>
-                            @if (cheap is not null)
+                        </thead>
+                        <tbody>
+                            @foreach (var car in new[] { EvExample.Small, EvExample.Big })
                             {
-                                <td><b>@(DiffKr(cheap, m.Kwh)) kr</b></td>
+                                <tr>
+                                    <td>@car.Name</td>
+                                    <td>@(EvKr(car, run, m.Kwh)) kr</td>
+                                    <td>@(EvKr(car, run, m.Kwh, EvExample.MotorwayFactor)) kr</td>
+                                    <td>@(EvKr(car, run, m.Kwh, EvExample.WinterFactor)) kr</td>
+                                    <td>@(EvKr(car, run, m.Kwh, EvExample.WinterFactor * EvExample.MotorwayFactor)) kr</td>
+                                    @if (cheap is not null)
+                                    {
+                                        <td><b>@(EvKr(car, cheap, m.Kwh)) kr</b></td>
+                                    }
+                                </tr>
                             }
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <p class="k-muted small u-mt8">100 km ladet nu. Det er temperaturen, der tæller: ved 0 °C bruger bilen ca. 30 % mere (varme og koldt batteri), ved 130 km/t ca. 25 % mere.@(cheap is null ? "" : $" {cheapLabel}: 20 °C, ladet på den billige tid.")</p>
-            @* The span, simple (user 2026-11-26), then "You wanna know where in this specter your car lies?". *@
-            <p class="small u-mt8"><b>Fra billigst til dyrest</b> for 100 km ladet nu:<br />
-                lille bil, 110 km/t, mildt vejr: <b>@(EvKr(EvExample.Small, run, m.Kwh, EvExample.BestFactor)) kr</b> ·
-                stor bil, 130 km/t, frost: <b>@(EvKr(EvExample.Big, run, m.Kwh, EvExample.WorstFactor)) kr</b></p>
+                            <tr class="ev-diff">
+                                <td>Forskel</td>
+                                <td>@(DiffKr(run, m.Kwh)) kr</td>
+                                <td>@(DiffKr(run, m.Kwh, EvExample.MotorwayFactor)) kr</td>
+                                <td>@(DiffKr(run, m.Kwh, EvExample.WinterFactor)) kr</td>
+                                <td>@(DiffKr(run, m.Kwh, EvExample.WinterFactor * EvExample.MotorwayFactor)) kr</td>
+                                @if (cheap is not null)
+                                {
+                                    <td><b>@(DiffKr(cheap, m.Kwh)) kr</b></td>
+                                }
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="k-muted small">100 km ladet nu. Det er temperaturen, der tæller: ved 0 °C bruger bilen ca. 30 % mere (varme og koldt batteri), ved 130 km/t ca. 25 % mere.@(cheap is null ? "" : $" {cheapLabel}: 20 °C, ladet på den billige tid.")</div>
+            </details>
             <div class="small u-center u-mt6">Vil du vide, hvor <b>jeres</b> bil ligger i det spænd?
                 <a class="k-btn k-btn-sm u-mt4" href="mailto:ITMartin@Mensa.dk?subject=Hvor%20ligger%20vores%20elbil%3F">Kontakt ITMartin</a></div>
         </section>

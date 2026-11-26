@@ -287,6 +287,8 @@ public sealed class HomeMachine
     {
         // Old machine on a normal program ~1.3-1.5 kWh; 2 kWh was "old on intensive" - user removed "intensiv" 2026-11-26.
         DishKind => (0.5, "Hvis din maskine er ny", 1.5, "hvis din maskine er gammel"),
+        // Same idea for the car (user 2026-11-26: "now elbil part"): the small and big car of the elbil box, kWh per 100 km.
+        CarKind => (EvExample.Small.KwhPer100Km, "Hvis din bil er lille", EvExample.Big.KwhPer100Km, "hvis din bil er stor"),
         _ => null,
     };
 
