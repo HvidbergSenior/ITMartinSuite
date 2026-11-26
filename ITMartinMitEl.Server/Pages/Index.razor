@@ -51,7 +51,7 @@ else
     var best = _view.Cheapest(m, QuarterNow(), night: true);
     var awake = _view.Cheapest(m, QuarterNow(), night: false);
     var hasTomorrow = _snap.Tomorrow?.Hours.Count > 0;
-    var gridName = _s.Meter?.GridOperatorName is { Length: > 0 } gn ? gn : _s.GridName;
+    var gridName = _s.GridName is { Length: > 0 } sg ? sg : ShortGrid(_s.Meter?.GridOperatorName ?? "");
     var supplierName = _s.Meter?.SupplierName ?? "";
     <section class="k-card now-tile @lvl">
         <h2 class="k-card-title">Prisen nu</h2>
@@ -87,13 +87,13 @@ else
                 }
                 else
                 {
-                    <b>Billigst de næste 12 timer: start @StartAt(best.Start) – færdig kl. @best.Start.AddHours(m.DurationHours).ToString("HH:mm")</b>
-                    <span>Så koster den @Kr(best.CostKr) kr@(run.CostKr - best.CostKr >= 0.01 ? $" i stedet for {Kr(run.CostKr)} kr nu – I sparer {Kr(run.CostKr - best.CostKr)} kr" : "").</span>
-                    <span>Har maskinen <b>senere start</b> (et lille ur på knapperne)? Sæt den til <b>@Delay(best.Start)</b> nu – så starter den selv kl. @best.Start.ToString("HH:mm").</span>
+                    @* Short (user 2026-11-26: "way too much text"), like the free app. *@
+                    <b>Billigst: start @StartAt(best.Start) – @Kr(best.CostKr) kr@(run.CostKr - best.CostKr >= 0.01 ? $" (spar {Kr(run.CostKr - best.CostKr)} kr)" : "")</b>
+                    <span>Senere start: sæt den til <b>@Delay(best.Start)</b>.</span>
                 }
                 @if (awake is not null && _view.IsQuiet(best.Start) && awake.Start != best.Start)
                 {
-                    <span class="k-muted small">Vil I ikke have den kørende om natten? Bedst mellem kl. 6 og 23: @(awake.Start <= QuarterNow() ? "start nu" : StartAt(awake.Start)) for @Kr(awake.CostKr) kr.</span>
+                    <span class="k-muted small">Ikke om natten: @(awake.Start <= QuarterNow() ? "start nu" : StartAt(awake.Start)) – @Kr(awake.CostKr) kr.</span>
                 }
             </div>
         }
@@ -136,7 +136,7 @@ else
                     <span class="@(label.Length > 2 ? "axis-word" : "")">@label</span>
                 }
             </div>
-            <div class="k-muted small u-mt6 u-center">Hver søjle er én time. Lav og grøn = billig · høj, rød og stribet = dyr. Det skraverede felt er den billigste periode at køre @m.Name i (@Hours(m.DurationHours)) – tryk på en søjle for at se en anden starttid.</div>
+            <div class="k-muted small u-mt6 u-center">Grøn = billig · rød = dyr · skraveret = billigst. Tryk på en søjle for en anden starttid.</div>
             @{ var shown = picked ?? strip.FirstOrDefault(h => h.IsNow); var shownRun = picked is null ? run : pickedRun;
                var from = picked is null ? QuarterNow() : start; }
             @if (shown is not null)
@@ -156,10 +156,12 @@ else
                         }
                         <text>.</text>
                     }
-                    <span class="k-muted"> Strømmen i timen @(shown.IsNow ? "lige nu" : When(shown.Start)) koster @Kr(shown.KrPerKwh) kr pr. kWh.</span>
                 </div>
             }
-            <div class="k-muted small u-mt6 u-center">@(picked is null ? "Tryk på en søjle for at se prisen i den time." : "Tryk på søjlen igen for at gå tilbage til nu.")</div>
+            @if (picked is not null)
+            {
+                <div class="k-muted small u-mt6 u-center">Tryk igen for at gå tilbage til nu.</div>
+            }
         </section>
     }
 }
@@ -177,10 +179,8 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1 && Current is { } hm)
     <section class="k-card now-tile lvl-cheap">
         <h2 class="k-card-title">Hvad havde du sparet?</h2>
         <div class="now-price lvl-cheap">@hs.SavedKr.ToString("0", Da) kr</div>
-        <div class="now-unit">på de sidste @hs.Days dage – ca. @Round10(hs.PerYearKr) kr om året</div>
-        <div class="now-compare">Hvis I hver dag havde startet @hm.Name én gang på dagens billigste tid – i stedet for kl. 18.</div>
-        <div class="now-compare">Kl. 18 hver dag: <b>@Kr(hs.UsualKr) kr</b> · Billigste tid: <b>@Kr(hs.CheapestKr) kr</b></div>
-        <div class="k-muted small">Med moms, afgifter og jeres egen nettarif.</div>
+        <div class="now-unit">på @hs.Days dage – ca. @Round10(hs.PerYearKr) kr om året</div>
+        <div class="now-compare">@hm.Name én gang om dagen på billigste tid i stedet for kl. 18.</div>
     </section>
 }
 
@@ -205,6 +205,15 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1 && Current is { } hm)
 }
 
 @code {
+    // "Konstant Net A/S - 151" -> "Konstant" (like the free app's chip, user 2026-11-25).
+    private static string ShortGrid(string name)
+    {
+        var n = name.Split(" - ")[0].Trim();
+        foreach (var tail in new[] { " Net A/S", " A/S", " Net" })
+            if (n.EndsWith(tail)) { n = n[..^tail.Length]; break; }
+        return n;
+    }
+
     private static readonly CultureInfo Da = new("da-DK");
     private MinNowView? _view;
     private PriceSnapshot? _snap => _view?.Snapshot;
