@@ -405,7 +405,10 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1)
     {
         if (from.Minute != 0 || hours != Math.Floor(hours))
             return $"= kl. {from:HH:mm}–{from.AddHours(hours):HH:mm}, kvarter for kvarter";
-        var cols = Enumerable.Range(0, (int)hours).Select(i => from.AddHours(i).Hour.ToString()).ToList();
+        // Named as the chart shows them: the current hour is "nu", the rest "kl. 18" (the axis has no "17" under "nu").
+        var nowHour = DkTime.Now.Hour;
+        var cols = Enumerable.Range(0, (int)hours).Select(i => from.AddHours(i))
+            .Select(t => t.Date == DkTime.Now.Date && t.Hour == nowHour ? "nu" : $"kl. {t.Hour}").ToList();
         // Long runs (e.g. 5 hours, user 2026-11-26: "is more important when the device takes like 5 hours"): "17–21 (5 søjler)".
         return cols.Count switch
         {
