@@ -323,7 +323,7 @@
         if (ask && r.AnswerKr is { } answer)
         {
             _bundleKr = answer.ToString();
-            _bundleMsg = $"Det hele kan blive dit for {answer} kr inkl. moms (mængderabat + {r.ExtraPercent} % ekstra). Tryk Giv bud for at sige ja.";
+            _bundleMsg = $"Det hele kan blive dit for {answer} kr (mængderabat + {r.ExtraPercent} % ekstra). Tryk Giv bud for at sige ja.";
             return;
         }
         Drafts.Clear(Customer); _bundleKr = "";
@@ -364,7 +364,7 @@
                 @* Mængderabat (2026-11-16, "the amount should be reflected on the page for user"). *@
                 <p class="bs-rabat">@(RabatRules.PercentFor(ids.Count) is var pct and > 0 ? $"Mængderabat: {pct} % på det hele." : "Ingen mængderabat endnu.")
                     @if (RabatRules.Next(ids.Count) is { } nx) { <span>Læg @nx.More mere i, så får du @nx.Percent %.</span> }
-                    <span class="bs-rabat-steps">@string.Join(" · ", RabatRules.Steps.Select(s => $"{s.From}+ ting: {s.Percent} %")) – alle priser er inkl. moms.</span></p>
+                    <span class="bs-rabat-steps">@string.Join(" · ", RabatRules.Steps.Select(s => $"{s.From}+ ting: {s.Percent} %")) – ingen moms, prisen er det, du betaler.</span></p>
                 @if (known.Count > 0) { <ul>@foreach (var k in known) { <li>@k!.Line</li> }</ul> }
                 <span class="bs-market-row"><input class="k-input" inputmode="numeric" @bind="_bundleKr" placeholder="Dit bud for det hele (kr)" aria-label="Dit bud for det hele" />
                 <button type="button" class="k-btn k-btn-primary" @onclick="() => SendBundle(false)">Giv bud</button></span>
