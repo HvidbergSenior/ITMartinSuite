@@ -134,9 +134,10 @@ else
             <button class="chip @(m.IsWash ? "on" : "")" aria-pressed="@m.IsWash" @onclick="() => PickMachineAsync(HomeMachine.WashKind)">Vaskemaskine</button>
         </div>
         }
-        <div class="now-device">Én @m.Run@(ShowDetails && m.Model.Length > 0 ? $" ({m.Model})" : "") · @Kwh(m.Kwh) kWh · @Hours(m.Hours) · start nu</div>
+        @* Simple (user 2026-11-26: "needs to be more simple"): kWh, hours and the sum line are hidden with ShowDetails. *@
+        <div class="now-device">Én @m.Run nu@(ShowDetails ? $" · {Kwh(m.Kwh)} kWh · {Hours(m.Hours)}" : "")</div>
         <div class="now-price @lvl">@(run is null ? "–" : Kr(run.CostKr)) KR</div>
-        @if (run is not null)
+        @if (ShowDetails && run is not null)
         {
             @* The sum behind the big number, in a neutral colour (never fighting the verdict's colour). *@
             <div class="now-calc">@Kwh(m.Kwh) kWh × @Kr(run.AvgKrPerKwh) kr/kWh i snit over @Hours(m.Hours) = @Kr(run.CostKr) kr</div>
@@ -491,7 +492,7 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1)
         <= 0.33 => "Billigt lige nu",
         >= 0.85 => "Dagens dyreste",
         >= 0.67 => "Dyrt lige nu",
-        _ => "Middel – hverken billigt eller dyrt",
+        _ => "Middel pris",
     };
 
 }
