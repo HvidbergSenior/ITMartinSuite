@@ -142,22 +142,23 @@ else
            the average kr/kWh over the hours it runs from now, so kWh x price = the big number. *@
         @if (run is not null)
         {
-            <div class="now-device">Prisen de næste @Hours(m.Hours): <b>@Kr(run.AvgKrPerKwh) kr/kWh</b></div>
+            <div class="now-device">Prisen de næste @Hours(m.Hours): <b>@Kr(RunKrPerKwh(run, m)) kr/kWh</b></div>
         }
         @* Fewer words (user 2026-11-26). *@
         <div class="now-device">@m.Name · @Kwh(m.Kwh) kWh @m.Amount i @Hours(m.Hours)</div>
         <div class="now-price @lvl">@(run is null ? "–" : Kr(run.CostKr)) KR</div>
+        @if (run is not null)
+        {
+            @* The sum behind the big number, small and neutral (user 2026-11-26: "and the calculation in small letters"). *@
+            var perKwh = RunKrPerKwh(run, m);
+            <div class="now-calc">@Kwh(m.Kwh) kWh × @Kr(perKwh) kr/kWh @(Math.Abs(Math.Round(perKwh * m.Kwh, 2) - run.CostKr) < 0.005 ? "=" : "≈") @Kr(run.CostKr) kr</div>
+        }
         <div class="k-muted small u-center">@m.DependsOn</div>
         @* User 2026-11-26: "maybe like price in one hour, in two hours" - the same machine started later. *@
         @{ var in1 = _view.RunAt(QuarterNow().AddHours(1)); var in2 = _view.RunAt(QuarterNow().AddHours(2)); }
         @if (in1 is not null || in2 is not null)
         {
             <div class="now-device">@(in1 is null ? "" : $"Om 1 t: {Kr(in1.CostKr)} kr")@(in1 is not null && in2 is not null ? " · " : "")@(in2 is null ? "" : $"Om 2 t: {Kr(in2.CostKr)} kr")</div>
-        }
-        @if (ShowDetails && run is not null)
-        {
-            @* The sum behind the big number, in a neutral colour (never fighting the verdict's colour). *@
-            <div class="now-calc">@Kwh(m.Kwh) kWh × @Kr(run.AvgKrPerKwh) kr/kWh i snit over @Hours(m.Hours) = @Kr(run.CostKr) kr</div>
         }
         @* One line: the cheapest period before night (user 2026-11-26), the machine started while people are up (not 23-06). *@
         @if (m.CanWait && eveRun is { } eve && run is not null)
@@ -380,6 +381,9 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1)
     private static readonly CultureInfo Da = new("da-DK");
     private static string DiffKr(RunOption at, double standardKwh, double factor = 1) =>
         ((EvExample.Big.CostKr(at, standardKwh) - EvExample.Small.CostKr(at, standardKwh)) * factor).ToString("0", Da);
+    // The run's average kr/kWh as SHOWN: worked back from the shown cost, so the top line, the sum and the big number agree.
+    private static double RunKrPerKwh(RunOption run, HomeMachine m) => Math.Round(run.CostKr / m.Kwh, 2);
+
     private static string EvKr(EvExample car, RunOption at, double standardKwh, double factor = 1) =>
         (car.CostKr(at, standardKwh) * factor).ToString("0", Da);
     // Address/elselskab chips and the machine's model number - hidden for now (user 2026-11-26), maybe shown later.
