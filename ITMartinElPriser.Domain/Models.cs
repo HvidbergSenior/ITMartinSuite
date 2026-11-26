@@ -233,6 +233,10 @@ public sealed record EvExample(string Name, double KwhPer100Km)
     /// <summary>Motorway at ~130 km/t vs mixed driving: typically 20-30 % more; the middle is used (user 2026-11-26: "speed").</summary>
     public const double MotorwayFactor = 1.25;
 
+    /// <summary>Public fast charging (DC) without a subscription, kr/kWh incl. moms - the same day and night. Range from
+    /// ChargeCatalog.PayAsYouGo (Norlys 3,29 - Clever Go 3,99; Clever Go is dynamic, Circle K/Q8/Ionity unverified).</summary>
+    public const double FastChargeLow = 3.3, FastChargeHigh = 4.0;
+
     /// <summary>The span (user 2026-11-26): best = small car, 110 km/t (+10 %), mild ~10 °C (+10 %);
     /// worst = big car, 130 km/t (+25 %), frost ~-5 °C (+35 %). Typical factors, not measured on these cars.</summary>
     public const double BestFactor = 1.1 * 1.1;
@@ -310,7 +314,8 @@ public sealed class HomeMachine
     /// <summary>The exact amount the kWh is for: "pr. opvask", "til 100 km", "fra tom til fuld".</summary>
     public string Amount => Kind switch
     {
-        BikeKind => "fra tom til fuld", CarKind => "til 100 km", KettleKind => "pr. liter vand", WashKind => "pr. vask", _ => "pr. opvask",
+        // The car assumes a home charging box (11 kW) - said once, no charger choice on the free page (user 2026-11-26).
+        BikeKind => "fra tom til fuld", CarKind => "til 100 km med ladeboks", KettleKind => "pr. liter vand", WashKind => "pr. vask", _ => "pr. opvask",
     };
     /// <summary>"en opvaskemaskine" - the device in a sentence.</summary>
     public string InSentence => Kind switch { WashKind => "en vaskemaskine", BikeKind => "en elcykel", CarKind => "en elbil", KettleKind => "en elkedel", _ => "en opvaskemaskine" };
