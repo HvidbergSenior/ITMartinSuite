@@ -325,9 +325,8 @@ else
                 @for (var i = 0; i < strip.Count; i++)
                 {
                     var h = strip[i];
-                    // The hour right after "nu" stays blank, so "nu" never runs into "9" or "15".
-                    // Midnight says where tomorrow starts (user 2026-11-24: more intuitive).
-                    var label = h.IsNow ? "nu" : i == 1 && strip[0].IsNow ? "" : h.Start.Hour == 0 ? "i morgen" : h.Start.Hour % 3 == 0 ? h.Start.Hour.ToString() : "";
+                    // The hour under every column, "nu" under the current one (user 2026-11-26: "time under each column except nu").
+                    var label = h.IsNow ? "nu" : h.Start.Hour.ToString();
                     <span class="@(label.Length > 2 ? "axis-word" : "")">@label</span>
                 }
             </div>
