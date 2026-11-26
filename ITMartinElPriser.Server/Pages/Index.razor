@@ -214,6 +214,48 @@ else
         }
     </section>
 
+    @* Elbil teaser (user 2026-11-26): a few common cars, what 100 km costs now and at night, and what winter does - in kr only. *@
+    @if (m.Kind == HomeMachine.CarKind && run is not null)
+    {
+        var cheap = _view.CheapestAtNight(QuarterNow()) ?? eveRun;
+        var cheapLabel = cheap is null ? "" : cheap == eveRun ? "Før natten" : "I nat";
+        var ex = EvExample.Common[1];
+        <section class="k-card">
+            <h2 class="k-card-title">Hvad koster 100 km?</h2>
+            <div class="tbl-wrap">
+                <table class="small ev-table">
+                    <thead>
+                        <tr>
+                            <th>Bil</th><th>kWh</th><th>Nu</th>
+                            @if (cheap is not null)
+                            {
+                                <th>@cheapLabel</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var car in EvExample.Common)
+                        {
+                            <tr>
+                                <td>@car.Name</td>
+                                <td>@car.KwhPer100Km</td>
+                                <td>@(EvKr(car, run, m.Kwh)) kr</td>
+                                @if (cheap is not null)
+                                {
+                                    <td><b>@(EvKr(car, cheap, m.Kwh)) kr</b></td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <p class="small u-mt8">Om vinteren bruger bilen 20–40 % mere. En @ex.Name koster så ca. <b>@(EvKr(ex, run, m.Kwh, EvExample.WinterFactor)) kr</b> for 100 km nu, i stedet for @(EvKr(ex, run, m.Kwh)) kr.</p>
+            <p class="k-muted small">Motorvej og lading fra stikkontakten koster også lidt mere.</p>
+            <div class="small u-center u-mt6">Hvad koster <b>jeres</b> bil og jeres kørsel?
+                <a class="k-btn k-btn-sm u-mt4" href="https://minelpris.itmartin.dk" target="_blank" rel="noopener">Se det i MinElpris</a></div>
+        </section>
+    }
+
     @if (strip.Count > 0)
     {
         <section class="k-card">
@@ -322,6 +364,8 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1)
 
 @code {
     private static readonly CultureInfo Da = new("da-DK");
+    private static string EvKr(EvExample car, RunOption at, double standardKwh, double factor = 1) =>
+        (car.CostKr(at, standardKwh) * factor).ToString("0", Da);
     // Address/elselskab chips and the machine's model number - hidden for now (user 2026-11-26), maybe shown later.
     private const bool ShowDetails = false;
     private DateTime? _selected;

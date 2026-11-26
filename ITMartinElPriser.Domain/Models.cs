@@ -218,13 +218,33 @@ public sealed class RunEntry
     public string MeasureNote { get; set; } = "";
 }
 
+/// <summary>A common electric car and what it uses per 100 km in normal mixed driving, mild weather (real-world figures,
+/// rounded; user 2026-11-26: "a teaser for elbiler - a couple of models and what the winter matters").</summary>
+public sealed record EvExample(string Name, double KwhPer100Km)
+{
+    public static readonly EvExample[] Common =
+    [
+        new("Tesla Model 3", 15),
+        new("Tesla Model Y", 17),
+        new("VW ID.4 / Skoda Enyaq", 19),
+        new("Stor SUV, fx Audi Q8 e-tron", 24),
+    ];
+
+    /// <summary>Winter: heating, a cold battery and wet roads - typically 20-40 % more; the middle is used.</summary>
+    public const double WinterFactor = 1.3;
+
+    /// <summary>What 100 km costs for this car, scaled from the price of the standard 18 kWh / 100 km at the same time.</summary>
+    public double CostKr(RunOption standard, double standardKwh) => standard.CostKr * KwhPer100Km / standardKwh;
+}
+
 // One machine on the free front page: what a run takes (kWh spread evenly over the hours).
 public sealed class HomeMachine
 {
     public const string DishKind = "opvask", WashKind = "vask", BikeKind = "elcykel", CarKind = "elbil", KettleKind = "elkedel";
     /// <summary>The devices the free front page offers, in chip order (user 2026-11-26: "3-4 devices like Opvaskemaskine,
     /// Elcykel, Elbil, Kedel"). The washing machine is still known but not offered.</summary>
-    public static readonly string[] FrontKinds = [DishKind, BikeKind, CarKind, KettleKind];
+    // Elkedel and elcykel taken off again the same day (user: "remove elkedel and elcykel") - still known, not offered.
+    public static readonly string[] FrontKinds = [DishKind, CarKind];
     public const double MinHours = 0.5, MaxHours = 4, MinKwh = 0.1, MaxKwh = 5;
 
     public string Kind { get; set; } = DishKind;
