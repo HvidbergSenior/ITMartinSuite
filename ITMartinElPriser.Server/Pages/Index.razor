@@ -219,7 +219,6 @@ else
     {
         var cheap = _view.CheapestAtNight(QuarterNow()) ?? eveRun;
         var cheapLabel = cheap is null ? "" : cheap == eveRun ? "Før natten" : "I nat";
-        var ex = EvExample.Common[1];
         <section class="k-card">
             <h2 class="k-card-title">Hvad koster 100 km?</h2>
             <div class="tbl-wrap">
@@ -234,7 +233,7 @@ else
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var car in EvExample.Common)
+                        @foreach (var car in new[] { EvExample.Small, EvExample.Big })
                         {
                             <tr>
                                 <td>@car.Name</td>
@@ -246,11 +245,19 @@ else
                                 }
                             </tr>
                         }
+                        <tr class="ev-diff">
+                            <td>Forskel</td>
+                            <td>@(EvExample.Big.KwhPer100Km - EvExample.Small.KwhPer100Km)</td>
+                            <td>@(DiffKr(run, m.Kwh)) kr</td>
+                            @if (cheap is not null)
+                            {
+                                <td><b>@(DiffKr(cheap, m.Kwh)) kr</b></td>
+                            }
+                        </tr>
                     </tbody>
                 </table>
             </div>
-            <p class="small u-mt8">Om vinteren bruger bilen 20–40 % mere. En @ex.Name koster så ca. <b>@(EvKr(ex, run, m.Kwh, EvExample.WinterFactor)) kr</b> for 100 km nu, i stedet for @(EvKr(ex, run, m.Kwh)) kr.</p>
-            <p class="k-muted small">Motorvej og lading fra stikkontakten koster også lidt mere.</p>
+            <p class="small u-mt8">Om vinteren bruger begge biler 20–40 % mere.</p>
             @* User 2026-11-26: "Do you want to know EXACTLY what your el car and solution should be? contact itmartin".
                Later: the paid Elbil app (its own app, not ElPriser/MinElpris). *@
             <div class="small u-center u-mt6">Vil du vide <b>præcist</b>, hvilken elbil og ladeløsning der passer til jer?
@@ -366,6 +373,8 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1)
 
 @code {
     private static readonly CultureInfo Da = new("da-DK");
+    private static string DiffKr(RunOption at, double standardKwh) =>
+        (EvExample.Big.CostKr(at, standardKwh) - EvExample.Small.CostKr(at, standardKwh)).ToString("0", Da);
     private static string EvKr(EvExample car, RunOption at, double standardKwh, double factor = 1) =>
         (car.CostKr(at, standardKwh) * factor).ToString("0", Da);
     // Address/elselskab chips and the machine's model number - hidden for now (user 2026-11-26), maybe shown later.

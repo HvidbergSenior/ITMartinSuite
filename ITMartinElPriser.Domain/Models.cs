@@ -222,13 +222,9 @@ public sealed class RunEntry
 /// rounded; user 2026-11-26: "a teaser for elbiler - a couple of models and what the winter matters").</summary>
 public sealed record EvExample(string Name, double KwhPer100Km)
 {
-    public static readonly EvExample[] Common =
-    [
-        new("Tesla Model 3", 15),
-        new("Tesla Model Y", 17),
-        new("VW ID.4 / Skoda Enyaq", 19),
-        new("Stor SUV, fx Audi Q8 e-tron", 24),
-    ];
+    // Just a small and a big car and the difference (user 2026-11-26: "just show elbil small car and big car and the difference").
+    public static readonly EvExample Small = new("Lille bil, fx Tesla Model 3", 15);
+    public static readonly EvExample Big = new("Stor bil, fx Audi Q8 e-tron", 24);
 
     /// <summary>Winter: heating, a cold battery and wet roads - typically 20-40 % more; the middle is used.</summary>
     public const double WinterFactor = 1.3;
