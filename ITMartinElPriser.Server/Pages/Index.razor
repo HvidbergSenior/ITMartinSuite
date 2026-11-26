@@ -232,6 +232,29 @@ else
         }
     </section>
 
+    @* Dishwasher savings box, like the elbil one (user 2026-11-26: "yes"): today's saving, and per year from the REAL prices
+       of the last 30 days (Hindsight: one wash a day at the cheapest time instead of 18:00) - not today x 365. *@
+    @if (m.Kind == HomeMachine.DishKind && run is not null && cheapestRun is { } dishCheap && dishCheap.CostKr < run.CostKr)
+    {
+        <section class="k-card now-tile lvl-cheap">
+            <h2 class="k-card-title">Hvad sparer du på opvasken?</h2>
+            <div class="now-device">Start @(dishCheap == eveRun ? "før natten" : "i nat") kl. @dishCheap.Start.ToString("HH:mm") i stedet for nu:</div>
+            <div class="now-price lvl-cheap">@Kr(run.CostKr - dishCheap.CostKr) KR</div>
+            <div class="now-device">sparet i dag – @Kr(dishCheap.CostKr) kr i stedet for @Kr(run.CostKr) kr</div>
+            @* The line keeps its place while the 30 days are worked out, so nothing jumps. *@
+            <div class="small u-mt8 u-center">
+                @if (_hindsight is { } hy && hy.SavedKr >= 1)
+                {
+                    <text>Én opvask om dagen på den billigste tid i stedet for kl. 18: ca. <b>@Round10(hy.PerYearKr) kr om året</b> <span class="k-muted">(regnet på de sidste @hy.Days dages priser)</span></text>
+                }
+                else if (_hindsightLoading)
+                {
+                    <span class="k-muted">Regner året ud …</span>
+                }
+            </div>
+        </section>
+    }
+
     @* Elbil box (user 2026-11-26: "more specific and more clear on the savings"): one headline with the saving, then a small
        table - now / at the cheap time / saved - for four concrete situations. The explanation is folded. Kr only. *@
     @if (m.Kind == HomeMachine.CarKind && run is not null && cheapestRun is { } cheap && cheap.CostKr < run.CostKr)
@@ -513,7 +536,9 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1)
     private bool _hindsightLoading = true;
     private async Task LoadHindsightAsync()
     {
-        if (!ShowDetails) { _hindsightLoading = false; return; }   // box hidden: no 30-day lookup
+        // Used again by the dishwasher savings box (user 2026-11-26) - only the dishwasher needs the 30-day lookup.
+        if (_view is null || _view.Machine.Kind != HomeMachine.DishKind) { _hindsight = null; _hindsightLoading = false; StateHasChanged(); return; }
+        _hindsightLoading = true;
         try { _hindsight = _view is null ? null : await Front.HindsightAsync(_view.Settings); }
         catch { _hindsight = null; }   // Energinet down: the box simply is not shown
         _hindsightLoading = false;
