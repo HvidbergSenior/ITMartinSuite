@@ -126,10 +126,14 @@ else
             else { <text>Vælg dit elselskab <small>(prisen er uden elselskabets tillæg)</small></text> }
         </button>
         }
+        @* Only the dishwasher for now (user 2026-11-26: "only opvaskemaskine"); the washer chip comes back with ShowDetails. *@
+        @if (ShowDetails)
+        {
         <div class="chips chips-small" role="group" aria-label="Vælg maskine">
             <button class="chip @(m.IsWash ? "" : "on")" aria-pressed="@(!m.IsWash)" @onclick="() => PickMachineAsync(HomeMachine.DishKind)">Opvaskemaskine</button>
             <button class="chip @(m.IsWash ? "on" : "")" aria-pressed="@m.IsWash" @onclick="() => PickMachineAsync(HomeMachine.WashKind)">Vaskemaskine</button>
         </div>
+        }
         <div class="now-device">Én @m.Run@(ShowDetails && m.Model.Length > 0 ? $" ({m.Model})" : "") · @Kwh(m.Kwh) kWh · @Hours(m.Hours) · start nu</div>
         <div class="now-price @lvl">@(run is null ? "–" : Kr(run.CostKr)) KR</div>
         @if (run is not null)
@@ -351,6 +355,12 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1)
     private async Task LoadAsync()
     {
         _view = await Front.LoadAsync();
+        // A phone that picked the washer before keeps getting the dishwasher (only machine on the free page now).
+        if (!ShowDetails && _view.Settings.Machine == HomeMachine.WashKind)
+        {
+            _view.Settings.Machine = HomeMachine.DishKind;   // in memory only - no cookie write while prerendering
+            _view = await Front.LoadAsync();
+        }
         _postal = _view.Settings.PostalCode;
         _gridName = _view.Settings.GridName;
     }
