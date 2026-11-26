@@ -136,7 +136,8 @@ else
         }
         @* Simple (user 2026-11-26: "needs to be more simple"): kWh, hours and the sum line are hidden with ShowDetails. *@
         @* User 2026-11-26: "price now. Kwh for the device =" - the kWh price now, then the machine's kWh = the cost. *@
-        @if (_snap.NowKrPerKwh is { } nowKr)
+        @* The same number as the "nu" column (the hour's price), not the single quarter - they disagreed (user 2026-11-26). *@
+        @if ((strip.FirstOrDefault(h => h.IsNow)?.KrPerKwh ?? _snap.NowKrPerKwh) is { } nowKr)
         {
             <div class="now-device">Prisen nu: <b>@Kr(nowKr) kr pr. kWh</b></div>
         }
