@@ -111,7 +111,10 @@ else
     var m = Current;
     <section class="k-card now-tile @lvl">
         <h2 class="k-card-title">Prisen nu</h2>
-        @* Home, not "where the phone is": asked once (location if you are home, or your address). Tap to change. *@
+        @* Hidden 2026-11-26 (user: "remove ... should be hidden, maybe visible later") - flip ShowDetails to bring them back.
+           First visit still asks "Hvor bor du?" in its own box above. *@
+        @if (ShowDetails)
+        {
         <button class="area-chip" title="Netselskabet ejer ledningerne på din vej og kan ikke vælges – ret kun adressen, hvis den er forkert" @onclick="() => _askHome = !_askHome" disabled="@_searching">
             @if (_searching) { <text>Finder dig…</text> }
             else if (_gridName.Length > 0) { <text>Netselskab i @_postal: <b>@_gridName</b> · ret adresse</text> }
@@ -122,11 +125,12 @@ else
             else if (FrontPageUseCases.SupplierName(_s) is { Length: > 0 } sn) { <text>Dit elselskab: <b>@sn</b> · skift</text> }
             else { <text>Vælg dit elselskab <small>(prisen er uden elselskabets tillæg)</small></text> }
         </button>
+        }
         <div class="chips chips-small" role="group" aria-label="Vælg maskine">
             <button class="chip @(m.IsWash ? "" : "on")" aria-pressed="@(!m.IsWash)" @onclick="() => PickMachineAsync(HomeMachine.DishKind)">Opvaskemaskine</button>
             <button class="chip @(m.IsWash ? "on" : "")" aria-pressed="@m.IsWash" @onclick="() => PickMachineAsync(HomeMachine.WashKind)">Vaskemaskine</button>
         </div>
-        <div class="now-device">Én @m.Run@(m.Model.Length > 0 ? $" ({m.Model})" : "") · @Kwh(m.Kwh) kWh · @Hours(m.Hours) · start nu</div>
+        <div class="now-device">Én @m.Run@(ShowDetails && m.Model.Length > 0 ? $" ({m.Model})" : "") · @Kwh(m.Kwh) kWh · @Hours(m.Hours) · start nu</div>
         <div class="now-price @lvl">@(run is null ? "–" : Kr(run.CostKr)) KR</div>
         @if (run is not null)
         {
@@ -264,6 +268,8 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1)
 
 @code {
     private static readonly CultureInfo Da = new("da-DK");
+    // Address/elselskab chips and the machine's model number - hidden for now (user 2026-11-26), maybe shown later.
+    private const bool ShowDetails = false;
     private DateTime? _selected;
     private Timer? _timer;
 
