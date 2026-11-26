@@ -221,7 +221,10 @@ public sealed class RunEntry
 // One machine on the free front page: what a run takes (kWh spread evenly over the hours).
 public sealed class HomeMachine
 {
-    public const string DishKind = "opvask", WashKind = "vask";
+    public const string DishKind = "opvask", WashKind = "vask", BikeKind = "elcykel", CarKind = "elbil", KettleKind = "elkedel";
+    /// <summary>The devices the free front page offers, in chip order (user 2026-11-26: "3-4 devices like Opvaskemaskine,
+    /// Elcykel, Elbil, Kedel"). The washing machine is still known but not offered.</summary>
+    public static readonly string[] FrontKinds = [DishKind, BikeKind, CarKind, KettleKind];
     public const double MinHours = 0.5, MaxHours = 4, MinKwh = 0.1, MaxKwh = 5;
 
     public string Kind { get; set; } = DishKind;
@@ -238,19 +241,45 @@ public sealed class HomeMachine
 
     /// <summary>The free ElPriser's machine: always the standard one, never the visitor's own numbers (user 2026-11-24:
     /// "Ret tid og strøm should not be changeable" - own machines are MinElpris).</summary>
-    public static HomeMachine Fixed(string kind) => kind == WashKind ? WashingMachine() : Dishwasher();
+    public static HomeMachine Fixed(string kind) => kind switch
+    {
+        WashKind => WashingMachine(),
+        // Typical figures (DeviceCatalog): an e-bike battery ~0.5 kWh charged in ~4 h; an EV topped up with 30 kWh on an
+        // 11 kW home charger (~3 h); a kettle boiling 1 litre ~0.12 kWh in a few minutes (one quarter on the price grid).
+        BikeKind => new() { Kind = BikeKind, Hours = 4, Kwh = 0.5 },
+        CarKind => new() { Kind = CarKind, Hours = 3, Kwh = 30 },
+        KettleKind => new() { Kind = KettleKind, Hours = 0.25, Kwh = 0.12 },
+        // A typical dishwasher a few years old, normal use - not the one new Bosch on Eco (0.54 kWh). User 2026-11-26: "like average
+        // but also that it depends" + "devices that are more than 2-3 years old". Older labels ~0.9-1.1 Eco, normal ~1.2.
+        _ => new() { Kind = DishKind, Hours = 2, Kwh = 1.1 },
+    };
+
+    /// <summary>What the average depends on, said in one short line under the number.</summary>
+    public string DependsOn => Kind switch
+    {
+        BikeKind => "Et gennemsnit – det afhænger af batteriet (ca. 0,3–0,7 kWh), og et ældre batteri tager lidt mere.",
+        CarKind => "Et gennemsnit – det afhænger af, hvor meget bilen skal lade.",
+        KettleKind => "Pr. liter – mere vand, mere strøm.",
+        WashKind => "Et gennemsnit – 30° bruger ca. 0,4 kWh, 60° ca. 1,2 kWh.",
+        // No "Eco" (user 2026-11-26: "dont use eco").
+        _ => "Et gennemsnit for en maskine på nogle år – det afhænger af maskinen og programmet.",
+    };
 
     public bool IsWash => Kind == WashKind;
-    public string Name => IsWash ? "Vaskemaskine" : "Opvaskemaskine";
-    // "én vask" / "én opvask"
-    public string Run => IsWash ? "vask" : "opvask";
+    public string Name => Kind switch { WashKind => "Vaskemaskine", BikeKind => "Elcykel", CarKind => "Elbil", KettleKind => "Elkedel", _ => "Opvaskemaskine" };
+    // "én vask" / "én opvask" / "én opladning"
+    public string Run => Kind switch { WashKind => "vask", BikeKind or CarKind => "opladning", KettleKind => "liter vand", _ => "opvask" };
+    /// <summary>"en opvaskemaskine" - the device in a sentence.</summary>
+    public string InSentence => Kind switch { WashKind => "en vaskemaskine", BikeKind => "en elcykel", CarKind => "en elbil", KettleKind => "en elkedel", _ => "en opvaskemaskine" };
+    /// <summary>Something you would start later (a timer, a charger) - not a kettle you need now.</summary>
+    public bool CanWait => Kind != KettleKind;
 
     /// <summary>Whatever the cookie says: hours on the quarter-hour grid within 0.5-4, kWh within 0.1-5.</summary>
     public HomeMachine Clean()
     {
         Hours = Math.Clamp(Math.Round(Hours * 4) / 4, MinHours, MaxHours);
         Kwh = Math.Clamp(Math.Round(Kwh, 2), MinKwh, MaxKwh);
-        if (Kind is not (DishKind or WashKind)) Kind = DishKind;
+        if (Kind is not (DishKind or WashKind or BikeKind or CarKind or KettleKind)) Kind = DishKind;
         return this;
     }
 

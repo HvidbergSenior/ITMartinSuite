@@ -70,7 +70,7 @@ public sealed class FrontPageUseCases(IPriceSource prices, IHouseholdPrefs prefs
 
     public Task PickMachineAsync(HouseholdSettings s, string kind)
     {
-        s.Machine = kind == HomeMachine.WashKind ? HomeMachine.WashKind : HomeMachine.DishKind;
+        s.Machine = HomeMachine.FrontKinds.Contains(kind) || kind == HomeMachine.WashKind ? kind : HomeMachine.DishKind;
         return prefs.SaveAsync(s);
     }
 

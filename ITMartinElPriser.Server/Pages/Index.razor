@@ -129,14 +129,14 @@ else
             else { <text>Vælg dit elselskab <small>(prisen er uden elselskabets tillæg)</small></text> }
         </button>
         }
-        @* Only the dishwasher for now (user 2026-11-26: "only opvaskemaskine"); the washer chip comes back with ShowDetails. *@
-        @if (ShowDetails)
-        {
-        <div class="chips chips-small" role="group" aria-label="Vælg maskine">
-            <button class="chip @(m.IsWash ? "" : "on")" aria-pressed="@(!m.IsWash)" @onclick="() => PickMachineAsync(HomeMachine.DishKind)">Opvaskemaskine</button>
-            <button class="chip @(m.IsWash ? "on" : "")" aria-pressed="@m.IsWash" @onclick="() => PickMachineAsync(HomeMachine.WashKind)">Vaskemaskine</button>
+        @* 4 devices (user 2026-11-26: "Opvaskemaskine, Elcykel, Elbil, Kedel"), each with typical numbers. *@
+        <div class="chips chips-small" role="group" aria-label="Vælg apparat">
+            @foreach (var kind in HomeMachine.FrontKinds)
+            {
+                var k = kind;
+                <button class="chip @(m.Kind == k ? "on" : "")" aria-pressed="@(m.Kind == k)" @onclick="() => PickMachineAsync(k)">@HomeMachine.Fixed(k).Name</button>
+            }
         </div>
-        }
         @* Simple (user 2026-11-26: "needs to be more simple"): kWh, hours and the sum line are hidden with ShowDetails. *@
         @* User 2026-11-26: "price now. Kwh for the device =" - the kWh price now, then the machine's kWh = the cost. *@
         @* The same number as the "nu" column (the hour's price), not the single quarter - they disagreed (user 2026-11-26). *@
@@ -145,8 +145,12 @@ else
             <div class="now-device">Prisen nu: <b>@Kr(nowKr) kr pr. kWh</b></div>
         }
         @* Wording user 2026-11-26: "En opvaskemaskine som bruger ... eller lignende". *@
-        <div class="now-device">En @(m.IsWash ? "vaskemaskine" : "opvaskemaskine"), der bruger @Kwh(m.Kwh) kWh pr. @m.Run, koster nu:</div>
+        <div class="now-device">@(char.ToUpper(m.InSentence[0]) + m.InSentence[1..]), der bruger @Kwh(m.Kwh) kWh pr. @m.Run, koster nu:</div>
         <div class="now-price @lvl">@(run is null ? "–" : Kr(run.CostKr)) KR</div>
+        <div class="k-muted small u-center">@m.DependsOn</div>
+        @* The free app shows averages; your OWN devices are MinElpris (user 2026-11-26). A button, not a link. *@
+        <div class="small u-center u-mt6">Vil du se præcis, hvad <b>dine</b> apparater bruger?
+            <a class="k-btn k-btn-sm u-mt4" href="https://minelpris.itmartin.dk" target="_blank" rel="noopener">Se det i MinElpris</a></div>
         @* User 2026-11-26: "maybe like price in one hour, in two hours" - the same machine started later. *@
         @{ var in1 = _view.RunAt(QuarterNow().AddHours(1)); var in2 = _view.RunAt(QuarterNow().AddHours(2)); }
         @if (in1 is not null || in2 is not null)
@@ -159,17 +163,17 @@ else
             <div class="now-calc">@Kwh(m.Kwh) kWh × @Kr(run.AvgKrPerKwh) kr/kWh i snit over @Hours(m.Hours) = @Kr(run.CostKr) kr</div>
         }
         @* One line: the cheapest period before night (user 2026-11-26), the machine started while people are up (not 23-06). *@
-        @if (eveRun is { } eve && run is not null)
+        @if (m.CanWait && eveRun is { } eve && run is not null)
         {
             <div class="now-device">Billigst før natten: <b>@(eve.Start <= QuarterNow() ? "start nu" : $"kl. {eve.Start:HH:mm}–{eve.End:HH:mm}") · @Kr(eve.CostKr) kr</b></div>
         }
         @* Night, for a machine with a timer - said plainly: when, what it costs, and what to set the timer to (user 2026-11-26). *@
-        @if (_view.CheapestAtNight(QuarterNow()) is { } nightRun && run is not null && nightRun.CostKr < (eveRun?.CostKr ?? double.MaxValue))
+        @if (m.CanWait && _view.CheapestAtNight(QuarterNow()) is { } nightRun && run is not null && nightRun.CostKr < (eveRun?.CostKr ?? double.MaxValue))
         {
             <div class="now-device">Billigst i nat: <b>kl. @nightRun.Start.ToString("HH:mm")–@nightRun.End.ToString("HH:mm") · @Kr(nightRun.CostKr) kr</b></div>
             @if (nightRun.Start > QuarterNow())
             {
-                <div class="k-muted small u-center">Har maskinen en timer? Sæt den til <b>@Delay(nightRun.Start)</b> nu – så starter den selv kl. @nightRun.Start.ToString("HH:mm").</div>
+                <div class="k-muted small u-center">@(m.Kind is HomeMachine.BikeKind or HomeMachine.CarKind ? "Har laderen en timer?" : "Har maskinen en timer?") Sæt den til <b>@Delay(nightRun.Start)</b> nu – så starter den selv kl. @nightRun.Start.ToString("HH:mm").</div>
             }
         }
         <div class="now-verdict @lvl">@(run is null ? $"Priserne dækker ikke hele {m.Run}en endnu" : Verdict(rank))</div>
@@ -340,7 +344,7 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1)
     private HouseholdSettings _s => _view?.Settings ?? new();
     // The free app prices one machine at a time: the dishwasher or the washing machine (user 2026-10-20), with the
     // household's own hours and kWh from the cookie, each quarter at its own price.
-    private HomeMachine Current => _view?.Machine ?? HomeMachine.Dishwasher();
+    private HomeMachine Current => _view?.Machine ?? HomeMachine.Fixed(HomeMachine.DishKind);
 
     // "kl. 22:45", "i nat kl. 02:00", "i morgen kl. 13:15".
     private string StartAt(DateTime t) => $"{When(t)}:{t:mm}";
@@ -395,7 +399,7 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1)
     {
         _view = await Front.LoadAsync();
         // A phone that picked the washer before keeps getting the dishwasher (only machine on the free page now).
-        if (!ShowDetails && _view.Settings.Machine == HomeMachine.WashKind)
+        if (!HomeMachine.FrontKinds.Contains(_view.Settings.Machine))
         {
             _view.Settings.Machine = HomeMachine.DishKind;   // in memory only - no cookie write while prerendering
             _view = await Front.LoadAsync();
@@ -498,8 +502,16 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1)
     }
 
     // The current hour onwards, today and tomorrow in one strip.
-    private List<HourBar> Strip() =>
-        [.. (_snap?.Today?.Hours ?? []).Concat(_snap?.Tomorrow?.Hours ?? []).Where(h => !h.IsPast)];
+    // From now until the morning after the coming night (06:00), at least 12 and at most 16 hours - so the night is in view
+    // and each column has room for its price (user 2026-11-26: 30+ columns once tomorrow's prices are out was too crowded).
+    private List<HourBar> Strip()
+    {
+        var now = QuarterNow();
+        var morning = now.Date.AddHours(_s.QuietToHour);
+        if (morning <= now) morning = morning.AddDays(1);
+        var end = morning > now.AddHours(16) ? now.AddHours(16) : morning < now.AddHours(12) ? now.AddHours(12) : morning;
+        return [.. (_snap?.Today?.Hours ?? []).Concat(_snap?.Tomorrow?.Hours ?? []).Where(h => !h.IsPast && h.Start < end)];
+    }
 
     // "kl. 13" today, "i nat kl. 03", "i morgen kl. 14".
     private string When(DateTime t)
