@@ -269,7 +269,9 @@ else
             <h2 class="k-card-title">Time for time</h2>
             @* The hours the machine runs in are shaded, so a 2-hour run shows as more than one column (user 2026-11-24). *@
             @* Shaded: the tapped start's run - or, with nothing tapped, the cheapest period (user 2026-11-24). *@
-            @{ var runFrom = picked is not null ? start : mark is not null ? mark.Start : start; var runTo = runFrom.AddHours(m.Hours); }
+            @{ var runFrom = picked is not null ? start : mark is not null ? mark.Start : start; var runTo = runFrom.AddHours(m.Hours);
+               var runCols = strip.Count(x => x.Start < runTo && x.Start.AddHours(1) > runFrom);
+               var firstRunCol = strip.FirstOrDefault(x => x.Start < runTo && x.Start.AddHours(1) > runFrom)?.Start; }
             <div class="bars">
                 @foreach (var h in strip)
                 {
@@ -287,6 +289,11 @@ else
                             <span class="bar-val">@h.KrPerKwh.ToString("0.00", Da)</span>
 
                         </div>
+                        @* How long the shaded run is, written across the shaded columns (user 2026-11-26: "it should say 2 timer"). *@
+                        @if (h.Start == firstRunCol && runCols > 0)
+                        {
+                            <span class="run-len" style="--n:@runCols">@Hours(m.Hours)</span>
+                        }
                         @* The tag sits on the column, above every price (2026-11-26). *@
                         @* On the shaded period: when, and what the whole run costs there (user 2026-11-26: "it should say 1,79"). *@
                         @if (mark is not null && mark.Start > QuarterNow() && h.Start <= mark.Start && mark.Start < h.Start.AddHours(1))
