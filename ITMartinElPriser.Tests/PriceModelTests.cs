@@ -66,6 +66,22 @@ public class PriceModelTests
     }
 
     [Test]
+    public void Cheapest_at_night_starts_in_the_quiet_hours()
+    {
+        // Two days: tomorrow 02-04 is cheapest (0.20, Shape); today 21-23 is cheap too (0.50) but not night.
+        var raw = Day(Today, h => h is 21 or 22 ? 0.50 : 1.00).Concat(Day(Today.AddDays(1), Shape)).ToList();
+        var s = new HouseholdSettings { ShowAllIn = false, QuietFromHour = 23, QuietToHour = 6 };
+        var wash = new Appliance { Name = "Opvask", KwhPerRun = 1.0, DurationHours = 2 };
+
+        var night = PriceModel.CheapestAtNight(raw, s, wash, Today.ToDateTime(new TimeOnly(15, 0)));
+
+        night!.Start.Should().Be(Today.AddDays(1).ToDateTime(new TimeOnly(2, 0)));
+        night.CostKr.Should().Be(0.20);
+        PriceModel.CheapestAtNight(Day(Today, Shape), s, wash, Today.ToDateTime(new TimeOnly(15, 0)))
+            .Should().BeNull();   // tomorrow's prices not out: every night run passes midnight, so none is known
+    }
+
+    [Test]
     public void Hourly_data_still_gives_four_quarters_per_hour()
     {
         var raw = Day(Today, Shape).Where(p => p.TimeDk.Minute == 0).ToList();   // 24 hourly points

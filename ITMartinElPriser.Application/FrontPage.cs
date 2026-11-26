@@ -24,6 +24,10 @@ public sealed class NowView(HouseholdSettings settings, List<PricePoint> raw, Pr
     public RunOption? CheapestBeforeNight(DateTime from) =>
         raw.Count == 0 ? null : PriceModel.CheapestBeforeNight(raw, Settings, Machine.ToAppliance(), from);
 
+    /// <summary>The cheapest start during the coming night, for a machine with a timer. Null = night prices not out yet.</summary>
+    public RunOption? CheapestAtNight(DateTime from) =>
+        raw.Count == 0 ? null : PriceModel.CheapestAtNight(raw, Settings, Machine.ToAppliance(), from);
+
     public bool IsQuiet(DateTime t) => PriceModel.IsQuiet(t, Settings);
 }
 

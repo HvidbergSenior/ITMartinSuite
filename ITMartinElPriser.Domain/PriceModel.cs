@@ -211,6 +211,20 @@ public static class PriceModel
         return best;
     }
 
+    // The cheapest run that STARTS during the coming night (quiet hours, 23-06 by default) - for a machine with a timer
+    // (user 2026-11-26: "billigst during night ... if tidsindstille"). Null when the night's prices are not out yet.
+    public static RunOption? CheapestAtNight(List<PricePoint> raw, HouseholdSettings s, Appliance a, DateTime from)
+    {
+        var t = new DateTime(from.Year, from.Month, from.Day, from.Hour, from.Minute / SlotMinutes * SlotMinutes, 0);
+        var limit = t.AddDays(1);
+        while (!IsQuiet(t, s) && t < limit) t = t.AddMinutes(SlotMinutes);   // to the start of the night (or now, if night)
+        RunOption? best = null;
+        var points = Priced(raw, s);
+        for (; IsQuiet(t, s) && t < limit; t = t.AddMinutes(SlotMinutes))
+            if (CostOfRun(points, s.ShowAllIn, a, t) is { } o && (best is null || o.CostKr < best.CostKr)) best = o;
+        return best;
+    }
+
     // Best and worst start for this appliance on a given day (whole day, no
     // quiet-hour filter - it is "what could it have cost", not a suggestion).
     public static (RunOption? Cheapest, RunOption? Dearest) DayRange(List<PricePoint> raw, HouseholdSettings s, Appliance a, DateOnly day)

@@ -163,6 +163,15 @@ else
         {
             <div class="now-device">Billigst før natten: <b>@(eve.Start <= QuarterNow() ? "start nu" : $"kl. {eve.Start:HH:mm}–{eve.End:HH:mm}") · @Kr(eve.CostKr) kr</b></div>
         }
+        @* Night, for a machine with a timer - said plainly: when, what it costs, and what to set the timer to (user 2026-11-26). *@
+        @if (_view.CheapestAtNight(QuarterNow()) is { } nightRun && run is not null && nightRun.CostKr < (eveRun?.CostKr ?? double.MaxValue))
+        {
+            <div class="now-device">Billigst i nat: <b>kl. @nightRun.Start.ToString("HH:mm")–@nightRun.End.ToString("HH:mm") · @Kr(nightRun.CostKr) kr</b></div>
+            @if (nightRun.Start > QuarterNow())
+            {
+                <div class="k-muted small u-center">Har maskinen en timer? Sæt den til <b>@Delay(nightRun.Start)</b> nu – så starter den selv kl. @nightRun.Start.ToString("HH:mm").</div>
+            }
+        }
         <div class="now-verdict @lvl">@(run is null ? $"Priserne dækker ikke hele {m.Run}en endnu" : Verdict(rank))</div>
         @* "Billigst: start ..." + "Senere start" hidden (user 2026-11-26: "remove") - comes back with ShowDetails. *@
         @if (ShowDetails && best is not null && run is not null)
