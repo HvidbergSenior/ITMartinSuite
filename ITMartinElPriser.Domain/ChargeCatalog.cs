@@ -46,6 +46,9 @@ public sealed record CarModel(string Name, double KwhPer100Km);
 public static class ChargeCatalog
 {
     private static readonly DateOnly Oct1 = new(2026, 10, 1);
+    // Read on the companies' own pages 2026-11-26 (clever.dk/ladeloesninger, norlys.dk/opladning/oplad-hjemme + oplad-ude).
+    // Clever merges with Andel Energi A/S on 30.11.2026 - names/prices may change after that.
+    private static readonly DateOnly Nov26 = new(2026, 11, 26);
 
     private static Dictionary<ChargeSpot, double> P(params (ChargeSpot s, double kr)[] p) => p.ToDictionary(x => x.s, x => x.kr);
 
@@ -65,33 +68,45 @@ public static class ChargeCatalog
     [
         new("clever-one", "Clever", "Clever One uden ladeboks", "Fri opladning", 999,
             P((ChargeSpot.Offentlig, 0), (ChargeSpot.Lyn, 0)),
-            "Fri opladning på Clevers net (60.000+ ladepunkter). Energitillæg, når strømmen er dyr (0,29 kr./kWh i august 2026).",
-            "https://clever.dk/ladeloesninger/", Oct1)
+            "Fri opladning på Clevers net og partnerladere. Energitillæg, når strømmen er dyr (0,29 kr./kWh i august 2026). 2 mdr. binding (mindstepris 1.998 kr.).",
+            "https://clever.dk/ladeloesninger/", Nov26)
         { SurchargePerKwh = 0.29, HybridMonthlyFee = 499, CoversForeningIfOperator = "clever" },
 
         new("clever-one-box", "Clever", "Clever One med ladeboks", "Fri opladning", 849,
             P((ChargeSpot.Hjem, 0), (ChargeSpot.Offentlig, 0), (ChargeSpot.Lyn, 0)),
-            "Fri opladning hjemme og på Clevers net, ladeboks inkl. Energitillæg når strømmen er dyr.",
-            "https://clever.dk/ladeloesninger/", Oct1)
+            "Fri opladning hjemme og på Clevers net (også lyn), ladeboks inkl. + Clever Power elaftale 59 kr./md. Energitillæg når strømmen er dyr. 6 mdr. binding (mindstepris 8.093 kr.).",
+            "https://clever.dk/ladeloesninger/", Nov26)
         { SurchargePerKwh = 0.29, OneOff = 2999, ProvidesHomeBox = true, CoversForeningIfOperator = "clever" },
 
         new("clever-you", "Clever", "Clever You", "Ladeboks", 240,
             P((ChargeSpot.Hjem, 0)),
-            "Leje af ladeboks; hjemme betaler du den aktuelle strømpris. Ude: Clever Go-priser. 6 mdr. binding (mindstepris 4.439 kr.).",
-            "https://clever.dk/ladeloesninger/", Oct1)
+            "Leje af ladeboks; hjemme og ude betaler du den aktuelle strømpris. + Clever Power elaftale 59 kr./md. 6 mdr. binding (mindstepris 4.439 kr.).",
+            "https://clever.dk/ladeloesninger/", Nov26)
         { HomeAtOwnPrice = true, OneOff = 2999, ProvidesHomeBox = true },
+
+        new("clever-box", "Clever", "Clever Box (købt ladeboks)", "Ladeboks", 49,
+            P((ChargeSpot.Hjem, 0)),
+            "Du køber boksen (8.999 kr. inkl. standardinstallation) og betaler serviceaftale; hjemme din strømpris, rabat på Clevers offentlige ladere. + Clever Power 59 kr./md. 6 mdr. binding (mindstepris 9.293 kr.).",
+            "https://clever.dk/ladeloesninger/", Nov26)
+        { HomeAtOwnPrice = true, OneOff = 8999, ProvidesHomeBox = true },
 
         new("norlys-ude-15", "Norlys", "Norlys Oplad Ude 15", "Abonnement", 499,
             P((ChargeSpot.Offentlig, 2.99), (ChargeSpot.Lyn, 3.29)),
-            "250 kWh om måneden på Norlys' offentlige ladere; derover normal pris. Energitillæg, når strømmen i snit er over 0,89 kr./kWh.",
-            "https://mobilsiden.dk/?p=256568", new(2026, 1, 29))
+            "250 kWh om måneden (ca. 15.000 km/år) på Norlys' offentlige ladere; derover normal pris. Energitillæg, når strømmen i snit er over 0,89 kr./kWh. Ingen binding, 1 mdr. opsigelse.",
+            "https://norlys.dk/opladning/oplad-ude/", Nov26)
         { IncludedKwh = 250 },
 
         new("norlys-ude-25", "Norlys", "Norlys Oplad Ude 25", "Abonnement", 699,
             P((ChargeSpot.Offentlig, 2.99), (ChargeSpot.Lyn, 3.29)),
-            "400 kWh om måneden på Norlys' offentlige ladere; derover normal pris. Energitillæg, når strømmen i snit er over 0,89 kr./kWh.",
-            "https://mobilsiden.dk/?p=256568", new(2026, 1, 29))
+            "400 kWh om måneden (ca. 25.000 km/år) på Norlys' offentlige ladere; derover normal pris. Energitillæg, når strømmen i snit er over 0,89 kr./kWh. Ingen binding, 1 mdr. opsigelse.",
+            "https://norlys.dk/opladning/oplad-ude/", Nov26)
         { IncludedKwh = 400 },
+
+        new("norlys-hjem-lej", "Norlys", "Norlys Oplad Hjemme (lejet boks, med elaftale)", "Ladeboks", 169,
+            P((ChargeSpot.Hjem, 0)),
+            "Lejet ladeboks; hjemme din strømpris. 20 % rabat på Norlys' egne offentlige ladere. Uden Norlys-elaftale 219 kr./md. og installation 4.995 kr. Tilbud t.o.m. 30.11.2026, 6 mdr. binding.",
+            "https://norlys.dk/opladning/oplad-hjemme/", Nov26)
+        { HomeAtOwnPrice = true, OneOff = 899, ProvidesHomeBox = true },
 
         new("ok-hjem", "OK", "OK ladeboks (leje og service)", "Ladeboks", 169,
             P((ChargeSpot.Hjem, 0), (ChargeSpot.Offentlig, 3.00), (ChargeSpot.Lyn, 3.00)),
