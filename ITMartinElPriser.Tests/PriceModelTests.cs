@@ -50,6 +50,22 @@ public class PriceModelTests
     }
 
     [Test]
+    public void Cheapest_before_night_is_done_by_23()
+    {
+        // 21-23 costs 0.50, 22-24 would be cheaper (0.10 from 23) but runs into the night.
+        var raw = Day(Today, h => h switch { 21 or 22 => 0.50, 23 => 0.10, _ => 1.00 });
+        var s = new HouseholdSettings { ShowAllIn = false, QuietFromHour = 23, QuietToHour = 6 };
+        var wash = new Appliance { Name = "Opvask", KwhPerRun = 1.0, DurationHours = 2 };
+
+        var eve = PriceModel.CheapestBeforeNight(raw, s, wash, Today.ToDateTime(new TimeOnly(15, 5)));
+
+        eve!.Start.Should().Be(Today.ToDateTime(new TimeOnly(21, 0)));
+        eve.End.Should().Be(Today.ToDateTime(new TimeOnly(23, 0)));
+        PriceModel.CheapestBeforeNight(raw, s, wash, Today.ToDateTime(new TimeOnly(23, 10))).Should().BeNull();   // night already
+        PriceModel.CheapestBeforeNight(raw, s, wash, Today.ToDateTime(new TimeOnly(21, 30))).Should().BeNull();   // no 2 h left
+    }
+
+    [Test]
     public void Hourly_data_still_gives_four_quarters_per_hour()
     {
         var raw = Day(Today, Shape).Where(p => p.TimeDk.Minute == 0).ToList();   // 24 hourly points

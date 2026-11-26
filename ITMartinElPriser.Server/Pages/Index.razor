@@ -155,6 +155,11 @@ else
             @* The sum behind the big number, in a neutral colour (never fighting the verdict's colour). *@
             <div class="now-calc">@Kwh(m.Kwh) kWh × @Kr(run.AvgKrPerKwh) kr/kWh i snit over @Hours(m.Hours) = @Kr(run.CostKr) kr</div>
         }
+        @* One line: the cheapest period before night (user 2026-11-26), the machine started while people are up (not 23-06). *@
+        @if (_view.CheapestBeforeNight(QuarterNow()) is { } eve && run is not null)
+        {
+            <div class="now-device">Billigst før natten: <b>@(eve.Start <= QuarterNow() ? "start nu" : $"kl. {eve.Start:HH:mm}–{eve.End:HH:mm}") · @Kr(eve.CostKr) kr</b></div>
+        }
         <div class="now-verdict @lvl">@(run is null ? $"Priserne dækker ikke hele {m.Run}en endnu" : Verdict(rank))</div>
         @* "Billigst: start ..." + "Senere start" hidden (user 2026-11-26: "remove") - comes back with ShowDetails. *@
         @if (ShowDetails && best is not null && run is not null)
@@ -233,30 +238,30 @@ else
                     <span class="@(label.Length > 2 ? "axis-word" : "")">@label</span>
                 }
             </div>
-            <div class="k-muted small u-mt6 u-center">Kr pr. kWh · hver søjle er snittet af timens 4 kvarter. Grøn = billig · rød = dyr · skraveret = billigst. Tryk på en søjle for en anden starttid.</div>
             @* Each column's numbers in words (user 2026-11-24: "each column, how much"): the tapped hour, or now. *@
             @* Start time and the whole run first; the hour's own kWh price last (user 2026-11-24: "20-21?" was confusing). *@
             @{ var shown = picked ?? strip.FirstOrDefault(h => h.IsNow); var shownRun = picked is null ? run : pickedRun;
                var from = picked is null ? QuarterNow() : start; }
             @if (shown is not null)
             {
-                <div class="small u-mt6 u-center">
+                <div class="small u-mt4 u-center">
                     @if (shownRun is null)
                     {
                         <text><b>Start @(picked is null ? "nu" : StartAt(from))</b>: priserne dækker ikke hele @(Current.Run)en endnu.</text>
                     }
                     else
                     {
-                        <text><b>Start @(picked is null ? "nu" : StartAt(from))</b> – færdig kl. @from.AddHours(m.Hours).ToString("HH:mm") – koster <b>@Kr(shownRun.CostKr) kr</b></text>
+                        @* Closer to the columns, no dashes (user 2026-11-26). *@
+                        <text><b>Start @(picked is null ? "nu" : StartAt(from))</b> · færdig kl. @from.AddHours(m.Hours).ToString("HH:mm") · <b>@Kr(shownRun.CostKr) kr</b></text>
                         @if (picked is not null && run is not null)
                         {
                             var diff = shownRun.CostKr - run.CostKr;
-                            <text>, <b>@(Math.Abs(diff) < 0.01 ? "det samme som nu" : diff < 0 ? $"{Kr(-diff)} kr billigere end nu" : $"{Kr(diff)} kr dyrere end nu")</b></text>
+                            <text> · <b>@(Math.Abs(diff) < 0.01 ? "det samme som nu" : diff < 0 ? $"{Kr(-diff)} kr billigere end nu" : $"{Kr(diff)} kr dyrere end nu")</b></text>
                         }
-                        <text>.</text>
                     }
                 </div>
             }
+            <div class="k-muted small u-mt6 u-center">Kr pr. kWh · hver søjle er snittet af timens 4 kvarter.</div>
             @if (picked is not null)
             {
                 <div class="k-muted small u-mt6 u-center">Tryk igen for at gå tilbage til nu.</div>
