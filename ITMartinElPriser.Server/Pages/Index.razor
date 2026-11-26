@@ -145,7 +145,7 @@ else
             <div class="now-device">Prisen nu: <b>@Kr(nowKr) kr pr. kWh</b></div>
         }
         @* Wording user 2026-11-26: "En opvaskemaskine som bruger ... eller lignende". *@
-        <div class="now-device">@(char.ToUpper(m.InSentence[0]) + m.InSentence[1..]), der bruger @Kwh(m.Kwh) kWh pr. @m.Run, koster nu:</div>
+        <div class="now-device">@(char.ToUpper(m.InSentence[0]) + m.InSentence[1..]), der bruger @Kwh(m.Kwh) kWh @m.Amount, koster nu:</div>
         <div class="now-price @lvl">@(run is null ? "–" : Kr(run.CostKr)) KR</div>
         <div class="k-muted small u-center">@m.DependsOn</div>
         @* The free app shows averages; your OWN devices are MinElpris (user 2026-11-26). A button, not a link. *@
@@ -176,7 +176,7 @@ else
                 <div class="k-muted small u-center">@(m.Kind is HomeMachine.BikeKind or HomeMachine.CarKind ? "Har laderen en timer?" : "Har maskinen en timer?") Sæt den til <b>@Delay(nightRun.Start)</b> nu – så starter den selv kl. @nightRun.Start.ToString("HH:mm").</div>
             }
         }
-        <div class="now-verdict @lvl">@(run is null ? $"Priserne dækker ikke hele {m.Run}en endnu" : Verdict(rank))</div>
+        <div class="now-verdict @lvl">@(run is null ? "Priserne dækker ikke hele perioden endnu" : Verdict(rank))</div>
         @* "Billigst: start ..." + "Senere start" hidden (user 2026-11-26: "remove") - comes back with ShowDetails. *@
         @if (ShowDetails && best is not null && run is not null)
         {
@@ -264,7 +264,7 @@ else
                 <div class="small u-mt4 u-center">
                     @if (shownRun is null)
                     {
-                        <text><b>Start @(picked is null ? "nu" : StartAt(from))</b>: priserne dækker ikke hele @(Current.Run)en endnu.</text>
+                        <text><b>Start @(picked is null ? "nu" : StartAt(from))</b>: priserne dækker ikke hele perioden endnu.</text>
                     }
                     else
                     {

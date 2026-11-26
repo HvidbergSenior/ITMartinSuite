@@ -244,10 +244,11 @@ public sealed class HomeMachine
     public static HomeMachine Fixed(string kind) => kind switch
     {
         WashKind => WashingMachine(),
-        // Typical figures (DeviceCatalog): an e-bike battery ~0.5 kWh charged in ~4 h; an EV topped up with 30 kWh on an
-        // 11 kW home charger (~3 h); a kettle boiling 1 litre ~0.12 kWh in a few minutes (one quarter on the price grid).
+        // An exact amount each (user 2026-11-26: "pr opladning is diffuse ... a vaskemaskine has an exact amount"):
+        // e-bike = one full charge from empty, a ~0.5 kWh battery in ~4 h; EV = 100 km at ~18 kWh (a typical family car,
+        // all year), ~2 h on an 11 kW home charger; kettle = 1 litre ~0.12 kWh, one quarter on the price grid.
         BikeKind => new() { Kind = BikeKind, Hours = 4, Kwh = 0.5 },
-        CarKind => new() { Kind = CarKind, Hours = 3, Kwh = 30 },
+        CarKind => new() { Kind = CarKind, Hours = 2, Kwh = 18 },
         KettleKind => new() { Kind = KettleKind, Hours = 0.25, Kwh = 0.12 },
         // A typical dishwasher a few years old, normal use - not the one new Bosch on Eco (0.54 kWh). User 2026-11-26: "like average
         // but also that it depends" + "devices that are more than 2-3 years old". Older labels ~0.9-1.1 Eco, normal ~1.2.
@@ -257,8 +258,8 @@ public sealed class HomeMachine
     /// <summary>What the average depends on, said in one short line under the number.</summary>
     public string DependsOn => Kind switch
     {
-        BikeKind => "Et gennemsnit – det afhænger af batteriet (ca. 0,3–0,7 kWh), og et ældre batteri tager lidt mere.",
-        CarKind => "Et gennemsnit – det afhænger af, hvor meget bilen skal lade.",
+        BikeKind => "Et gennemsnit – det afhænger af batteriet (ca. 0,3–0,7 kWh).",
+        CarKind => "Et gennemsnit – en større bil og vinterkørsel bruger mere.",
         KettleKind => "Pr. liter – mere vand, mere strøm.",
         WashKind => "Et gennemsnit – 30° bruger ca. 0,4 kWh, 60° ca. 1,2 kWh.",
         // No "Eco" (user 2026-11-26: "dont use eco").
@@ -268,7 +269,12 @@ public sealed class HomeMachine
     public bool IsWash => Kind == WashKind;
     public string Name => Kind switch { WashKind => "Vaskemaskine", BikeKind => "Elcykel", CarKind => "Elbil", KettleKind => "Elkedel", _ => "Opvaskemaskine" };
     // "én vask" / "én opvask" / "én opladning"
-    public string Run => Kind switch { WashKind => "vask", BikeKind or CarKind => "opladning", KettleKind => "liter vand", _ => "opvask" };
+    public string Run => Kind switch { WashKind => "vask", BikeKind => "opladning", CarKind => "100 km", KettleKind => "liter vand", _ => "opvask" };
+    /// <summary>The exact amount the kWh is for: "pr. opvask", "til 100 km", "fra tom til fuld".</summary>
+    public string Amount => Kind switch
+    {
+        BikeKind => "fra tom til fuld", CarKind => "til 100 km", KettleKind => "pr. liter vand", WashKind => "pr. vask", _ => "pr. opvask",
+    };
     /// <summary>"en opvaskemaskine" - the device in a sentence.</summary>
     public string InSentence => Kind switch { WashKind => "en vaskemaskine", BikeKind => "en elcykel", CarKind => "en elbil", KettleKind => "en elkedel", _ => "en opvaskemaskine" };
     /// <summary>Something you would start later (a timer, a charger) - not a kettle you need now.</summary>
