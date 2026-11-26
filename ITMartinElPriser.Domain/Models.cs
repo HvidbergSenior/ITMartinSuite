@@ -223,8 +223,9 @@ public sealed class RunEntry
 public sealed record EvExample(string Name, double KwhPer100Km)
 {
     // Just a small and a big car and the difference (user 2026-11-26: "just show elbil small car and big car and the difference").
-    public static readonly EvExample Small = new("Lille (fx Tesla Model 3)", 15);
-    public static readonly EvExample Big = new("Stor (fx Audi Q8 e-tron)", 24);
+    // From the wall, incl. ~10 % charging loss like the 20 kWh standard (15 and 24 in the car).
+    public static readonly EvExample Small = new("Lille (fx Tesla Model 3)", 16.5);
+    public static readonly EvExample Big = new("Stor (fx Audi Q8 e-tron)", 26.5);
 
     /// <summary>Cold (around 0 °C vs ~20 °C): heating and a cold battery - typically 20-40 % more; the middle is used.
     /// It is the temperature, not the season (user 2026-11-26).</summary>
@@ -283,8 +284,9 @@ public sealed class HomeMachine
         // e-bike = one full charge from empty, a ~0.5 kWh battery in ~4 h; EV = 100 km at ~18 kWh (a typical family car,
         // all year), ~2 h on an 11 kW home charger; kettle = 1 litre ~0.12 kWh, one quarter on the price grid.
         BikeKind => new() { Kind = BikeKind, Hours = 4, Kwh = 0.5 },
-        // Time from the charger (user 2026-11-26: "more precise"): 18 kWh / 11 kW = 1 t 38 min -> 1 t 45 min on the quarter grid.
-        CarKind => new() { Kind = CarKind, Hours = QuarterHours(18 / HomeChargerKw), Kwh = 18 },
+        // 100 km = 20 kWh FROM THE WALL (18 in the car + ~10 % charging loss) - what you pay for (user 2026-11-26: "yes").
+        // Time from the charger: 20 kWh / 11 kW = 1 t 49 min -> 2 timer on the quarter grid.
+        CarKind => new() { Kind = CarKind, Hours = QuarterHours(20 / HomeChargerKw), Kwh = 20 },
         KettleKind => new() { Kind = KettleKind, Hours = 0.25, Kwh = 0.12 },
         // A typical dishwasher a few years old, normal use - not the one new Bosch on Eco (0.54 kWh). User 2026-11-26: "like average
         // but also that it depends" + "devices that are more than 2-3 years old". Older labels ~0.9-1.1 Eco, normal ~1.2.

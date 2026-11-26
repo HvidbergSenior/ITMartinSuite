@@ -140,11 +140,16 @@ else
             }
         </div>
         @* Fewer words (user 2026-11-26). *@
-        <div class="now-device">@m.Name · @Kwh(m.Kwh) kWh @m.Amount i @Hours(m.Hours)</div>
         @if (m.Kind == HomeMachine.CarKind)
         {
-            @* A full charge for comparison (10 -> 80 % of a typical 70 kWh battery = 49 kWh), same charger. *@
-            <div class="k-muted small u-center">Fuld opladning (10 → 80 %, ca. 49 kWh): ca. @Hours(HomeMachine.QuarterHours(49 / HomeMachine.HomeChargerKw))</div>
+            @* Turned around so it reads naturally (user 2026-11-26): "100 km kørsel = 20 kWh". *@
+            <div class="now-device">Elbil · 100 km kørsel = @Kwh(m.Kwh) kWh · @Hours(m.Hours) på @HomeMachine.HomeChargerKw kW ladeboks</div>
+            @* A full charge for comparison: 10 -> 80 % of a typical 70 kWh battery = 49 kWh in the car, ~54 kWh from the wall. *@
+            <div class="k-muted small u-center">Fuld opladning (10 → 80 %, ca. 54 kWh): ca. @Hours(HomeMachine.QuarterHours(54 / HomeMachine.HomeChargerKw))</div>
+        }
+        else
+        {
+            <div class="now-device">@m.Name · @Kwh(m.Kwh) kWh @m.Amount i @Hours(m.Hours)</div>
         }
         <div class="now-price @lvl">@(run is null ? "–" : Kr(run.CostKr)) KR</div>
         @* Only the cheapest (user 2026-11-26: "Billigst only"): before night or tonight, whichever is cheaper; the timer line
