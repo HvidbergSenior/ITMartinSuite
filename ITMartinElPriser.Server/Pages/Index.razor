@@ -109,7 +109,9 @@ else
     var awake = _view.Cheapest(QuarterNow(), night: false);
     // The period the page points at (user 2026-11-26): cheapest before night, done by 23:00; at night, the cheapest from now on.
     var eveRun = _view.CheapestBeforeNight(QuarterNow());
-    var mark = eveRun ?? best;
+    var nightRun = _view.CheapestAtNight(QuarterNow());
+    var cheapestRun = new[] { eveRun, nightRun }.Where(r => r is not null).MinBy(r => r!.CostKr);
+    var mark = cheapestRun ?? best;
     var hasTomorrow = _snap.Tomorrow?.Hours.Count > 0;
     var m = Current;
     <section class="k-card now-tile @lvl">
@@ -154,24 +156,14 @@ else
             <div class="now-calc">@Kwh(m.Kwh) kWh × @Kr(perKwh) kr/kWh @(Math.Abs(Math.Round(perKwh * m.Kwh, 2) - run.CostKr) < 0.005 ? "=" : "≈") @Kr(run.CostKr) kr</div>
         }
         <div class="k-muted small u-center">@m.DependsOn</div>
-        @* User 2026-11-26: "maybe like price in one hour, in two hours" - the same machine started later. *@
-        @{ var in1 = _view.RunAt(QuarterNow().AddHours(1)); var in2 = _view.RunAt(QuarterNow().AddHours(2)); }
-        @if (in1 is not null || in2 is not null)
+        @* Only the cheapest (user 2026-11-26: "Billigst only"): before night or tonight, whichever is cheaper; the timer line
+           only when it is at night. *@
+        @if (m.CanWait && cheapestRun is { } cr && run is not null && cr.CostKr < run.CostKr)
         {
-            <div class="now-device">@(in1 is null ? "" : $"Om 1 t: {Kr(in1.CostKr)} kr")@(in1 is not null && in2 is not null ? " · " : "")@(in2 is null ? "" : $"Om 2 t: {Kr(in2.CostKr)} kr")</div>
-        }
-        @* One line: the cheapest period before night (user 2026-11-26), the machine started while people are up (not 23-06). *@
-        @if (m.CanWait && eveRun is { } eve && run is not null)
-        {
-            <div class="now-device">Før natten: <b>@(eve.Start <= QuarterNow() ? "nu" : $"kl. {eve.Start:HH:mm}") · @Kr(eve.CostKr) kr</b></div>
-        }
-        @* Night, for a machine with a timer - said plainly: when, what it costs, and what to set the timer to (user 2026-11-26). *@
-        @if (m.CanWait && _view.CheapestAtNight(QuarterNow()) is { } nightRun && run is not null && nightRun.CostKr < (eveRun?.CostKr ?? double.MaxValue))
-        {
-            <div class="now-device">I nat: <b>kl. @nightRun.Start.ToString("HH:mm") · @Kr(nightRun.CostKr) kr</b></div>
-            @if (nightRun.Start > QuarterNow())
+            <div class="now-device">Billigst: <b>kl. @cr.Start.ToString("HH:mm") · @Kr(cr.CostKr) kr</b></div>
+            @if (_view.IsQuiet(cr.Start) && cr.Start > QuarterNow())
             {
-                <div class="k-muted small u-center">Timer: sæt den til <b>@Delay(nightRun.Start)</b>.</div>
+                <div class="k-muted small u-center">Timer: sæt den til <b>@Delay(cr.Start)</b>.</div>
             }
         }
         <div class="now-verdict @lvl">@(run is null ? "Priserne dækker ikke hele perioden endnu" : Verdict(rank))</div>
@@ -215,7 +207,7 @@ else
     @* Elbil teaser (user 2026-11-26): a few common cars, what 100 km costs now and at night, and what winter does - in kr only. *@
     @if (m.Kind == HomeMachine.CarKind && run is not null)
     {
-        var cheap = _view.CheapestAtNight(QuarterNow()) ?? eveRun;
+        var cheap = cheapestRun;
         var cheapLabel = cheap is null ? "" : cheap == eveRun ? "Før natten" : "I nat";
         <section class="k-card">
             <h2 class="k-card-title">Hvad koster 100 km?</h2>
