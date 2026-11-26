@@ -165,6 +165,9 @@ else
         {
             <div class="k-muted small u-center">Morgendagens priser kommer ca. kl. 13.</div>
         }
+        @* Not changeable on the free app - just said what the price is based on (user 2026-11-26). *@
+        @{ var supplierShown = _s.SupplierId == SupplierPreset.Typical.Id ? "typisk elselskab" : FrontPageUseCases.SupplierName(_s) is { Length: > 0 } sup ? sup : "uden elselskabets tillæg"; }
+        <div class="k-muted small u-center u-mt6">Baseret på @(_gridName.Length > 0 ? $"{_gridName} ({_postal})" : "typisk netselskab") · @supplierShown · med moms og afgifter</div>
     </section>
 
     @if (strip.Count > 0)
