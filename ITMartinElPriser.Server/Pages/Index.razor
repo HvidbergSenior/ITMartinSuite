@@ -264,10 +264,12 @@ else
                 </table>
             </div>
             <p class="k-muted small u-mt8">100 km ladet nu. Det er temperaturen, der tæller: ved 0 °C bruger bilen ca. 30 % mere (varme og koldt batteri), ved 130 km/t ca. 25 % mere.@(cheap is null ? "" : $" {cheapLabel}: 20 °C, ladet på den billige tid.")</p>
-            @* User 2026-11-26: "Do you want to know EXACTLY what your el car and solution should be? contact itmartin".
-               Later: the paid Elbil app (its own app, not ElPriser/MinElpris). *@
-            <div class="small u-center u-mt6">Vil du vide <b>præcist</b>, hvilken elbil og ladeløsning der passer til jer?
-                <a class="k-btn k-btn-sm u-mt4" href="mailto:ITMartin@Mensa.dk?subject=Elbil%20og%20lade%C3%B8sning">Kontakt ITMartin</a></div>
+            @* The span, simple (user 2026-11-26), then "You wanna know where in this specter your car lies?". *@
+            <p class="small u-mt8"><b>Fra billigst til dyrest</b> for 100 km ladet nu:<br />
+                lille bil, 110 km/t, mildt vejr: <b>@(EvKr(EvExample.Small, run, m.Kwh, EvExample.BestFactor)) kr</b> ·
+                stor bil, 130 km/t, frost: <b>@(EvKr(EvExample.Big, run, m.Kwh, EvExample.WorstFactor)) kr</b></p>
+            <div class="small u-center u-mt6">Vil du vide, hvor <b>jeres</b> bil ligger i det spænd?
+                <a class="k-btn k-btn-sm u-mt4" href="mailto:ITMartin@Mensa.dk?subject=Hvor%20ligger%20vores%20elbil%3F">Kontakt ITMartin</a></div>
         </section>
     }
 

@@ -233,6 +233,11 @@ public sealed record EvExample(string Name, double KwhPer100Km)
     /// <summary>Motorway at ~130 km/t vs mixed driving: typically 20-30 % more; the middle is used (user 2026-11-26: "speed").</summary>
     public const double MotorwayFactor = 1.25;
 
+    /// <summary>The span (user 2026-11-26): best = small car, 110 km/t (+10 %), mild ~10 °C (+10 %);
+    /// worst = big car, 130 km/t (+25 %), frost ~-5 °C (+35 %). Typical factors, not measured on these cars.</summary>
+    public const double BestFactor = 1.1 * 1.1;
+    public const double WorstFactor = 1.25 * 1.35;
+
     /// <summary>What 100 km costs for this car, scaled from the price of the standard 18 kWh / 100 km at the same time.</summary>
     public double CostKr(RunOption standard, double standardKwh) => standard.CostKr * KwhPer100Km / standardKwh;
 }
