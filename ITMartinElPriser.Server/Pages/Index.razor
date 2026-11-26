@@ -142,17 +142,17 @@ else
         @* The same number as the "nu" column (the hour's price), not the single quarter - they disagreed (user 2026-11-26). *@
         @if ((strip.FirstOrDefault(h => h.IsNow)?.KrPerKwh ?? _snap.NowKrPerKwh) is { } nowKr)
         {
-            <div class="now-device">Prisen nu: <b>@Kr(nowKr) kr pr. kWh</b></div>
+            <div class="now-device">Prisen nu: <b>@Kr(nowKr) kr/kWh</b></div>
         }
-        @* Wording user 2026-11-26: "En opvaskemaskine som bruger ... eller lignende". *@
-        <div class="now-device">@(char.ToUpper(m.InSentence[0]) + m.InSentence[1..]), der bruger @Kwh(m.Kwh) kWh @m.Amount, koster nu:</div>
+        @* Fewer words (user 2026-11-26). *@
+        <div class="now-device">@m.Name · @Kwh(m.Kwh) kWh @m.Amount</div>
         <div class="now-price @lvl">@(run is null ? "–" : Kr(run.CostKr)) KR</div>
         <div class="k-muted small u-center">@m.DependsOn</div>
         @* User 2026-11-26: "maybe like price in one hour, in two hours" - the same machine started later. *@
         @{ var in1 = _view.RunAt(QuarterNow().AddHours(1)); var in2 = _view.RunAt(QuarterNow().AddHours(2)); }
         @if (in1 is not null || in2 is not null)
         {
-            <div class="now-device">@(in1 is null ? "" : $"Om 1 time: {Kr(in1.CostKr)} kr")@(in1 is not null && in2 is not null ? " · " : "")@(in2 is null ? "" : $"Om 2 timer: {Kr(in2.CostKr)} kr")</div>
+            <div class="now-device">@(in1 is null ? "" : $"Om 1 t: {Kr(in1.CostKr)} kr")@(in1 is not null && in2 is not null ? " · " : "")@(in2 is null ? "" : $"Om 2 t: {Kr(in2.CostKr)} kr")</div>
         }
         @if (ShowDetails && run is not null)
         {
@@ -162,15 +162,15 @@ else
         @* One line: the cheapest period before night (user 2026-11-26), the machine started while people are up (not 23-06). *@
         @if (m.CanWait && eveRun is { } eve && run is not null)
         {
-            <div class="now-device">Billigst før natten: <b>@(eve.Start <= QuarterNow() ? "start nu" : $"kl. {eve.Start:HH:mm}–{eve.End:HH:mm}") · @Kr(eve.CostKr) kr</b></div>
+            <div class="now-device">Før natten: <b>@(eve.Start <= QuarterNow() ? "nu" : $"kl. {eve.Start:HH:mm}") · @Kr(eve.CostKr) kr</b></div>
         }
         @* Night, for a machine with a timer - said plainly: when, what it costs, and what to set the timer to (user 2026-11-26). *@
         @if (m.CanWait && _view.CheapestAtNight(QuarterNow()) is { } nightRun && run is not null && nightRun.CostKr < (eveRun?.CostKr ?? double.MaxValue))
         {
-            <div class="now-device">Billigst i nat: <b>kl. @nightRun.Start.ToString("HH:mm")–@nightRun.End.ToString("HH:mm") · @Kr(nightRun.CostKr) kr</b></div>
+            <div class="now-device">I nat: <b>kl. @nightRun.Start.ToString("HH:mm") · @Kr(nightRun.CostKr) kr</b></div>
             @if (nightRun.Start > QuarterNow())
             {
-                <div class="k-muted small u-center">@(m.Kind is HomeMachine.BikeKind or HomeMachine.CarKind ? "Har laderen en timer?" : "Har maskinen en timer?") Sæt den til <b>@Delay(nightRun.Start)</b> nu – så starter den selv kl. @nightRun.Start.ToString("HH:mm").</div>
+                <div class="k-muted small u-center">Timer: sæt den til <b>@Delay(nightRun.Start)</b>.</div>
             }
         }
         <div class="now-verdict @lvl">@(run is null ? "Priserne dækker ikke hele perioden endnu" : Verdict(rank))</div>

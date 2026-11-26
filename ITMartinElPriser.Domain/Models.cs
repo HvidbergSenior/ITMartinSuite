@@ -283,12 +283,12 @@ public sealed class HomeMachine
     /// <summary>What the average depends on, said in one short line under the number.</summary>
     public string DependsOn => Kind switch
     {
-        BikeKind => "Et gennemsnit – det afhænger af batteriet (ca. 0,3–0,7 kWh).",
-        CarKind => "Et gennemsnit – en større bil og vinterkørsel bruger mere.",
+        BikeKind => "Gennemsnit – afhænger af batteriet.",
+        CarKind => "Gennemsnit – stor bil og kulde bruger mere.",
         KettleKind => "Pr. liter – mere vand, mere strøm.",
-        WashKind => "Et gennemsnit – 30° bruger ca. 0,4 kWh, 60° ca. 1,2 kWh.",
+        WashKind => "Gennemsnit – afhænger af temperaturen.",
         // No "Eco" (user 2026-11-26: "dont use eco").
-        _ => "Et gennemsnit for en maskine på nogle år – det afhænger af maskinen og programmet.",
+        _ => "Gennemsnit – afhænger af maskine og program.",
     };
 
     public bool IsWash => Kind == WashKind;
