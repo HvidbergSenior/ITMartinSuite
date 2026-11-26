@@ -19,6 +19,9 @@ public sealed class DayView
 {
     public required DateOnly Date { get; init; }
     public required List<HourBar> Hours { get; init; }
+    // The same day in 15-minute steps (prices change every quarter; user 2026-11-26 "add quarterly").
+    // Start = the quarter's start; IsNow/IsPast/Rank01 are per quarter, Rank01 on the day's quarter min/max.
+    public List<HourBar> Quarters { get; init; } = [];
     public required double Min { get; init; }
     public required double Max { get; init; }
     public required double Avg { get; init; }
@@ -99,7 +102,23 @@ public static class PriceModel
             IsPast: h.Start.AddHours(1) <= now,
             Rank01: max > min ? (h.Price - min) / (max - min) : 0.5)).ToList();
 
-        return new DayView { Date = date, Hours = bars, Min = min, Max = max, Avg = hours.Average(h => h.Price) };
+        var quarters = day.GroupBy(p => new DateTime(p.TimeDk.Year, p.TimeDk.Month, p.TimeDk.Day, p.TimeDk.Hour, p.TimeDk.Minute / SlotMinutes * SlotMinutes, 0))
+            .Select(g => (Start: g.Key, Price: g.Average(p => p.KrPerKwh(allIn))))
+            .ToList();
+        // Hourly data (older days): each hour becomes 4 equal quarters, so the chart still has one column per quarter.
+        if (quarters.Count <= hours.Count)
+            quarters = [.. hours.SelectMany(h => Enumerable.Range(0, 60 / SlotMinutes).Select(i => (Start: h.Start.AddMinutes(i * SlotMinutes), h.Price)))];
+        quarters = [.. quarters.OrderBy(q => q.Start)];
+        var qMin = quarters.Min(q => q.Price);
+        var qMax = quarters.Max(q => q.Price);
+        var qBars = quarters.Select(q => new HourBar(
+            q.Start,
+            Math.Round(q.Price, 3),
+            IsNow: now >= q.Start && now < q.Start.AddMinutes(SlotMinutes),
+            IsPast: q.Start.AddMinutes(SlotMinutes) <= now,
+            Rank01: qMax > qMin ? (q.Price - qMin) / (qMax - qMin) : 0.5)).ToList();
+
+        return new DayView { Date = date, Hours = bars, Quarters = qBars, Min = min, Max = max, Avg = hours.Average(h => h.Price) };
     }
 
     private static ApplianceView BuildAppliance(Appliance a, List<PricedPoint> points, HouseholdSettings s, DateTime now, bool allIn)

@@ -141,7 +141,8 @@ else
         {
             <div class="now-device">Prisen nu: <b>@Kr(nowKr) kr pr. kWh</b></div>
         }
-        <div class="now-device">Én @m.Run bruger @Kwh(m.Kwh) kWh =</div>
+        @* Wording user 2026-11-26: "En opvaskemaskine som bruger ... eller lignende". *@
+        <div class="now-device">En @(m.IsWash ? "vaskemaskine" : "opvaskemaskine"), der bruger @Kwh(m.Kwh) kWh pr. @m.Run, koster nu:</div>
         <div class="now-price @lvl">@(run is null ? "–" : Kr(run.CostKr)) KR</div>
         @* User 2026-11-26: "maybe like price in one hour, in two hours" - the same machine started later. *@
         @{ var in1 = _view.RunAt(QuarterNow().AddHours(1)); var in2 = _view.RunAt(QuarterNow().AddHours(2)); }
@@ -205,16 +206,20 @@ else
                     var inRun = h.Start < runTo && h.Start.AddHours(1) > runFrom;
                     var pct = span > 0 ? 15 + 85 * (h.KrPerKwh - min) / span : 50;
                     @* The whole column is the tap target: it moves the machine's start to that hour. *@
-                    <div class="bar-col @(_selected == h.Start ? "sel" : "") @(inRun ? "in-run" : "")" title="@When(h.Start) · @Kr(h.KrPerKwh) kr/kWh"
+                    <div class="bar-col @(_selected == h.Start ? "sel" : "") @(inRun ? "in-run" : "")"
                          @onclick="() => _selected = _selected == h.Start || h.IsNow ? null : h.Start">
                         <div class="bar @Band(h.Rank01) @(h.IsNow ? "now" : "") @(h.Start.Hour == 0 ? "midnight" : "")"
                              style="--h:@pct.ToString("0", CultureInfo.InvariantCulture)%">
                             @* Said in words too, not only in green (user is a bit colour-blind). *@
                             @* The tag sits where the advice says to START (the whole run's cheapest start), not on the single
                                cheapest hour - two different "billigst" confused (user 2026-11-24). *@
-                            @if (best is not null && best.Start > QuarterNow() && h.Start <= best.Start && best.Start < h.Start.AddHours(1))
-                            { <span class="bar-tip">billigst kl. @best.Start.ToString("HH:mm")</span> }
+                            @* Each column's own price on it (user 2026-11-26: "shown instead of popup"). *@
+                            <span class="bar-val">@h.KrPerKwh.ToString("0.00", Da)</span>
+
                         </div>
+                        @* The tag sits on the column, above every price (2026-11-26). *@
+                        @if (best is not null && best.Start > QuarterNow() && h.Start <= best.Start && best.Start < h.Start.AddHours(1))
+                            { <span class="bar-tip">billigst kl. @best.Start.ToString("HH:mm")</span> }
                     </div>
                 }
             </div>
@@ -228,7 +233,7 @@ else
                     <span class="@(label.Length > 2 ? "axis-word" : "")">@label</span>
                 }
             </div>
-            <div class="k-muted small u-mt6 u-center">Grøn = billig · rød = dyr · skraveret = billigst. Tryk på en søjle for en anden starttid.</div>
+            <div class="k-muted small u-mt6 u-center">Kr pr. kWh · hver søjle er snittet af timens 4 kvarter. Grøn = billig · rød = dyr · skraveret = billigst. Tryk på en søjle for en anden starttid.</div>
             @* Each column's numbers in words (user 2026-11-24: "each column, how much"): the tapped hour, or now. *@
             @* Start time and the whole run first; the hour's own kWh price last (user 2026-11-24: "20-21?" was confusing). *@
             @{ var shown = picked ?? strip.FirstOrDefault(h => h.IsNow); var shownRun = picked is null ? run : pickedRun;

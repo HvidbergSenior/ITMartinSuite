@@ -353,3 +353,9 @@ details.opt > summary::-webkit-details-marker { display: none; }
 .bar-col.in-run + .bar-col.in-run { box-shadow: -2px 0 0 color-mix(in srgb, var(--k-accent) 16%, transparent); }
 /* "i morgen" on one line under the chart - it may run into the empty neighbours (user 2026-11-24 screenshot). */
 .bar-axis span.axis-word { white-space: nowrap; overflow: visible; }
+
+/* Each hour's price written on its column (user 2026-11-26), the "billigst" tag lifted above it. */
+.bars { padding-top: 38px; }
+.bar-val { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 2px; font-size: .58rem; line-height: 1; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; pointer-events: none; }
+.bar-col.sel .bar-val, .bar.now .bar-val { color: var(--text); font-weight: 700; }
+.bar-col > .bar-tip { top: -36px; bottom: auto; }

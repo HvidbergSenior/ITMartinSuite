@@ -32,6 +32,35 @@ public class PriceModelTests
     private static readonly DateOnly Today = new(2026, 9, 14);
 
     [Test]
+    public void Day_has_96_quarters_with_the_current_one_marked()
+    {
+        // Quarter 17:30 costs 3.00, the rest of 17-19 costs 2.00 - only the quarter view can show it.
+        var raw = Day(Today, Shape);
+        raw.Single(p => p.TimeDk == Today.ToDateTime(new TimeOnly(17, 30))).PriceKrPerKwh = 3.00;
+
+        var snap = PriceModel.Build(raw, Household().Settings, Household().Appliances, Today.ToDateTime(new TimeOnly(17, 40)));
+
+        var q = snap.Today!.Quarters;
+        q.Should().HaveCount(96);
+        q.Single(x => x.IsNow).Start.Should().Be(Today.ToDateTime(new TimeOnly(17, 30)));
+        q.Single(x => x.IsNow).KrPerKwh.Should().Be(3.00);
+        q.Single(x => x.IsNow).Rank01.Should().Be(1);                  // dearest quarter of the day
+        q.Count(x => x.IsPast).Should().Be(17 * 4 + 2);                // 00:00-17:30 are past
+        snap.Today.Hours.Single(h => h.IsNow).KrPerKwh.Should().Be(2.25);   // the hour averages it away
+    }
+
+    [Test]
+    public void Hourly_data_still_gives_four_quarters_per_hour()
+    {
+        var raw = Day(Today, Shape).Where(p => p.TimeDk.Minute == 0).ToList();   // 24 hourly points
+
+        var snap = PriceModel.Build(raw, Household().Settings, Household().Appliances, Today.ToDateTime(new TimeOnly(9, 0)));
+
+        snap.Today!.Quarters.Should().HaveCount(96);
+        snap.Today.Quarters.Where(x => x.Start.Hour == 2).Should().OnlyContain(x => x.KrPerKwh == 0.20);
+    }
+
+    [Test]
     public void Now_price_is_the_current_quarter_and_ranked_against_the_day()
     {
         var snap = PriceModel.Build(Day(Today, Shape), Household().Settings, Household().Appliances, Today.ToDateTime(new TimeOnly(17, 40)));
