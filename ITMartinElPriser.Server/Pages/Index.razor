@@ -107,6 +107,9 @@ else
     // night"), said as one sentence: "Start i nat kl. 02:00 – det er billigst". The best start while you are up comes under it.
     var best = _view.Cheapest(QuarterNow(), night: true);
     var awake = _view.Cheapest(QuarterNow(), night: false);
+    // The period the page points at (user 2026-11-26): cheapest before night, done by 23:00; at night, the cheapest from now on.
+    var eveRun = _view.CheapestBeforeNight(QuarterNow());
+    var mark = eveRun ?? best;
     var hasTomorrow = _snap.Tomorrow?.Hours.Count > 0;
     var m = Current;
     <section class="k-card now-tile @lvl">
@@ -156,7 +159,7 @@ else
             <div class="now-calc">@Kwh(m.Kwh) kWh × @Kr(run.AvgKrPerKwh) kr/kWh i snit over @Hours(m.Hours) = @Kr(run.CostKr) kr</div>
         }
         @* One line: the cheapest period before night (user 2026-11-26), the machine started while people are up (not 23-06). *@
-        @if (_view.CheapestBeforeNight(QuarterNow()) is { } eve && run is not null)
+        @if (eveRun is { } eve && run is not null)
         {
             <div class="now-device">Billigst før natten: <b>@(eve.Start <= QuarterNow() ? "start nu" : $"kl. {eve.Start:HH:mm}–{eve.End:HH:mm}") · @Kr(eve.CostKr) kr</b></div>
         }
@@ -204,7 +207,7 @@ else
             <h2 class="k-card-title">Time for time</h2>
             @* The hours the machine runs in are shaded, so a 2-hour run shows as more than one column (user 2026-11-24). *@
             @* Shaded: the tapped start's run - or, with nothing tapped, the cheapest period (user 2026-11-24). *@
-            @{ var runFrom = picked is not null ? start : best is not null ? best.Start : start; var runTo = runFrom.AddHours(m.Hours); }
+            @{ var runFrom = picked is not null ? start : mark is not null ? mark.Start : start; var runTo = runFrom.AddHours(m.Hours); }
             <div class="bars">
                 @foreach (var h in strip)
                 {
@@ -223,8 +226,9 @@ else
 
                         </div>
                         @* The tag sits on the column, above every price (2026-11-26). *@
-                        @if (best is not null && best.Start > QuarterNow() && h.Start <= best.Start && best.Start < h.Start.AddHours(1))
-                            { <span class="bar-tip">billigst kl. @best.Start.ToString("HH:mm")</span> }
+                        @* On the shaded period: when, and what the whole run costs there (user 2026-11-26: "it should say 1,79"). *@
+                        @if (mark is not null && mark.Start > QuarterNow() && h.Start <= mark.Start && mark.Start < h.Start.AddHours(1))
+                            { <span class="bar-tip">billigst kl. @mark.Start.ToString("HH:mm") · @Kr(mark.CostKr) kr</span> }
                     </div>
                 }
             </div>
