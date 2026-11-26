@@ -280,6 +280,15 @@ public sealed class HomeMachine
         _ => new() { Kind = DishKind, Hours = 2, Kwh = 1.0 },   // user 2026-11-26: "write 1 kwh, not 1,1"
     };
 
+    /// <summary>The span for this kind of device (user 2026-11-26: lowest and highest dishwasher kWh "should be shown"):
+    /// a new machine ~0.5 kWh (EU label of a new class-A dishwasher, 54 kWh/100 washes) up to an old one on intensive ~2 kWh.
+    /// Null = no span shown for this device.</summary>
+    public (double LowKwh, string Low, double HighKwh, string High)? Span => Kind switch
+    {
+        DishKind => (0.5, "Ny maskine", 2.0, "gammel på intensiv"),
+        _ => null,
+    };
+
     /// <summary>What the average depends on, said in one short line under the number.</summary>
     public string DependsOn => Kind switch
     {
