@@ -226,7 +226,8 @@ public sealed record EvExample(string Name, double KwhPer100Km)
     public static readonly EvExample Small = new("Lille (fx Tesla Model 3)", 15);
     public static readonly EvExample Big = new("Stor (fx Audi Q8 e-tron)", 24);
 
-    /// <summary>Winter: heating, a cold battery and wet roads - typically 20-40 % more; the middle is used.</summary>
+    /// <summary>Cold (around 0 °C vs ~20 °C): heating and a cold battery - typically 20-40 % more; the middle is used.
+    /// It is the temperature, not the season (user 2026-11-26).</summary>
     public const double WinterFactor = 1.3;
 
     /// <summary>Motorway at ~130 km/t vs mixed driving: typically 20-30 % more; the middle is used (user 2026-11-26: "speed").</summary>

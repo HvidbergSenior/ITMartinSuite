@@ -221,13 +221,13 @@ else
         var cheapLabel = cheap is null ? "" : cheap == eveRun ? "Før natten" : "I nat";
         <section class="k-card">
             <h2 class="k-card-title">Hvad koster 100 km?</h2>
-            @* Columns (user 2026-11-26: "also a column winter summer and speed"): sommer/vinter/130 km/t at today's price now,
-               plus the same summer trip charged at the cheap time. *@
+            @* Columns (user 2026-11-26: "winter summer and speed" -> "is it not temperature?"): 20 °C / 0 °C, each also at 130 km/t,
+               at today's price now, plus the 20 °C trip charged at the cheap time. *@
             <div class="tbl-wrap">
                 <table class="small ev-table">
                     <thead>
                         <tr>
-                            <th>Bil</th><th>Sommer</th><th>Vinter</th><th>130 km/t</th>
+                            <th>Bil</th><th>20 °C</th><th>20 °C<br />130 km/t</th><th>0 °C</th><th>0 °C<br />130 km/t</th>
                             @if (cheap is not null)
                             {
                                 <th>@cheapLabel</th>
@@ -240,8 +240,9 @@ else
                             <tr>
                                 <td>@car.Name</td>
                                 <td>@(EvKr(car, run, m.Kwh)) kr</td>
-                                <td>@(EvKr(car, run, m.Kwh, EvExample.WinterFactor)) kr</td>
                                 <td>@(EvKr(car, run, m.Kwh, EvExample.MotorwayFactor)) kr</td>
+                                <td>@(EvKr(car, run, m.Kwh, EvExample.WinterFactor)) kr</td>
+                                <td>@(EvKr(car, run, m.Kwh, EvExample.WinterFactor * EvExample.MotorwayFactor)) kr</td>
                                 @if (cheap is not null)
                                 {
                                     <td><b>@(EvKr(car, cheap, m.Kwh)) kr</b></td>
@@ -251,8 +252,9 @@ else
                         <tr class="ev-diff">
                             <td>Forskel</td>
                             <td>@(DiffKr(run, m.Kwh)) kr</td>
-                            <td>@(DiffKr(run, m.Kwh, EvExample.WinterFactor)) kr</td>
                             <td>@(DiffKr(run, m.Kwh, EvExample.MotorwayFactor)) kr</td>
+                            <td>@(DiffKr(run, m.Kwh, EvExample.WinterFactor)) kr</td>
+                            <td>@(DiffKr(run, m.Kwh, EvExample.WinterFactor * EvExample.MotorwayFactor)) kr</td>
                             @if (cheap is not null)
                             {
                                 <td><b>@(DiffKr(cheap, m.Kwh)) kr</b></td>
@@ -261,7 +263,7 @@ else
                     </tbody>
                 </table>
             </div>
-            <p class="k-muted small u-mt8">100 km ladet nu. Vinter ca. 30 % mere, 130 km/t ca. 25 % mere.@(cheap is null ? "" : $" {cheapLabel}: sommer, ladet på den billige tid.")</p>
+            <p class="k-muted small u-mt8">100 km ladet nu. Det er temperaturen, der tæller: ved 0 °C bruger bilen ca. 30 % mere (varme og koldt batteri), ved 130 km/t ca. 25 % mere.@(cheap is null ? "" : $" {cheapLabel}: 20 °C, ladet på den billige tid.")</p>
             @* User 2026-11-26: "Do you want to know EXACTLY what your el car and solution should be? contact itmartin".
                Later: the paid Elbil app (its own app, not ElPriser/MinElpris). *@
             <div class="small u-center u-mt6">Vil du vide <b>præcist</b>, hvilken elbil og ladeløsning der passer til jer?
