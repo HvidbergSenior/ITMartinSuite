@@ -138,11 +138,11 @@ else
             }
         </div>
         @* Simple (user 2026-11-26: "needs to be more simple"): kWh, hours and the sum line are hidden with ShowDetails. *@
-        @* User 2026-11-26: "price now. Kwh for the device =" - the kWh price now, then the machine's kWh = the cost. *@
-        @* The same number as the "nu" column (the hour's price), not the single quarter - they disagreed (user 2026-11-26). *@
-        @if ((strip.FirstOrDefault(h => h.IsNow)?.KrPerKwh ?? _snap.NowKrPerKwh) is { } nowKr)
+        @* The price for the run itself (user 2026-11-26: "it should be the price for running the opvaskemaskine in 2 hours"):
+           the average kr/kWh over the hours it runs from now, so kWh x price = the big number. *@
+        @if (run is not null)
         {
-            <div class="now-device">Prisen nu: <b>@Kr(nowKr) kr/kWh</b></div>
+            <div class="now-device">Prisen de næste @Hours(m.Hours): <b>@Kr(run.AvgKrPerKwh) kr/kWh</b></div>
         }
         @* Fewer words (user 2026-11-26). *@
         <div class="now-device">@m.Name · @Kwh(m.Kwh) kWh @m.Amount i @Hours(m.Hours)</div>
