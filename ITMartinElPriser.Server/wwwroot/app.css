@@ -368,7 +368,6 @@ details.opt > summary::-webkit-details-marker { display: none; }
 .ev-table th, .ev-table td { padding: 6px 4px; border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; }
 .ev-table th:first-child, .ev-table td:first-child { text-align: left; white-space: normal; }
 .ev-table th { color: var(--muted); font-weight: 600; }
-.ev-table tr.ev-diff td { font-weight: 700; border-bottom: none; }
 
 /* "2 timer" across the shaded run (user 2026-11-26): spans --n columns from the first one (2px gaps). */
 .run-len { position: absolute; left: var(--rf, 0%); top: 4px; width: calc(var(--n) * 100% + (var(--n) - 1) * 2px - var(--rf, 0%)); text-align: center;

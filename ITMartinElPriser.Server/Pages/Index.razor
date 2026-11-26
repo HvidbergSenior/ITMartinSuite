@@ -232,66 +232,36 @@ else
         }
     </section>
 
-    @* Elbil teaser (user 2026-11-26): a few common cars, what 100 km costs now and at night, and what winter does - in kr only. *@
-    @if (m.Kind == HomeMachine.CarKind && run is not null)
+    @* Elbil box (user 2026-11-26: "more specific and more clear on the savings"): one headline with the saving, then a small
+       table - now / at the cheap time / saved - for four concrete situations. The explanation is folded. Kr only. *@
+    @if (m.Kind == HomeMachine.CarKind && run is not null && cheapestRun is { } cheap && cheap.CostKr < run.CostKr)
     {
-        var cheap = cheapestRun;
-        // "Ladet ..." - it is when you CHARGE, not when you drive (user 2026-11-26: "but not driving i nat?").
-        var cheapLabel = cheap is null ? "" : cheap == eveRun ? "Ladet før natten" : "Ladet i nat";
-        <section class="k-card">
-            <h2 class="k-card-title">Hvad koster 100 km?</h2>
-            @* Short like the dishwasher (user 2026-11-26: "should be a little like the opvaskemaskine"): the span visible, the table folded. *@
-            <div class="now-device">Fra <b>@(EvKr(EvExample.Small, run, m.Kwh, EvExample.BestFactor)) kr</b> til <b>@(EvKr(EvExample.Big, run, m.Kwh, EvExample.WorstFactor)) kr</b> for 100 km ladet nu</div>
-            <div class="k-muted small u-center">Lille bil, 110 km/t, mildt vejr · stor bil, 130 km/t, frost</div>
-
-            @* The explanation folded away, like in the price box (user 2026-11-26). *@
+        var cheapWhen = cheap == eveRun ? "før natten" : "i nat";
+        <section class="k-card now-tile lvl-cheap">
+            <h2 class="k-card-title">Hvad sparer du på 100 km?</h2>
+            <div class="now-device">Lad @cheapWhen kl. @cheap.Start.ToString("HH:mm") i stedet for nu:</div>
+            <div class="now-price lvl-cheap">@Kr(run.CostKr - cheap.CostKr) KR</div>
+            <div class="now-device">sparet pr. 100 km – @Kr(cheap.CostKr) kr i stedet for @Kr(run.CostKr) kr</div>
+            <div class="tbl-wrap u-mt8">
+                <table class="small ev-table">
+                    <thead><tr><th>100 km</th><th>Ladet nu</th><th>Ladet @cheapWhen</th><th>Du sparer</th></tr></thead>
+                    <tbody>
+                        @foreach (var (car, label, f) in EvRows())
+                        {
+                            <tr>
+                                <td>@label</td>
+                                <td>@(EvKr(car, run, m.Kwh, f)) kr</td>
+                                <td>@(EvKr(car, cheap, m.Kwh, f)) kr</td>
+                                <td><b>@(EvSaved(car, run, cheap, m.Kwh, f)) kr</b></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="small u-mt6 u-center">Lynlader ude: ca. @((m.Kwh * EvExample.FastChargeLow).ToString("0", Da))–@((m.Kwh * EvExample.FastChargeHigh).ToString("0", Da)) kr pr. 100 km – samme pris hele døgnet.</div>
             <details class="calc-fold" data-remember="regnet-elbil">
                 <summary>Sådan er det regnet</summary>
-                @* Columns (user 2026-11-26: "winter summer and speed" -> "is it not temperature?"): 20 °C / 0 °C, each also at 130 km/t,
-                   at today's price now, plus the 20 °C trip charged at the cheap time. *@
-                <div class="tbl-wrap">
-                    <table class="small ev-table">
-                        <thead>
-                            <tr>
-                                <th>Bil</th><th>20 °C</th><th>20 °C<br />130 km/t</th><th>0 °C</th><th>0 °C<br />130 km/t</th>
-                                @if (cheap is not null)
-                                {
-                                    <th>@cheapLabel</th>
-                                }
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var car in new[] { EvExample.Small, EvExample.Big })
-                            {
-                                <tr>
-                                    <td>@car.Name</td>
-                                    <td>@(EvKr(car, run, m.Kwh)) kr</td>
-                                    <td>@(EvKr(car, run, m.Kwh, EvExample.MotorwayFactor)) kr</td>
-                                    <td>@(EvKr(car, run, m.Kwh, EvExample.WinterFactor)) kr</td>
-                                    <td>@(EvKr(car, run, m.Kwh, EvExample.WinterFactor * EvExample.MotorwayFactor)) kr</td>
-                                    @if (cheap is not null)
-                                    {
-                                        <td><b>@(EvKr(car, cheap, m.Kwh)) kr</b></td>
-                                    }
-                                </tr>
-                            }
-                            <tr class="ev-diff">
-                                <td>Forskel</td>
-                                <td>@(DiffKr(run, m.Kwh)) kr</td>
-                                <td>@(DiffKr(run, m.Kwh, EvExample.MotorwayFactor)) kr</td>
-                                <td>@(DiffKr(run, m.Kwh, EvExample.WinterFactor)) kr</td>
-                                <td>@(DiffKr(run, m.Kwh, EvExample.WinterFactor * EvExample.MotorwayFactor)) kr</td>
-                                @if (cheap is not null)
-                                {
-                                    <td><b>@(DiffKr(cheap, m.Kwh)) kr</b></td>
-                                }
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                @* One comparison with charging out, instead of a charger choice (user 2026-11-26: "not too many choices on the free one"). *@
-                <div class="small u-mt6">På lynlader ude: ca. <b>@((m.Kwh * EvExample.FastChargeLow).ToString("0", Da))–@((m.Kwh * EvExample.FastChargeHigh).ToString("0", Da)) kr</b> for 100 km (@m.Kwh kWh) – samme pris hele døgnet.</div>
-                <div class="k-muted small">100 km ladet nu. Det er temperaturen, der tæller: ved 0 °C bruger bilen ca. 30 % mere (varme og koldt batteri), ved 130 km/t ca. 25 % mere.@(cheap is null ? "" : $" {cheapLabel}: samme tur ved 20 °C, men bilen er ladet på den billige tid.")</div>
+                <div class="k-muted small">Lille bil (fx Tesla Model 3) bruger ca. @EvExample.Small.KwhPer100Km kWh pr. 100 km, stor bil (fx Audi Q8 e-tron) ca. @EvExample.Big.KwhPer100Km kWh – målt fra stikket. Ved 0 °C bruger bilen ca. 30 % mere (varme og koldt batteri), ved 130 km/t ca. 25 % mere. "Ladet @cheapWhen" er den samme tur, men bilen er ladet på den billige tid på en 11 kW ladeboks.</div>
             </details>
         </section>
     }
@@ -414,8 +384,17 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1)
 
 @code {
     private static readonly CultureInfo Da = new("da-DK");
-    private static string DiffKr(RunOption at, double standardKwh, double factor = 1) =>
-        ((EvExample.Big.CostKr(at, standardKwh) - EvExample.Small.CostKr(at, standardKwh)) * factor).ToString("0", Da);
+    // The four situations in the elbil box: small/big car, mild and normal vs cold and motorway.
+    private static IEnumerable<(EvExample Car, string Label, double Factor)> EvRows() =>
+    [
+        (EvExample.Small, "Lille bil, 20 °C", 1),
+        (EvExample.Small, "Lille bil, frost + 130 km/t", EvExample.WinterFactor * EvExample.MotorwayFactor),
+        (EvExample.Big, "Stor bil, 20 °C", 1),
+        (EvExample.Big, "Stor bil, frost + 130 km/t", EvExample.WinterFactor * EvExample.MotorwayFactor),
+    ];
+    private static string EvSaved(EvExample car, RunOption now, RunOption cheap, double standardKwh, double factor) =>
+        ((car.CostKr(now, standardKwh) - car.CostKr(cheap, standardKwh)) * factor).ToString("0", Da);
+
     // "= snittet af søjlerne 17 og 18" when the run starts on a whole hour; else the exact span, counted per quarter.
     private static string RunColumnsText(DateTime from, double hours)
     {
