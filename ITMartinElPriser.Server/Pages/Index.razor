@@ -236,7 +236,8 @@ else
     @if (m.Kind == HomeMachine.CarKind && run is not null)
     {
         var cheap = cheapestRun;
-        var cheapLabel = cheap is null ? "" : cheap == eveRun ? "Før natten" : "I nat";
+        // "Ladet ..." - it is when you CHARGE, not when you drive (user 2026-11-26: "but not driving i nat?").
+        var cheapLabel = cheap is null ? "" : cheap == eveRun ? "Ladet før natten" : "Ladet i nat";
         <section class="k-card">
             <h2 class="k-card-title">Hvad koster 100 km?</h2>
             @* Short like the dishwasher (user 2026-11-26: "should be a little like the opvaskemaskine"): the span visible, the table folded. *@
@@ -290,7 +291,7 @@ else
                 </div>
                 @* One comparison with charging out, instead of a charger choice (user 2026-11-26: "not too many choices on the free one"). *@
                 <div class="small u-mt6">På lynlader ude: ca. <b>@((m.Kwh * EvExample.FastChargeLow).ToString("0", Da))–@((m.Kwh * EvExample.FastChargeHigh).ToString("0", Da)) kr</b> for 100 km (@m.Kwh kWh) – samme pris hele døgnet.</div>
-                <div class="k-muted small">100 km ladet nu. Det er temperaturen, der tæller: ved 0 °C bruger bilen ca. 30 % mere (varme og koldt batteri), ved 130 km/t ca. 25 % mere.@(cheap is null ? "" : $" {cheapLabel}: 20 °C, ladet på den billige tid.")</div>
+                <div class="k-muted small">100 km ladet nu. Det er temperaturen, der tæller: ved 0 °C bruger bilen ca. 30 % mere (varme og koldt batteri), ved 130 km/t ca. 25 % mere.@(cheap is null ? "" : $" {cheapLabel}: samme tur ved 20 °C, men bilen er ladet på den billige tid.")</div>
             </details>
         </section>
     }
