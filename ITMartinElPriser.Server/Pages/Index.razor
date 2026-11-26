@@ -142,6 +142,12 @@ else
         }
         <div class="now-device">Én @m.Run bruger @Kwh(m.Kwh) kWh =</div>
         <div class="now-price @lvl">@(run is null ? "–" : Kr(run.CostKr)) KR</div>
+        @* User 2026-11-26: "maybe like price in one hour, in two hours" - the same machine started later. *@
+        @{ var in1 = _view.RunAt(QuarterNow().AddHours(1)); var in2 = _view.RunAt(QuarterNow().AddHours(2)); }
+        @if (in1 is not null || in2 is not null)
+        {
+            <div class="now-device">@(in1 is null ? "" : $"Om 1 time: {Kr(in1.CostKr)} kr")@(in1 is not null && in2 is not null ? " · " : "")@(in2 is null ? "" : $"Om 2 timer: {Kr(in2.CostKr)} kr")</div>
+        }
         @if (ShowDetails && run is not null)
         {
             @* The sum behind the big number, in a neutral colour (never fighting the verdict's colour). *@
