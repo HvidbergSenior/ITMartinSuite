@@ -367,3 +367,6 @@ details.opt > summary::-webkit-details-marker { display: none; }
 .ev-table th:first-child, .ev-table td:first-child { text-align: left; white-space: normal; }
 .ev-table th { color: var(--muted); font-weight: 600; }
 .ev-table tr.ev-diff td { font-weight: 700; border-bottom: none; }
+
+/* "Del ElPriser" / "Skriv til ITMartin" (user 2026-11-26) */
+.share-row { justify-content: center; flex-wrap: wrap; gap: 8px; }

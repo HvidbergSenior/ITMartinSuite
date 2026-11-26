@@ -148,9 +148,6 @@ else
         <div class="now-device">@(char.ToUpper(m.InSentence[0]) + m.InSentence[1..]), der bruger @Kwh(m.Kwh) kWh @m.Amount, koster nu:</div>
         <div class="now-price @lvl">@(run is null ? "–" : Kr(run.CostKr)) KR</div>
         <div class="k-muted small u-center">@m.DependsOn</div>
-        @* The free app shows averages; your OWN devices are MinElpris (user 2026-11-26). A button, not a link. *@
-        <div class="small u-center u-mt6">Vil du se præcis, hvad <b>dine</b> apparater bruger?
-            <a class="k-btn k-btn-sm u-mt4" href="https://minelpris.itmartin.dk" target="_blank" rel="noopener">Se det i MinElpris</a></div>
         @* User 2026-11-26: "maybe like price in one hour, in two hours" - the same machine started later. *@
         @{ var in1 = _view.RunAt(QuarterNow().AddHours(1)); var in2 = _view.RunAt(QuarterNow().AddHours(2)); }
         @if (in1 is not null || in2 is not null)
@@ -347,6 +344,20 @@ else
 
 }
 
+
+@* Spread it if it is useful, and ask Martin to add things (user 2026-11-26) - instead of the MinElpris teaser. *@
+@if (_view is not null)
+{
+    <section class="k-card small u-center">
+        <div>Kan du bruge siden? <b>Del den</b> med andre.</div>
+        <div class="u-mt4">Mangler du noget? Skriv – så ser jeg, om jeg kan tilføje det.</div>
+        <div class="k-row u-mt8 share-row">
+            <button type="button" class="k-btn k-btn-sm"
+                    onclick="var u=location.origin+'/';if(navigator.share){navigator.share({title:'ElPriser',text:'Hvornår er strømmen billig?',url:u}).catch(function(){})}else{navigator.clipboard.writeText(u);this.textContent='Link kopieret'}">Del ElPriser</button>
+            <a class="k-btn k-btn-sm" href="mailto:ITMartin@Mensa.dk?subject=Id%C3%A9%20til%20ElPriser">Skriv til ITMartin</a>
+        </div>
+    </section>
+}
 
 @* "Hvad havde du sparet?" hidden (user 2026-11-26: "hide") - comes back with ShowDetails. *@
 @if (!ShowDetails) { }
