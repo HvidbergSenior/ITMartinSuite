@@ -17,7 +17,7 @@
 {
     <section class="k-card">
         <h2 class="k-card-title">Hvor bor du?</h2>
-        <p class="small">Prisen afhænger af netselskabet, der leverer strømmen til dit hjem. Vi gemmer kun postnummer og netselskab – på din egen telefon.</p>
+        <p class="small">Prisen afhænger af dit netselskab. Gemmes kun på din telefon.</p>
         <button class="k-btn k-btn-primary k-btn-block" @onclick="LocateAsync" disabled="@_searching">Jeg er hjemme nu – brug min placering</button>
         <form class="row2 u-mt8" @onsubmit="FindAddressAsync" @onsubmit:preventDefault>
             <input class="field u-f1" @bind="_addr" placeholder="…eller skriv din adresse eller dit postnummer" aria-label="Adresse eller postnummer" />
@@ -34,7 +34,7 @@
     @* The elselskab (user 2026-10-21 "chip on the front"): it is on the bill, and its markup makes the price here the person's own. *@
     <section class="k-card">
         <h2 class="k-card-title">Dit elselskab</h2>
-        <p>Elselskabet lægger sit eget tillæg oven i strømprisen. Ved du ikke, hvilket du har, så brug „Typisk elselskab“ – det er gennemsnittet, og for én vask er forskellen højst ca. 25 øre. Navnet står øverst på din elregning.</p>
+        <p class="small">Står øverst på din elregning. Ved du det ikke, så vælg „Typisk elselskab“.</p>
         @* Kolibri controls (user 2026-11-24: no browser-default look), and nothing preselected - no one is told they have NRGi. *@
         <label class="k-label" for="supplier">Elselskab</label>
         <select id="supplier" class="k-input" @bind="_supplierPick">
@@ -147,14 +147,13 @@ else
                 else
                 {
                     @* The cheapest PERIOD within the next 12 hours, start to finish (user 2026-11-24). *@
-                    <b>Billigst de næste 12 timer: start @StartAt(best.Start) – færdig kl. @best.Start.AddHours(m.Hours).ToString("HH:mm")</b>
-                    <span>Så koster den @Kr(best.CostKr) kr@(run.CostKr - best.CostKr >= 0.01 ? $" i stedet for {Kr(run.CostKr)} kr nu – du sparer {Kr(run.CostKr - best.CostKr)} kr" : "").</span>
-                    @* User 2026-10-21: "Har maskinen senere start: sæt den til 14½ timer. Something like. Hvis du kan tidsindstille". *@
-                    <span>Har maskinen <b>senere start</b> (et lille ur på knapperne)? Sæt den til <b>@Delay(best.Start)</b> nu – så starter den selv kl. @best.Start.ToString("HH:mm").</span>
+                    @* Short (user 2026-11-26: "way too much text"). *@
+                    <b>Billigst: start @StartAt(best.Start) – @Kr(best.CostKr) kr@(run.CostKr - best.CostKr >= 0.01 ? $" (spar {Kr(run.CostKr - best.CostKr)} kr)" : "")</b>
+                    <span>Senere start: sæt den til <b>@Delay(best.Start)</b>.</span>
                 }
                 @if (awake is not null && _view.IsQuiet(best.Start) && awake.Start != best.Start)
                 {
-                    <span class="k-muted small">Vil du ikke have den kørende om natten? Bedst mellem kl. 6 og 23: @(awake.Start <= QuarterNow() ? "start nu" : StartAt(awake.Start)) for @Kr(awake.CostKr) kr.</span>
+                    <span class="k-muted small">Ikke om natten: @(awake.Start <= QuarterNow() ? "start nu" : StartAt(awake.Start)) – @Kr(awake.CostKr) kr.</span>
                 }
             </div>
         }
@@ -200,7 +199,7 @@ else
                     <span class="@(label.Length > 2 ? "axis-word" : "")">@label</span>
                 }
             </div>
-            <div class="k-muted small u-mt6 u-center">Hver søjle er én time. Lav og grøn = billig · høj, rød og stribet = dyr. Det skraverede felt er den billigste periode at køre @(Current.Run)en i (@Hours(m.Hours)) – tryk på en søjle for at se en anden starttid.</div>
+            <div class="k-muted small u-mt6 u-center">Grøn = billig · rød = dyr · skraveret = billigst. Tryk på en søjle for en anden starttid.</div>
             @* Each column's numbers in words (user 2026-11-24: "each column, how much"): the tapped hour, or now. *@
             @* Start time and the whole run first; the hour's own kWh price last (user 2026-11-24: "20-21?" was confusing). *@
             @{ var shown = picked ?? strip.FirstOrDefault(h => h.IsNow); var shownRun = picked is null ? run : pickedRun;
@@ -222,10 +221,12 @@ else
                         }
                         <text>.</text>
                     }
-                    <span class="k-muted"> Strømmen i timen @(shown.IsNow ? "lige nu" : When(shown.Start)) koster @Kr(shown.KrPerKwh) kr pr. kWh.</span>
                 </div>
             }
-            <div class="k-muted small u-mt6 u-center">@(picked is null ? "Tryk på en søjle for at se prisen i den time." : "Tryk på søjlen igen for at gå tilbage til nu.")</div>
+            @if (picked is not null)
+            {
+                <div class="k-muted small u-mt6 u-center">Tryk igen for at gå tilbage til nu.</div>
+            }
         </section>
     }
 
@@ -249,16 +250,13 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1)
     <section class="k-card now-tile lvl-cheap">
         <h2 class="k-card-title">Hvad havde du sparet?</h2>
         <div class="now-price lvl-cheap">@hs.SavedKr.ToString("0", Da) kr</div>
-        <div class="now-unit">på de sidste @hs.Days dage – ca. @Round10(hs.PerYearKr) kr om året</div>
-        @* Split into short lines (user 2026-11-24: more intuitive). *@
-        <div class="now-compare">Hvis du hver dag havde startet én @Current.Run på dagens billigste tid – i stedet for kl. 18.</div>
-        <div class="now-compare">Kl. 18 hver dag: <b>@Kr(hs.UsualKr) kr</b> · Billigste tid: <b>@Kr(hs.CheapestKr) kr</b></div>
-        <div class="k-muted small">Med moms, afgifter og @(_gridName.Length > 0 ? (_gridName.EndsWith('s') ? _gridName + "'" : _gridName + "s") + " nettarif" : "nettarif").</div>
+        <div class="now-unit">på @hs.Days dage – ca. @Round10(hs.PerYearKr) kr om året</div>
+        @* Short (user 2026-11-26: "way too much text"). *@
+        <div class="now-compare">Én @Current.Run om dagen på billigste tid i stedet for kl. 18.</div>
         @if (_gridName.Length == 0)
         {
-            <div class="k-muted small u-mt6">Vi kender ikke dit netselskab endnu – skriv hvor du bor øverst, så bliver tallet præcist.</div>
+            <div class="k-muted small u-mt6">Skriv hvor du bor øverst, så bliver tallet præcist.</div>
         }
-        <div class="k-muted small u-mt6">Vil du have det regnet på <b>jeres egen elmåler</b> – for alle maskiner og elbilen? Det gør MinElpris.</div>
     </section>
 }
 
