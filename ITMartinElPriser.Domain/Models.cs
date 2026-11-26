@@ -223,11 +223,14 @@ public sealed class RunEntry
 public sealed record EvExample(string Name, double KwhPer100Km)
 {
     // Just a small and a big car and the difference (user 2026-11-26: "just show elbil small car and big car and the difference").
-    public static readonly EvExample Small = new("Lille bil, fx Tesla Model 3", 15);
-    public static readonly EvExample Big = new("Stor bil, fx Audi Q8 e-tron", 24);
+    public static readonly EvExample Small = new("Lille (fx Tesla Model 3)", 15);
+    public static readonly EvExample Big = new("Stor (fx Audi Q8 e-tron)", 24);
 
     /// <summary>Winter: heating, a cold battery and wet roads - typically 20-40 % more; the middle is used.</summary>
     public const double WinterFactor = 1.3;
+
+    /// <summary>Motorway at ~130 km/t vs mixed driving: typically 20-30 % more; the middle is used (user 2026-11-26: "speed").</summary>
+    public const double MotorwayFactor = 1.25;
 
     /// <summary>What 100 km costs for this car, scaled from the price of the standard 18 kWh / 100 km at the same time.</summary>
     public double CostKr(RunOption standard, double standardKwh) => standard.CostKr * KwhPer100Km / standardKwh;
