@@ -277,7 +277,7 @@ public sealed class HomeMachine
         KettleKind => new() { Kind = KettleKind, Hours = 0.25, Kwh = 0.12 },
         // A typical dishwasher a few years old, normal use - not the one new Bosch on Eco (0.54 kWh). User 2026-11-26: "like average
         // but also that it depends" + "devices that are more than 2-3 years old". Older labels ~0.9-1.1 Eco, normal ~1.2.
-        _ => new() { Kind = DishKind, Hours = 2, Kwh = 1.1 },
+        _ => new() { Kind = DishKind, Hours = 2, Kwh = 1.2 },   // user 2026-11-26: "write 1,2 kWh"
     };
 
     /// <summary>What the average depends on, said in one short line under the number.</summary>

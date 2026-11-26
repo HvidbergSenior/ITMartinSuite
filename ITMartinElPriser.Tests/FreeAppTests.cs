@@ -218,7 +218,7 @@ public class FrontPageUseCaseTests
         prefs.S.Wash = new HomeMachine { Kind = HomeMachine.WashKind, Hours = 1.5, Kwh = 3 };
         var view = new NowView(prefs.S, [], null!);   // the machine does not need prices
         (view.Machine.Hours, view.Machine.Kwh, view.Machine.Model).Should().Be((3.75, 0.46, "Bosch WGG244RASN, Eco 40-60"));
-        HomeMachine.Fixed(HomeMachine.DishKind).Kwh.Should().Be(1.1);   // a typical dishwasher a few years old, since 2026-11-26
+        HomeMachine.Fixed(HomeMachine.DishKind).Kwh.Should().Be(1.2);   // a typical dishwasher a few years old, since 2026-11-26
     }
 
     [Test]
