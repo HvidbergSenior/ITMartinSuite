@@ -387,3 +387,12 @@ details.opt > summary::-webkit-details-marker { display: none; }
     background: color-mix(in srgb, var(--k-accent) 10%, transparent); border: 1px solid color-mix(in srgb, var(--k-accent) 30%, transparent); }
 .calc-pair .calc-why { font-weight: 400; font-size: .85rem; margin-top: 2px; }
 .calc-pair u { text-decoration-thickness: 1px; text-underline-offset: 2px; }
+
+/* One rhythm in the price/savings boxes (user 2026-11-26: "look at spacing on the two"):
+   the big number has air around it, small lines sit close to their line, a new group starts with a clear gap. */
+.now-tile .now-price { margin: 10px 0 6px; }
+.now-tile .now-device { margin: 0 0 2px; }
+.now-tile .now-device + .k-muted.small { margin-top: 2px; }
+.now-tile .now-gap { margin-top: 16px; }
+.now-tile .chips { margin-bottom: 12px; }
+.now-tile .now-verdict { margin-top: 14px; }

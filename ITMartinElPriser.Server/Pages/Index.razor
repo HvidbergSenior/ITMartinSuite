@@ -156,7 +156,7 @@ else
            only when it is at night. *@
         @if (m.CanWait && cheapestRun is { } cr && run is not null && cr.CostKr < run.CostKr)
         {
-            <div class="now-device">Billigst: <b>kl. @cr.Start.ToString("HH:mm") · @Kr(cr.CostKr) kr</b></div>
+            <div class="now-device now-gap">Billigst: <b>kl. @cr.Start.ToString("HH:mm") · @Kr(cr.CostKr) kr</b></div>
             @if (_view.IsQuiet(cr.Start) && cr.Start > QuarterNow())
             {
                 <div class="k-muted small u-center">Timer: sæt den til <b>@Delay(cr.Start)</b>.</div>
@@ -242,7 +242,7 @@ else
             <div class="now-price lvl-cheap">@Kr(run.CostKr - dishCheap.CostKr) KR</div>
             <div class="now-device">sparet i dag – @Kr(dishCheap.CostKr) kr i stedet for @Kr(run.CostKr) kr</div>
             @* The line keeps its place while the 30 days are worked out, so nothing jumps. *@
-            <div class="small u-mt8 u-center">
+            <div class="small now-gap u-center">
                 @if (_hindsight is { } hy && hy.SavedKr >= 1)
                 {
                     <text>Én opvask om dagen på den billigste tid i stedet for kl. 18: ca. <b>@Round10(hy.PerYearKr) kr om året</b> <span class="k-muted">(regnet på de sidste @hy.Days dages priser)</span></text>
@@ -265,7 +265,7 @@ else
             <div class="now-device">Lad @cheapWhen kl. @cheap.Start.ToString("HH:mm") i stedet for nu:</div>
             <div class="now-price lvl-cheap">@Kr(run.CostKr - cheap.CostKr) KR</div>
             <div class="now-device">sparet pr. 100 km – @Kr(cheap.CostKr) kr i stedet for @Kr(run.CostKr) kr</div>
-            <div class="tbl-wrap u-mt8">
+            <div class="tbl-wrap now-gap">
                 <table class="small ev-table">
                     <thead><tr><th>100 km</th><th>Ladet nu</th><th>Ladet @cheapWhen</th><th>Du sparer</th></tr></thead>
                     <tbody>
