@@ -261,7 +261,9 @@ else
 }
 
 
-@if (_hindsight is null && _hindsightLoading && _view is not null)
+@* "Hvad havde du sparet?" hidden (user 2026-11-26: "hide") - comes back with ShowDetails. *@
+@if (!ShowDetails) { }
+else if (_hindsight is null && _hindsightLoading && _view is not null)
 {
     @* The box holds its place while it is worked out, so nothing jumps down when the number comes. *@
     <section class="k-card now-tile lvl-cheap hindsight-wait">
@@ -387,6 +389,7 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1)
     private bool _hindsightLoading = true;
     private async Task LoadHindsightAsync()
     {
+        if (!ShowDetails) { _hindsightLoading = false; return; }   // box hidden: no 30-day lookup
         try { _hindsight = _view is null ? null : await Front.HindsightAsync(_view.Settings); }
         catch { _hindsight = null; }   // Energinet down: the box simply is not shown
         _hindsightLoading = false;
