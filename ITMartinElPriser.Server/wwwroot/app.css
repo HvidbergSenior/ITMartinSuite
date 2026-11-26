@@ -374,3 +374,10 @@ details.opt > summary::-webkit-details-marker { display: none; }
 .run-len { position: absolute; left: var(--rf, 0%); top: 4px; width: calc(var(--n) * 100% + (var(--n) - 1) * 2px - var(--rf, 0%)); text-align: center;
     font-size: .62rem; font-weight: 700; color: var(--text); pointer-events: none; z-index: 1;
     text-shadow: 0 0 3px var(--bg), 0 0 3px var(--bg); }
+
+/* "Sådan er det regnet" - the explanation behind a tap (user 2026-11-26). */
+.calc-fold { margin-top: 8px; text-align: center; font-size: .85rem; }
+.calc-fold > summary { cursor: pointer; color: var(--muted); list-style: none; display: inline-block; padding: 4px 8px; }
+.calc-fold > summary::-webkit-details-marker { display: none; }
+.calc-fold > summary::after { content: " ▾"; }
+.calc-fold[open] > summary::after { content: " ▴"; }

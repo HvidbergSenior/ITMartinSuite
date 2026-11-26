@@ -139,33 +139,9 @@ else
                 <button class="chip @(m.Kind == k ? "on" : "")" aria-pressed="@(m.Kind == k)" @onclick="() => PickMachineAsync(k)">@HomeMachine.Fixed(k).Name</button>
             }
         </div>
-        @* Simple (user 2026-11-26: "needs to be more simple"): kWh, hours and the sum line are hidden with ShowDetails. *@
-        @* The price for the run itself (user 2026-11-26: "it should be the price for running the opvaskemaskine in 2 hours"):
-           the average kr/kWh over the hours it runs from now, so kWh x price = the big number. *@
-        @if (run is not null)
-        {
-            @* "(lige nu 4,14)" = the "nu" column, so the two numbers do not look like a mistake (user 2026-11-26). *@
-            var nowCol = strip.FirstOrDefault(x => x.IsNow);
-            <div class="now-device">Prisen de næste @Hours(m.Hours): <b>@Kr(RunKrPerKwh(run, m)) kr/kWh</b>@(nowCol is null ? "" : $" (lige nu {Kr(nowCol.KrPerKwh)})")</div>
-        }
         @* Fewer words (user 2026-11-26). *@
         <div class="now-device">@m.Name · @Kwh(m.Kwh) kWh @m.Amount i @Hours(m.Hours)</div>
         <div class="now-price @lvl">@(run is null ? "–" : Kr(run.CostKr)) KR</div>
-        @if (run is not null)
-        {
-            @* The sum behind the big number, small and neutral (user 2026-11-26: "and the calculation in small letters"). *@
-            var perKwh = RunKrPerKwh(run, m);
-            <div class="now-calc">@Kwh(m.Kwh) kWh × @Kr(perKwh) kr/kWh @(Math.Abs(Math.Round(perKwh * m.Kwh, 2) - run.CostKr) < 0.005 ? "=" : "≈") @Kr(run.CostKr) kr</div>
-        }
-        @* The span in kr when the device has one (dishwasher), else what the average depends on (user 2026-11-26). *@
-        @if (m.Span is { } kwhSpan && run is not null)
-        {
-            <div class="k-muted small u-center">@kwhSpan.Low (@Kwh(kwhSpan.LowKwh) kWh) <b>@Kr(run.CostKr * kwhSpan.LowKwh / m.Kwh) kr</b> · @kwhSpan.High (@Kwh(kwhSpan.HighKwh) kWh) <b>@Kr(run.CostKr * kwhSpan.HighKwh / m.Kwh) kr</b></div>
-        }
-        else
-        {
-            <div class="k-muted small u-center">@m.DependsOn</div>
-        }
         @* Only the cheapest (user 2026-11-26: "Billigst only"): before night or tonight, whichever is cheaper; the timer line
            only when it is at night. *@
         @if (m.CanWait && cheapestRun is { } cr && run is not null && cr.CostKr < run.CostKr)
@@ -177,6 +153,34 @@ else
             }
         }
         <div class="now-verdict @lvl">@(run is null ? "Priserne dækker ikke hele perioden endnu" : Verdict(rank))</div>
+        @* The explanation folded away (user 2026-11-26: "some of the info could be in a tab or otherwise hidden"). *@
+        <details class="calc-fold">
+            <summary>Sådan er det regnet</summary>
+            @* Simple (user 2026-11-26: "needs to be more simple"): kWh, hours and the sum line are hidden with ShowDetails. *@
+            @* The price for the run itself (user 2026-11-26: "it should be the price for running the opvaskemaskine in 2 hours"):
+               the average kr/kWh over the hours it runs from now, so kWh x price = the big number. *@
+            @if (run is not null)
+            {
+                @* "(lige nu 4,14)" = the "nu" column, so the two numbers do not look like a mistake (user 2026-11-26). *@
+                var nowCol = strip.FirstOrDefault(x => x.IsNow);
+                <div class="now-device">Prisen de næste @Hours(m.Hours): <b>@Kr(RunKrPerKwh(run, m)) kr/kWh</b>@(nowCol is null ? "" : $" (lige nu {Kr(nowCol.KrPerKwh)})")</div>
+            }
+            @if (run is not null)
+            {
+                @* The sum behind the big number, small and neutral (user 2026-11-26: "and the calculation in small letters"). *@
+                var perKwh = RunKrPerKwh(run, m);
+                <div class="now-calc">@Kwh(m.Kwh) kWh × @Kr(perKwh) kr/kWh @(Math.Abs(Math.Round(perKwh * m.Kwh, 2) - run.CostKr) < 0.005 ? "=" : "≈") @Kr(run.CostKr) kr</div>
+            }
+            @* The span in kr when the device has one (dishwasher), else what the average depends on (user 2026-11-26). *@
+            @if (m.Span is { } kwhSpan && run is not null)
+            {
+                <div class="k-muted small u-center">@kwhSpan.Low (@Kwh(kwhSpan.LowKwh) kWh) <b>@Kr(run.CostKr * kwhSpan.LowKwh / m.Kwh) kr</b> · @kwhSpan.High (@Kwh(kwhSpan.HighKwh) kWh) <b>@Kr(run.CostKr * kwhSpan.HighKwh / m.Kwh) kr</b></div>
+            }
+            else
+            {
+                <div class="k-muted small u-center">@m.DependsOn</div>
+            }
+        </details>
         @* "Billigst: start ..." + "Senere start" hidden (user 2026-11-26: "remove") - comes back with ShowDetails. *@
         @if (ShowDetails && best is not null && run is not null)
         {
