@@ -254,6 +254,12 @@ public sealed class HomeMachine
     /// Elcykel, Elbil, Kedel"). The washing machine is still known but not offered.</summary>
     // Elkedel and elcykel taken off again the same day (user: "remove elkedel and elcykel") - still known, not offered.
     public static readonly string[] FrontKinds = [DishKind, CarKind];
+
+    /// <summary>The home charging box the free page assumes (3-phase 16 A).</summary>
+    public const double HomeChargerKw = 11;
+
+    /// <summary>Rounded UP to whole quarters, the grid the prices come in.</summary>
+    public static double QuarterHours(double hours) => Math.Ceiling(hours * 4 - 1e-9) / 4;
     public const double MinHours = 0.5, MaxHours = 4, MinKwh = 0.1, MaxKwh = 5;
 
     public string Kind { get; set; } = DishKind;
@@ -277,7 +283,8 @@ public sealed class HomeMachine
         // e-bike = one full charge from empty, a ~0.5 kWh battery in ~4 h; EV = 100 km at ~18 kWh (a typical family car,
         // all year), ~2 h on an 11 kW home charger; kettle = 1 litre ~0.12 kWh, one quarter on the price grid.
         BikeKind => new() { Kind = BikeKind, Hours = 4, Kwh = 0.5 },
-        CarKind => new() { Kind = CarKind, Hours = 2, Kwh = 18 },
+        // Time from the charger (user 2026-11-26: "more precise"): 18 kWh / 11 kW = 1 t 38 min -> 1 t 45 min on the quarter grid.
+        CarKind => new() { Kind = CarKind, Hours = QuarterHours(18 / HomeChargerKw), Kwh = 18 },
         KettleKind => new() { Kind = KettleKind, Hours = 0.25, Kwh = 0.12 },
         // A typical dishwasher a few years old, normal use - not the one new Bosch on Eco (0.54 kWh). User 2026-11-26: "like average
         // but also that it depends" + "devices that are more than 2-3 years old". Older labels ~0.9-1.1 Eco, normal ~1.2.
@@ -315,7 +322,7 @@ public sealed class HomeMachine
     public string Amount => Kind switch
     {
         // The car assumes a home charging box (11 kW) - said once, no charger choice on the free page (user 2026-11-26).
-        BikeKind => "fra tom til fuld", CarKind => "til 100 km med ladeboks", KettleKind => "pr. liter vand", WashKind => "pr. vask", _ => "pr. opvask",
+        BikeKind => "fra tom til fuld", CarKind => "til 100 km på 11 kW ladeboks", KettleKind => "pr. liter vand", WashKind => "pr. vask", _ => "pr. opvask",
     };
     /// <summary>"en opvaskemaskine" - the device in a sentence.</summary>
     public string InSentence => Kind switch { WashKind => "en vaskemaskine", BikeKind => "en elcykel", CarKind => "en elbil", KettleKind => "en elkedel", _ => "en opvaskemaskine" };
