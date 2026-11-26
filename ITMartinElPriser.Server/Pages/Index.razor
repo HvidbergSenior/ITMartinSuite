@@ -144,7 +144,9 @@ else
            the average kr/kWh over the hours it runs from now, so kWh x price = the big number. *@
         @if (run is not null)
         {
-            <div class="now-device">Prisen de næste @Hours(m.Hours): <b>@Kr(RunKrPerKwh(run, m)) kr/kWh</b></div>
+            @* "(lige nu 4,14)" = the "nu" column, so the two numbers do not look like a mistake (user 2026-11-26). *@
+            var nowCol = strip.FirstOrDefault(x => x.IsNow);
+            <div class="now-device">Prisen de næste @Hours(m.Hours): <b>@Kr(RunKrPerKwh(run, m)) kr/kWh</b>@(nowCol is null ? "" : $" (lige nu {Kr(nowCol.KrPerKwh)})")</div>
         }
         @* Fewer words (user 2026-11-26). *@
         <div class="now-device">@m.Name · @Kwh(m.Kwh) kWh @m.Amount i @Hours(m.Hours)</div>
@@ -284,9 +286,13 @@ else
                 @foreach (var h in strip)
                 {
                     var inRun = h.Start < runTo && h.Start.AddHours(1) > runFrom;
+                    // Shade only the part of the hour the run uses: a 03:45 start shades the last quarter of the "3" column (user 2026-11-26).
+                    var runFromFrac = inRun ? Math.Clamp((runFrom - h.Start).TotalMinutes / 60, 0, 1) : 0;
+                    var runToFrac = inRun ? Math.Clamp((runTo - h.Start).TotalMinutes / 60, 0, 1) : 0;
                     var pct = span > 0 ? 15 + 85 * (h.KrPerKwh - min) / span : 50;
                     @* The whole column is the tap target: it moves the machine's start to that hour. *@
                     <div class="bar-col @(_selected == h.Start ? "sel" : "") @(inRun ? "in-run" : "")"
+                         style="@(inRun ? $"--rf:{(runFromFrac * 100).ToString("0", CultureInfo.InvariantCulture)}%;--rt:{(runToFrac * 100).ToString("0", CultureInfo.InvariantCulture)}%" : null)"
                          @onclick="() => _selected = _selected == h.Start || h.IsNow ? null : h.Start">
                         <div class="bar @Band(h.Rank01) @(h.IsNow ? "now" : "") @(h.Start.Hour == 0 ? "midnight" : "")"
                              style="--h:@pct.ToString("0", CultureInfo.InvariantCulture)%">
