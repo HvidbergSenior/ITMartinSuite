@@ -155,7 +155,8 @@ else
             <div class="now-calc">@Kwh(m.Kwh) kWh × @Kr(run.AvgKrPerKwh) kr/kWh i snit over @Hours(m.Hours) = @Kr(run.CostKr) kr</div>
         }
         <div class="now-verdict @lvl">@(run is null ? $"Priserne dækker ikke hele {m.Run}en endnu" : Verdict(rank))</div>
-        @if (best is not null && run is not null)
+        @* "Billigst: start ..." + "Senere start" hidden (user 2026-11-26: "remove") - comes back with ShowDetails. *@
+        @if (ShowDetails && best is not null && run is not null)
         {
             @* One colour, and the answer said in words - not red/green on one line. *@
             <div class="now-best">
