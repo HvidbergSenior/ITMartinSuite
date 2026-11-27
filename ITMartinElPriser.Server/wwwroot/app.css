@@ -362,6 +362,10 @@ details.opt > summary::-webkit-details-marker { display: none; }
 .bar-val { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 2px; font-size: .58rem; line-height: 1; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; pointer-events: none; }
 .bar-col.sel .bar-val, .bar.now .bar-val { color: var(--text); font-weight: 700; }
 .bar-col > .bar-tip { top: -36px; bottom: auto; }
+/* The dark tag centred above the chart (user 2026-11-27: "should always be centered"). */
+.bar-tip-row { text-align: center; height: 22px; margin-bottom: -16px; }
+.bar-tip-c { display: inline-block; white-space: nowrap; font-size: .72rem; font-weight: 700; background: var(--text); color: var(--bg);
+    padding: 2px 8px; border-radius: 6px; font-variant-numeric: tabular-nums; }
 
 /* Elbil teaser: "Hvad koster 100 km?" (user 2026-11-26) */
 .tbl-wrap { overflow-x: auto; }

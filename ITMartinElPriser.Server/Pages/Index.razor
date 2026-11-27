@@ -371,6 +371,18 @@ else
             @{ var runFrom = picked is not null ? start : mark is not null ? mark.Start : start; var runTo = runFrom.AddHours(m.Hours);
                var runCols = strip.Count(x => x.Start < runTo && x.Start.AddHours(1) > runFrom);
                var firstRunCol = strip.FirstOrDefault(x => x.Start < runTo && x.Start.AddHours(1) > runFrom)?.Start; }
+            @* The dark tag always centred above the chart (user 2026-11-27), not over its column at the edge. *@
+            @* The row is always there (fixed height), so the chart does not jump when the tag comes and goes. *@
+            <div class="bar-tip-row">
+                @if (pickedRun is not null)
+                {
+                    <span class="bar-tip-c">kl. @pickedRun.Start.ToString("HH:mm")–@pickedRun.End.ToString("HH:mm") · @Kr(pickedRun.CostKr) kr</span>
+                }
+                else if (mark is not null && mark.Start > QuarterNow())
+                {
+                    <span class="bar-tip-c">billigst kl. @mark.Start.ToString("HH:mm") · @Kr(mark.CostKr) kr</span>
+                }
+            </div>
             <div class="bars">
                 @foreach (var h in strip)
                 {
@@ -403,17 +415,7 @@ else
                                2 timer at columns") instead of a line under the chart. *@
                             <span class="run-len" style="--n:@runCols">@Hours(m.Hours)</span>
                         }
-                        @* The tag sits on the column, above every price (2026-11-26). *@
-                        @* On the shaded period: when, and what the whole run costs there (user 2026-11-26: "it should say 1,79"). *@
-                        @* A tapped start gets the dark label above the chart (its time + price), not text on the columns - that
-                           covered the prices on a phone (user's ss 2026-11-27). Otherwise the cheapest, as before. *@
-                        @if (picked is not null && pickedRun is not null)
-                        {
-                            @if (h.Start <= pickedRun.Start && pickedRun.Start < h.Start.AddHours(1))
-                            { <span class="bar-tip">kl. @pickedRun.Start.ToString("HH:mm")–@pickedRun.End.ToString("HH:mm") · @Kr(pickedRun.CostKr) kr</span> }
-                        }
-                        else if (mark is not null && mark.Start > QuarterNow() && h.Start <= mark.Start && mark.Start < h.Start.AddHours(1))
-                            { <span class="bar-tip">billigst kl. @mark.Start.ToString("HH:mm") · @Kr(mark.CostKr) kr</span> }
+                        @* The dark tag moved to a centred row above the chart (user 2026-11-27: "always centered"). *@
                     </div>
                 }
             </div>
