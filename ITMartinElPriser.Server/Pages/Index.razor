@@ -152,7 +152,7 @@ else
                 {
                     var sk = sizeKind;
                     var on = Math.Abs(HomeMachine.Fixed(sk).Kwh - m.Kwh) < 0.01;
-                    <button class="chip @(on ? "on" : "")" aria-pressed="@on" @onclick="() => PickMachineAsync(sk)">@sizeName · @Kwh(HomeMachine.Fixed(sk).Kwh) kWh</button>
+                    <button class="chip @(on ? "on" : "")" aria-pressed="@on" @onclick="() => PickMachineAsync(sk)">@sizeName<span class="chip-sub">@Kwh(HomeMachine.Fixed(sk).Kwh) kWh</span></button>
                 }
             </div>
         }
@@ -167,7 +167,7 @@ else
                     {
                         var ak = ageKind;
                         var on = Math.Abs(HomeMachine.Fixed(ak).Kwh - m.Kwh) < 0.01;
-                        <button class="chip @(on ? "on" : "")" aria-pressed="@on" @onclick="() => PickMachineAsync(ak)">@ageName · @Kwh(HomeMachine.Fixed(ak).Kwh) kWh</button>
+                        <button class="chip @(on ? "on" : "")" aria-pressed="@on" @onclick="() => PickMachineAsync(ak)">@ageName<span class="chip-sub">@Kwh(HomeMachine.Fixed(ak).Kwh) kWh</span></button>
                     }
                 </div>
             }
