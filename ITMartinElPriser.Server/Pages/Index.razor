@@ -184,10 +184,10 @@ else
             <div class="ev-block">
                 <div class="ev-head">@(isCar ? "Pris efter bilens størrelse" : "Pris efter maskinens alder")</div>
                 @foreach (var (label, kwh) in isCar
-                    ? new[] { ("Lille elbil", EvExample.Small.KwhPer100Km), ("Stor elbil", EvExample.Big.KwhPer100Km) }
-                    : new[] { ("Ny maskine", m.Span?.LowKwh ?? 0.5), ("Gammel maskine", m.Span?.HighKwh ?? 1.5) })
+                    ? new[] { ("Lille elbil", EvExample.Small.KwhPer100Km), ("Mellemstor elbil", m.Kwh), ("Stor elbil", EvExample.Big.KwhPer100Km) }
+                    : new[] { ("Ny maskine", m.Span?.LowKwh ?? 0.5), ("Almindelig maskine", m.Kwh), ("Gammel maskine", m.Span?.HighKwh ?? 1.5) })
                 {
-                    <div class="ev-row"><span>@label · @Kwh(kwh) kWh</span><b>@Kr(run.CostKr * kwh / m.Kwh) kr.</b></div>
+                    <div class="ev-row"><span>@label · @Kwh(kwh) kWh</span>@* Middle row + whole kroner for the car (user 2026-11-27: "put in mellemstor ... use rounded numbers"). *@<b>@(isCar ? (run.CostKr * kwh / m.Kwh).ToString("0", Da) : Kr(run.CostKr * kwh / m.Kwh)) kr.</b></div>
                 }
             </div>
         }
