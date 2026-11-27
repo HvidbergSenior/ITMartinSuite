@@ -259,7 +259,8 @@ else
 
     @* Dishwasher savings box, like the elbil one (user 2026-11-26: "yes"): today's saving, and per year from the REAL prices
        of the last 30 days (Hindsight: one wash a day at the cheapest time instead of 18:00) - not today x 365. *@
-    @if (m.Kind == HomeMachine.DishKind && run is not null && cheapestRun is { } dishCheap && dishCheap.CostKr < run.CostKr)
+    @* Both "Hvad sparer du" boxes belong in the paid version (user 2026-11-27) - hidden here with ShowSavings. *@
+    @if (ShowSavings && m.Kind == HomeMachine.DishKind && run is not null && cheapestRun is { } dishCheap && dishCheap.CostKr < run.CostKr)
     {
         <section class="k-card now-tile lvl-cheap">
             <h2 class="k-card-title">Hvad sparer du på opvasken?</h2>
@@ -282,7 +283,7 @@ else
 
     @* Elbil box (user 2026-11-26: "more specific and more clear on the savings"): one headline with the saving, then a small
        table - now / at the cheap time / saved - for four concrete situations. The explanation is folded. Kr only. *@
-    @if (m.Kind == HomeMachine.CarKind && run is not null && cheapestRun is { } cheap && cheap.CostKr < run.CostKr)
+    @if (ShowSavings && m.Kind == HomeMachine.CarKind && run is not null && cheapestRun is { } cheap && cheap.CostKr < run.CostKr)
     {
         var cheapWhen = cheap == eveRun ? "før natten" : "i nat";
         <section class="k-card now-tile lvl-cheap">
@@ -472,6 +473,8 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1)
         (car.CostKr(at, standardKwh) * factor).ToString("0", Da);
     // Address/elselskab chips and the machine's model number - hidden for now (user 2026-11-26), maybe shown later.
     private const bool ShowDetails = false;
+    // "Hvad sparer du" boxes: paid version only (user 2026-11-27).
+    private const bool ShowSavings = false;
     private DateTime? _selected;
     private Timer? _timer;
 
