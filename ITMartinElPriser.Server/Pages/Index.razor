@@ -386,16 +386,18 @@ else
                         {
                             @* The tapped start's time and price right on the shaded columns (user 2026-11-27: "could be more precise under
                                2 timer at columns") instead of a line under the chart. *@
-                            <span class="run-len" style="--n:@runCols">@Hours(m.Hours)
-                                @if (picked is not null && pickedRun is not null)
-                                {
-                                    <br />@($"{pickedRun.Start:HH:mm}–{pickedRun.End:HH:mm}")<br />@($"{Kr(pickedRun.CostKr)} kr")
-                                }
-                            </span>
+                            <span class="run-len" style="--n:@runCols">@Hours(m.Hours)</span>
                         }
                         @* The tag sits on the column, above every price (2026-11-26). *@
                         @* On the shaded period: when, and what the whole run costs there (user 2026-11-26: "it should say 1,79"). *@
-                        @if (mark is not null && mark.Start > QuarterNow() && h.Start <= mark.Start && mark.Start < h.Start.AddHours(1))
+                        @* A tapped start gets the dark label above the chart (its time + price), not text on the columns - that
+                           covered the prices on a phone (user's ss 2026-11-27). Otherwise the cheapest, as before. *@
+                        @if (picked is not null && pickedRun is not null)
+                        {
+                            @if (h.Start <= pickedRun.Start && pickedRun.Start < h.Start.AddHours(1))
+                            { <span class="bar-tip">kl. @pickedRun.Start.ToString("HH:mm")–@pickedRun.End.ToString("HH:mm") · @Kr(pickedRun.CostKr) kr</span> }
+                        }
+                        else if (mark is not null && mark.Start > QuarterNow() && h.Start <= mark.Start && mark.Start < h.Start.AddHours(1))
                             { <span class="bar-tip">billigst kl. @mark.Start.ToString("HH:mm") · @Kr(mark.CostKr) kr</span> }
                     </div>
                 }
