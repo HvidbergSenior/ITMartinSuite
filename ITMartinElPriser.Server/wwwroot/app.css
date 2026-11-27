@@ -350,7 +350,8 @@ details.opt > summary::-webkit-details-marker { display: none; }
 
 /* The hours the machine runs in (user 2026-11-24): a band behind the columns, so the run reads as one block. */
 /* Shade only the part of each hour the run covers (--rf..--rt, set per column; user 2026-11-26). */
-.bar-col.in-run { --run-shade: color-mix(in srgb, var(--k-accent) 16%, transparent);
+/* Same colour as the "Pris pr. time" box (user 2026-11-27). */
+.bar-col.in-run { --run-shade: var(--bg3);
     background: linear-gradient(to right, transparent var(--rf, 0%), var(--run-shade) var(--rf, 0%), var(--run-shade) var(--rt, 100%), transparent var(--rt, 100%)); }
 .bar-col.in-run + .bar-col.in-run { box-shadow: -2px 0 0 var(--run-shade); }
 /* "i morgen" on one line under the chart - it may run into the empty neighbours (user 2026-11-24 screenshot). */
