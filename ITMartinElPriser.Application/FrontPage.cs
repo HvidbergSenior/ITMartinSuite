@@ -16,11 +16,6 @@ public sealed class NowView(HouseholdSettings settings, List<PricePoint> raw, Pr
     /// <summary>The machine started at this quarter, priced quarter by quarter while it runs. Null = not all prices known.</summary>
     public RunOption? RunAt(DateTime start) => raw.Count == 0 ? null : PriceModel.CostOfRun(raw, Settings, Machine.ToAppliance(), start);
 
-    /// <summary>Another amount of kWh over its own hours from this quarter (a small or big car on the same charger),
-    /// so each row is priced over the hours it really charges (user 2026-11-27: "some meaning which is a bit off").</summary>
-    public RunOption? RunAt(double kwh, double hours, DateTime start) => raw.Count == 0 ? null :
-        PriceModel.CostOfRun(raw, Settings, new Appliance { Name = Machine.Name, KwhPerRun = kwh, DurationHours = hours }, start);
-
     /// <summary>The cheapest start from this quarter on; night = also while people sleep (a machine with a delayed start).</summary>
     public RunOption? Cheapest(DateTime from, bool night) =>
         raw.Count == 0 ? null : PriceModel.CheapestFrom(raw, Settings, Machine.ToAppliance(), from, night);
@@ -75,7 +70,7 @@ public sealed class FrontPageUseCases(IPriceSource prices, IHouseholdPrefs prefs
 
     public Task PickMachineAsync(HouseholdSettings s, string kind)
     {
-        s.Machine = HomeMachine.FrontKinds.Contains(kind) || kind == HomeMachine.WashKind ? kind : HomeMachine.DishKind;
+        s.Machine = HomeMachine.FrontKinds.Contains(kind) || HomeMachine.CarSizes.Contains(kind) || kind == HomeMachine.WashKind ? kind : HomeMachine.DishKind;
         return prefs.SaveAsync(s);
     }
 

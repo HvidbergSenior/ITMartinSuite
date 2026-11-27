@@ -223,9 +223,9 @@ public sealed class RunEntry
 public sealed record EvExample(string Name, double KwhPer100Km)
 {
     // Just a small and a big car and the difference (user 2026-11-26: "just show elbil small car and big car and the difference").
-    // From the wall, incl. ~10 % charging loss like the 20 kWh standard (15 and 24 in the car).
-    public static readonly EvExample Small = new("Lille (fx Tesla Model 3)", 16.5);
-    public static readonly EvExample Big = new("Stor (fx Audi Q8 e-tron)", 26.5);
+    // From the wall, round numbers (user 2026-11-27: "lille er 15, mellemstor er 20, stor er 25").
+    public static readonly EvExample Small = new("Lille (fx Tesla Model 3)", 15);
+    public static readonly EvExample Big = new("Stor (fx Audi Q8 e-tron)", 25);
 
     /// <summary>Cold (around 0 °C vs ~20 °C): heating and a cold battery - typically 20-40 % more; the middle is used.
     /// It is the temperature, not the season (user 2026-11-26).</summary>
@@ -251,6 +251,9 @@ public sealed record EvExample(string Name, double KwhPer100Km)
 public sealed class HomeMachine
 {
     public const string DishKind = "opvask", WashKind = "vask", BikeKind = "elcykel", CarKind = "elbil", KettleKind = "elkedel";
+    /// <summary>The car in three sizes, picked with small buttons; "elbil" = mellemstor, the default (user 2026-11-27).</summary>
+    public const string CarSmallKind = "elbil-lille", CarBigKind = "elbil-stor";
+    public static readonly string[] CarSizes = [CarSmallKind, CarKind, CarBigKind];
     /// <summary>The devices the free front page offers, in chip order (user 2026-11-26: "3-4 devices like Opvaskemaskine,
     /// Elcykel, Elbil, Kedel"). The washing machine is still known but not offered.</summary>
     // Elkedel and elcykel taken off again the same day (user: "remove elkedel and elcykel") - still known, not offered.
@@ -287,11 +290,15 @@ public sealed class HomeMachine
         // 100 km = 20 kWh FROM THE WALL (18 in the car + ~10 % charging loss) - what you pay for (user 2026-11-26: "yes").
         // Time from the charger: 20 kWh / 11 kW = 1 t 49 min -> 2 timer on the quarter grid.
         CarKind => new() { Kind = CarKind, Hours = QuarterHours(20 / HomeChargerKw), Kwh = 20 },
+        CarSmallKind => Car(EvExample.Small.KwhPer100Km),
+        CarBigKind => Car(EvExample.Big.KwhPer100Km),
         KettleKind => new() { Kind = KettleKind, Hours = 0.25, Kwh = 0.12 },
         // A typical dishwasher a few years old, normal use - not the one new Bosch on Eco (0.54 kWh). User 2026-11-26: "like average
         // but also that it depends" + "devices that are more than 2-3 years old". Older labels ~0.9-1.1 Eco, normal ~1.2.
         _ => new() { Kind = DishKind, Hours = 2, Kwh = 1.0 },   // user 2026-11-26: "write 1 kwh, not 1,1"
     };
+
+    private static HomeMachine Car(double kwh) => new() { Kind = CarKind, Hours = QuarterHours(kwh / HomeChargerKw), Kwh = kwh };
 
     /// <summary>The span for this kind of device (user 2026-11-26: lowest and highest dishwasher kWh "should be shown"):
     /// a new machine ~0.5 kWh (EU label of a new class-A dishwasher, 54 kWh/100 washes) up to an old one on intensive ~2 kWh.

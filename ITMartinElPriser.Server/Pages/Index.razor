@@ -145,7 +145,16 @@ else
         @if (m.Kind == HomeMachine.CarKind)
         {
             @* Still too complex (user 2026-11-27): only "Elbil · 100 km" here; kWh, hours, ladeboks + full charge are in the fold. *@
-            <div class="now-device">Elbil · Pris for en opladning som dækker 100 km</div>
+            @* User 2026-11-27: "Like hvad koster det at køre 100 km?" + size buttons, mellemstor (20 kWh) the default. *@
+            <div class="now-device">Hvad koster det at køre 100 km?</div>
+            <div class="chips chips-small" role="group" aria-label="Bilens størrelse">
+                @foreach (var (sizeKind, sizeName) in new[] { (HomeMachine.CarSmallKind, "Lille"), (HomeMachine.CarKind, "Mellem"), (HomeMachine.CarBigKind, "Stor") })
+                {
+                    var sk = sizeKind;
+                    var on = Math.Abs(HomeMachine.Fixed(sk).Kwh - m.Kwh) < 0.01;
+                    <button class="chip @(on ? "on" : "")" aria-pressed="@on" @onclick="() => PickMachineAsync(sk)">@sizeName · @Kwh(HomeMachine.Fixed(sk).Kwh) kWh</button>
+                }
+            </div>
         }
         else
         {
@@ -172,13 +181,8 @@ else
                 <div class="ev-head">@(isCar ? "Hvis du lader nu" : "Hvis du starter opvasken nu")</div>
                 @if (isCar)
                 {
-                    @* Each car size charges for its own time, so only the start and the price right now (user 2026-11-27). *@
-                    var nowCol = strip.FirstOrDefault(x => x.IsNow);
-                    <div>@HomeMachine.HomeChargerKw kW lader · start kl. @run.Start.ToString("HH:mm")</div>
-                    @if (nowCol is not null)
-                    {
-                        <div>Strømpris lige nu: @Kr(nowCol.KrPerKwh) kr./kWh</div>
-                    }
+                    <div>Kl. @run.Start.ToString("HH:mm")–@run.End.ToString("HH:mm") (@Hours(m.Hours)) · @HomeMachine.HomeChargerKw kW lader</div>
+                    <div>Strømpris: @Kr(RunKrPerKwh(run, m)) kr./kWh</div>
                 }
                 else
                 {
@@ -186,17 +190,17 @@ else
                     <div>Strømpris: @Kr(RunKrPerKwh(run, m)) kr./kWh</div>
                 }
             </div>
-            <div class="ev-block">
-                <div class="ev-head">@(isCar ? "Pris efter bilens størrelse" : "Pris efter maskinens alder")</div>
-                @foreach (var (label, kwh) in isCar
-                    ? new[] { ("Lille elbil", EvExample.Small.KwhPer100Km), ("Mellemstor elbil", m.Kwh), ("Stor elbil", EvExample.Big.KwhPer100Km) }
-                    : new[] { ("Ny maskine", m.Span?.LowKwh ?? 0.5), ("Almindelig maskine", m.Kwh), ("Gammel maskine", m.Span?.HighKwh ?? 1.5) })
-                {
-                    var carHours = HomeMachine.QuarterHours(kwh / HomeMachine.HomeChargerKw);
-                       var rowCost = isCar ? _view.RunAt(kwh, carHours, QuarterNow())?.CostKr ?? run.CostKr * kwh / m.Kwh : run.CostKr * kwh / m.Kwh;
-                    <div class="ev-row"><span>@label · @Kwh(kwh) kWh@(isCar ? $" · {Hours(carHours)}" : "")</span><b>@(isCar ? rowCost.ToString("0", Da) : Kr(rowCost)) kr.</b></div>
-                }
-            </div>
+            @* The car's sizes are buttons at the top now (user 2026-11-27), so the rows are for the dishwasher only. *@
+            @if (!isCar)
+            {
+                <div class="ev-block">
+                    <div class="ev-head">Pris efter maskinens alder</div>
+                    @foreach (var (label, kwh) in new[] { ("Ny maskine", m.Span?.LowKwh ?? 0.5), ("Almindelig maskine", m.Kwh), ("Gammel maskine", m.Span?.HighKwh ?? 1.5) })
+                    {
+                        <div class="ev-row"><span>@label · @Kwh(kwh) kWh</span><b>@Kr(run.CostKr * kwh / m.Kwh) kr.</b></div>
+                    }
+                </div>
+            }
         }
         else
         {
