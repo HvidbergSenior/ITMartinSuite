@@ -210,8 +210,13 @@ else
                     <div>Strømpris: @Kr(RunKrPerKwh(run, m)) kr./kWh</div>
                 }
                 @* The sum in plain sight (tester 2026-11-27 read kr./kWh as kr. per hour: "3,44 kr. but it takes 2 hours?"). *@
-                <div>@(isCar ? "Bilen får" : "Opvasken bruger") <b>@Kwh(m.Kwh) kWh i alt</b> – ikke pr. time</div>
+                <div>@(isCar ? "Bilen får" : "Opvasken bruger") <b>@Kwh(m.Kwh) kWh i alt</b></div>
                 <div><b>@Kwh(m.Kwh) kWh × @Kr(RunKrPerKwh(run, m)) kr. = @Kr(run.CostKr) kr.</b></div>
+                @* Price per hour of the run (user 2026-11-27: "pris pr time") - the run's cost spread evenly over its hours. *@
+                @if (m.Hours > 0)
+                {
+                    <div>Det er ca. <b>@Kr(run.CostKr / m.Hours) kr. pr. time</b> i @Hours(m.Hours)</div>
+                }
             </div>
             @* Sizes/ages are buttons at the top now (user 2026-11-27) - no rows here. *@
         }
