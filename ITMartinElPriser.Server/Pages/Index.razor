@@ -277,7 +277,7 @@ else
                         {
                             <tr>
                                 @* kWh shown per row (user 2026-11-27: "Lille bil, 20 °C should it be 16 kWh there?"). *@
-                                <td>@label<br /><span class="k-muted">@((car.KwhPer100Km * f).ToString("0.#", Da)) kWh</span></td>
+                                <td>@label<br /><span class="k-muted">@((car.KwhPer100Km * f).ToString("0.#", Da)) kWh · @Hours(HomeMachine.QuarterHours(car.KwhPer100Km * f / HomeMachine.HomeChargerKw))</span></td>
                                 <td>@(EvKr(car, run, m.Kwh, f)) kr</td>
                                 <td>@(EvKr(car, cheap, m.Kwh, f)) kr</td>
                                 <td><b>@(EvSaved(car, run, cheap, m.Kwh, f)) kr</b></td>
