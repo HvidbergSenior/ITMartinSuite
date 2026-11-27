@@ -163,18 +163,29 @@ else
             }
         }
         @* Elbil laid out like the user's sketch (2026-11-27): no verdict, no fold - "Lad bilen de næste 2 timer" + price per car size. *@
-        @if (m.Kind == HomeMachine.CarKind && run is not null)
+        @* Opvaskemaskine the same way (user 2026-11-27: "also for the opvaskemaskine"). *@
+        @if (m.Kind is HomeMachine.CarKind or HomeMachine.DishKind && run is not null)
         {
+            var isCar = m.Kind == HomeMachine.CarKind;
             <div class="ev-block">
-                <div class="ev-head">Lad bilen de næste @Hours(m.Hours)</div>
+                <div class="ev-head">@(isCar ? "Lad bilen" : "Kør opvasken") de næste @Hours(m.Hours)</div>
                 @* User 2026-11-27: "Mellem størrelse bil 20 kWh · 11 kW lader". *@
-                <div>Mellemstor bil · @Kwh(m.Kwh) kWh · @HomeMachine.HomeChargerKw kW lader</div>
+                @if (isCar)
+                {
+                    <div>Mellemstor bil · @Kwh(m.Kwh) kWh · @HomeMachine.HomeChargerKw kW lader</div>
+                }
+                else
+                {
+                    <div>Almindelig opvaskemaskine · @Kwh(m.Kwh) kWh</div>
+                }
                 <div>Strømpris: @Kr(RunKrPerKwh(run, m)) kr./kWh</div>
                 <div>Kl. @run.Start.ToString("HH:mm")–@run.End.ToString("HH:mm")</div>
             </div>
             <div class="ev-block">
-                <div class="ev-head">Pris efter bilens størrelse</div>
-                @foreach (var (label, kwh) in new[] { ("Lille elbil", EvExample.Small.KwhPer100Km), ("Stor elbil", EvExample.Big.KwhPer100Km) })
+                <div class="ev-head">@(isCar ? "Pris efter bilens størrelse" : "Pris efter maskinens alder")</div>
+                @foreach (var (label, kwh) in isCar
+                    ? new[] { ("Lille elbil", EvExample.Small.KwhPer100Km), ("Stor elbil", EvExample.Big.KwhPer100Km) }
+                    : new[] { ("Ny maskine", m.Span?.LowKwh ?? 0.5), ("Gammel maskine", m.Span?.HighKwh ?? 1.5) })
                 {
                     <div class="ev-row"><span>@label · @Kwh(kwh) kWh</span><b>@Kr(run.CostKr * kwh / m.Kwh) kr.</b></div>
                 }
