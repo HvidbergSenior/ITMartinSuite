@@ -226,6 +226,22 @@ public class RunCostTests
     private static readonly Appliance Wash = new() { Name = "Vaskemaskine", KwhPerRun = 1.0, DurationHours = 2 };
 
     [Test]
+    public void A_run_split_per_clock_hour_adds_up_to_the_run()
+    {
+        // 1 kWh over 2 h from 14:30: 14:30-15 (0.25 kWh at 1.00), 15-16 (0.5 at 2.00), 16-16:30 (0.25 at 3.00).
+        var raw = Day(D, h => h switch { 14 => 1.00, 15 => 2.00, 16 => 3.00, _ => 1.00 });
+        var a = new Appliance { KwhPerRun = 1, DurationHours = 2 };
+        var start = D.ToDateTime(new TimeOnly(14, 30));
+
+        var hours = PriceModel.RunHours(raw, Spot, a, start);
+
+        hours.Select(h => h.Start.Hour).Should().Equal(14, 15, 16);
+        hours.Select(h => h.Kwh).Should().Equal(0.25, 0.5, 0.25);
+        hours.Select(h => h.KrPerKwh).Should().Equal(1.00, 2.00, 3.00);
+        hours.Sum(h => h.CostKr).Should().BeApproximately(PriceModel.CostOfRun(raw, Spot, a, start)!.CostKr, 0.02);
+    }
+
+    [Test]
     public void A_registered_run_is_priced_over_its_whole_duration_from_a_snapped_start()
     {
         // 16:00-17:00 at 1.00, 17:00-19:00 at 2.00. Started 16:07 -> snapped to

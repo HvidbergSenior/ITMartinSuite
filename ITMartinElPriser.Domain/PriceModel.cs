@@ -6,6 +6,12 @@ public sealed record HourBar(DateTime Start, double KrPerKwh, bool IsNow, bool I
 // machine is on contributes its share of the run's kWh at that slot's price.
 public sealed record RunOption(DateTime Start, DateTime End, double CostKr, double AvgKrPerKwh);
 
+/// <summary>The part of a run inside one clock hour: its kWh and what they cost there.</summary>
+public sealed record RunHour(DateTime Start, DateTime End, double Kwh, double CostKr)
+{
+    public double KrPerKwh => Kwh > 0 ? CostKr / Kwh : 0;
+}
+
 public sealed class ApplianceView
 {
     public required Appliance Appliance { get; init; }
@@ -234,6 +240,27 @@ public static class PriceModel
         for (var t = day.ToDateTime(TimeOnly.MinValue); t < day.AddDays(1).ToDateTime(TimeOnly.MinValue); t = t.AddMinutes(SlotMinutes))
             if (CostOfRun(points, s.ShowAllIn, a, t) is { } o) options.Add(o);
         return (options.MinBy(o => o.CostKr), options.MaxBy(o => o.CostKr));
+    }
+
+    // One run split per clock hour (user 2026-11-27: "kl. 14: 0,5 kWh × 3,39 kr. = 1,70 kr."). The kWh are spread evenly
+    // like in CostOfRun, so the lines add up to the run's own cost. Empty when not all prices are known.
+    public static List<RunHour> RunHours(List<PricePoint> raw, HouseholdSettings s, Appliance a, DateTime start)
+    {
+        var points = Priced(raw, s);
+        var t = new DateTime(start.Year, start.Month, start.Day, start.Hour, start.Minute / SlotMinutes * SlotMinutes, 0);
+        var end = t.AddMinutes(Math.Max(1, (int)Math.Round(a.DurationHours * 60 / SlotMinutes)) * SlotMinutes);
+        var result = new List<RunHour>();
+        while (t < end)
+        {
+            var next = new DateTime(t.Year, t.Month, t.Day, t.Hour, 0, 0).AddHours(1);
+            if (next > end) next = end;
+            var hours = (next - t).TotalHours;
+            var kwh = a.KwhPerRun * hours / a.DurationHours;
+            if (CostOfRun(points, s.ShowAllIn, new Appliance { KwhPerRun = kwh, DurationHours = hours }, t) is not { } part) return [];
+            result.Add(new RunHour(t, next, kwh, part.CostKr));
+            t = next;
+        }
+        return result;
     }
 
     public static bool IsQuiet(DateTime t, HouseholdSettings s)

@@ -16,6 +16,9 @@ public sealed class NowView(HouseholdSettings settings, List<PricePoint> raw, Pr
     /// <summary>The machine started at this quarter, priced quarter by quarter while it runs. Null = not all prices known.</summary>
     public RunOption? RunAt(DateTime start) => raw.Count == 0 ? null : PriceModel.CostOfRun(raw, Settings, Machine.ToAppliance(), start);
 
+    /// <summary>The run started at this quarter, one line per clock hour (kWh x that hour's price). Empty = prices not known.</summary>
+    public List<RunHour> RunHours(DateTime start) => raw.Count == 0 ? [] : PriceModel.RunHours(raw, Settings, Machine.ToAppliance(), start);
+
     /// <summary>The cheapest start from this quarter on; night = also while people sleep (a machine with a delayed start).</summary>
     public RunOption? Cheapest(DateTime from, bool night) =>
         raw.Count == 0 ? null : PriceModel.CheapestFrom(raw, Settings, Machine.ToAppliance(), from, night);
