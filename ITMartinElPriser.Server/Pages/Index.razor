@@ -417,8 +417,11 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1)
     private static IEnumerable<(EvExample Car, string Label, double Factor)> EvRows() =>
     [
         (EvExample.Small, "Lille bil, 20 °C", 1),
+        // 130 km/t on its own too (user 2026-11-27: "also small car 130 kmt only").
+        (EvExample.Small, "Lille bil, 130 km/t", EvExample.MotorwayFactor),
         (EvExample.Small, "Lille bil, frost + 130 km/t", EvExample.WinterFactor * EvExample.MotorwayFactor),
         (EvExample.Big, "Stor bil, 20 °C", 1),
+        (EvExample.Big, "Stor bil, 130 km/t", EvExample.MotorwayFactor),
         (EvExample.Big, "Stor bil, frost + 130 km/t", EvExample.WinterFactor * EvExample.MotorwayFactor),
     ];
     private static string EvSaved(EvExample car, RunOption now, RunOption cheap, double standardKwh, double factor) =>
