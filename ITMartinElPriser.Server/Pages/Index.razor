@@ -110,10 +110,10 @@ else
     var best = _view.Cheapest(QuarterNow(), night: true);
     var awake = _view.Cheapest(QuarterNow(), night: false);
     // The period the page points at (user 2026-11-26): cheapest before night, done by 23:00; at night, the cheapest from now on.
-    var eveRun = _view.CheapestBeforeNight(QuarterNow());
-    var nightRun = _view.CheapestAtNight(QuarterNow());
-    var cheapestRun = new[] { eveRun, nightRun }.Where(r => r is not null).MinBy(r => r!.CostKr);
-    var mark = cheapestRun ?? best;
+    // Tester 2026-11-27: "Billigst kl. 21" while the chart showed 22-23 cheaper - "before night" had to be done by 23:00.
+    // Now simply the cheapest start among ALL known prices (next 12 h, night included), so it matches the chart.
+    var cheapestRun = best;
+    var mark = best;
     var hasTomorrow = _snap.Tomorrow?.Hours.Count > 0;
     var m = Current;
     <section class="k-card now-tile @lvl">
@@ -187,6 +187,10 @@ else
                 <div class="k-muted small u-center">Timer: sæt den til <b>@Delay(cr.Start)</b>.</div>
             }
         }
+        @if (m.CanWait && !hasTomorrow)
+        {
+            <div class="k-muted small u-center">Nattens priser kommer ca. kl. 13 – de kan blive billigere.</div>
+        }
         @* Elbil laid out like the user's sketch (2026-11-27): no verdict, no fold - "Lad bilen de næste 2 timer" + price per car size. *@
         @* Opvaskemaskine the same way (user 2026-11-27: "also for the opvaskemaskine"). *@
         @if (m.Kind is HomeMachine.CarKind or HomeMachine.DishKind && run is not null)
@@ -205,6 +209,9 @@ else
                     <div>Kl. @run.Start.ToString("HH:mm")–@run.End.ToString("HH:mm") (@Hours(m.Hours))</div>
                     <div>Strømpris: @Kr(RunKrPerKwh(run, m)) kr./kWh</div>
                 }
+                @* The sum in plain sight (tester 2026-11-27 read kr./kWh as kr. per hour: "3,44 kr. but it takes 2 hours?"). *@
+                <div>@(isCar ? "Bilen får" : "Opvasken bruger") <b>@Kwh(m.Kwh) kWh i alt</b> – ikke pr. time</div>
+                <div><b>@Kwh(m.Kwh) kWh × @Kr(RunKrPerKwh(run, m)) kr. = @Kr(run.CostKr) kr.</b></div>
             </div>
             @* Sizes/ages are buttons at the top now (user 2026-11-27) - no rows here. *@
         }
@@ -295,7 +302,7 @@ else
     {
         <section class="k-card now-tile lvl-cheap">
             <h2 class="k-card-title">Hvad sparer du på opvasken?</h2>
-            <div class="now-device">Start @(dishCheap == eveRun ? "før natten" : "i nat") kl. @dishCheap.Start.ToString("HH:mm") i stedet for nu:</div>
+            <div class="now-device">Start @(_view.IsQuiet(dishCheap.Start) ? "i nat" : "før natten") kl. @dishCheap.Start.ToString("HH:mm") i stedet for nu:</div>
             <div class="now-price lvl-cheap">@Kr(run.CostKr - dishCheap.CostKr) KR</div>
             <div class="now-device">sparet i dag – @Kr(dishCheap.CostKr) kr i stedet for @Kr(run.CostKr) kr</div>
             @* The line keeps its place while the 30 days are worked out, so nothing jumps. *@
@@ -316,7 +323,7 @@ else
        table - now / at the cheap time / saved - for four concrete situations. The explanation is folded. Kr only. *@
     @if (ShowSavings && m.Kind == HomeMachine.CarKind && run is not null && cheapestRun is { } cheap && cheap.CostKr < run.CostKr)
     {
-        var cheapWhen = cheap == eveRun ? "før natten" : "i nat";
+        var cheapWhen = _view.IsQuiet(cheap.Start) ? "i nat" : "før natten";
         <section class="k-card now-tile lvl-cheap">
             <h2 class="k-card-title">Hvad sparer du på 100 km?</h2>
             <div class="now-device">Lad @cheapWhen kl. @cheap.Start.ToString("HH:mm") i stedet for nu:</div>
@@ -412,7 +419,8 @@ else
                 }
             </div>
             @* Only when it matters: before tomorrow's prices are out the strip stops at midnight (user 2026-11-27). *@
-            @if (!hasTomorrow)
+            @* "Nattens priser kommer ca. kl. 13" now sits under "Billigst" in the top card (2026-11-27) - not twice. *@
+            @if (!hasTomorrow && !Current.CanWait)
             {
                 <div class="k-muted small u-center u-mt6">Morgendagens og nattens priser kommer ca. kl. 13.</div>
             }
