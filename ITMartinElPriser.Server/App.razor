@@ -26,7 +26,49 @@
 </head>
 <body>
     <Routes @rendermode="InteractiveServer" />
-    <script src="_framework/blazor.server.js"></script>
+    <script>
+    // The first tap did nothing on a phone (user 2026-11-27): the page shows before Blazor has connected, and a tap in
+    // that second was lost. Catch the last tap while connecting, mark it, and replay it on the same element once ready.
+    (function () {
+        var pending = null;
+        function pathOf(el) {
+            var parts = [];
+            while (el && el !== document.body) {
+                var i = 0, s = el; while ((s = s.previousElementSibling)) i++;
+                parts.unshift(el.tagName + ':' + i); el = el.parentElement;
+            }
+            return parts;
+        }
+        function find(parts) {
+            var el = document.body;
+            for (var p = 0; p < parts.length && el; p++) {
+                var bits = parts[p].split(':'), c = el.children[+bits[1]];
+                el = c && c.tagName === bits[0] ? c : null;
+            }
+            return el;
+        }
+        function onEarlyClick(e) {
+            var t = e.target.closest && e.target.closest('button, .bar-col, [role=button]');
+            if (!t || t.id === 'themeToggleBtn') return;
+            if (pending && pending.el) pending.el.classList.remove('tap-pending');
+            pending = { el: t, path: pathOf(t), text: t.textContent.trim() };
+            t.classList.add('tap-pending');
+        }
+        document.addEventListener('click', onEarlyClick, true);
+        window.epBooted = function () {
+            document.removeEventListener('click', onEarlyClick, true);
+            if (!pending) return;
+            var p = pending; pending = null;
+            if (p.el) p.el.classList.remove('tap-pending');
+            setTimeout(function () {          // let the first interactive render land
+                var el = find(p.path);
+                if (el && el.textContent.trim() === p.text) el.click();
+            }, 250);
+        };
+    })();
+    </script>
+    <script src="_framework/blazor.server.js" autostart="false"></script>
+    <script>Blazor.start().then(function () { window.epBooted && window.epBooted(); });</script>
     <script src="js/push.js?v=@CacheBuster"></script>
     <script src="js/ui.js?v=@CacheBuster"></script>
     <script>

@@ -350,6 +350,10 @@ details.opt > summary::-webkit-details-marker { display: none; }
 
 /* The hours the machine runs in (user 2026-11-24): a band behind the columns, so the run reads as one block. */
 /* Shade only the part of each hour the run covers (--rf..--rt, set per column; user 2026-11-26). */
+/* No double-tap zoom on phones (user 2026-11-27) - pinch zoom still works. */
+html, body, button, .bar-col, .chip { touch-action: manipulation; }
+/* A tap made before the page has connected: shown as pressed, then replayed (App.razor). */
+.tap-pending { opacity: .6; outline: 2px solid var(--accent); outline-offset: 2px; }
 /* Same colour as the "Pris pr. time" box (user 2026-11-27). */
 .bar-col.in-run { --run-shade: var(--bg3);
     background: linear-gradient(to right, transparent var(--rf, 0%), var(--run-shade) var(--rf, 0%), var(--run-shade) var(--rt, 100%), transparent var(--rt, 100%)); }
