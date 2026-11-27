@@ -223,7 +223,8 @@ else
                 }
             </div>
         }
-        @if (!hasTomorrow)
+        @* "Morgendagens priser kommer ca. kl. 13." removed (user 2026-11-27) - back with ShowDetails. *@
+        @if (ShowDetails && !hasTomorrow)
         {
             <div class="k-muted small u-center">Morgendagens priser kommer ca. kl. 13.</div>
         }
