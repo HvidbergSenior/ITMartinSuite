@@ -365,6 +365,13 @@ html, body, button, .bar-col, .chip { touch-action: manipulation; }
 .bars { padding-top: 38px; }
 .bar-val { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 2px; font-size: .58rem; line-height: 1; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; pointer-events: none; }
 .bar-col.sel .bar-val, .bar.now .bar-val { color: var(--text); font-weight: 700; }
+/* Price labels without overlap (user 2026-11-27, phone ss): many columns -> every 2nd; on a phone -> every 3rd. "nu" always. */
+.bars.many .bar-val:not(.v2):not(.vnow) { display: none; }
+@media (max-width: 560px) {
+    .bars.many .bar-val, .bars.some .bar-val { display: none; }
+    .bars.many .bar-val.v3, .bars.many .bar-val.vnow, .bars.some .bar-val.v2, .bars.some .bar-val.vnow { display: block; }
+}
+.bar-col.sel .bar-val { display: block !important; }   /* the tapped column always shows its price */
 .bar-col > .bar-tip { top: -36px; bottom: auto; }
 /* The dark tag centred above the chart (user 2026-11-27: "should always be centered"). */
 .bar-tip-row { text-align: center; height: 22px; margin-bottom: -16px; }
@@ -380,7 +387,7 @@ html, body, button, .bar-col, .chip { touch-action: manipulation; }
 
 /* "2 timer" across the shaded run (user 2026-11-26): spans --n columns from the first one (2px gaps). */
 .run-len { position: absolute; left: var(--rf, 0%); top: 4px; width: calc(var(--n) * 100% + (var(--n) - 1) * 2px - var(--rf, 0%)); text-align: center;
-    font-size: .62rem; font-weight: 700; color: var(--text); pointer-events: none; z-index: 1;
+    font-size: .62rem; font-weight: 700; color: var(--text); pointer-events: none; z-index: 1; white-space: nowrap;   /* "2 timer" on one line on a phone */
     text-shadow: 0 0 3px var(--bg), 0 0 3px var(--bg); }
 
 /* "Sådan er det regnet" - the explanation behind a tap (user 2026-11-26). */

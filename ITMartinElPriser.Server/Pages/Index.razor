@@ -383,7 +383,7 @@ else
                     <span class="bar-tip-c">billigst kl. @mark.Start.ToString("HH:mm") · @Kr(mark.CostKr) kr</span>
                 }
             </div>
-            <div class="bars">
+            <div class="bars @(strip.Count > 16 ? "many" : strip.Count > 8 ? "some" : "")">
                 @foreach (var h in strip)
                 {
                     var inRun = h.Start < runTo && h.Start.AddHours(1) > runFrom;
@@ -402,10 +402,11 @@ else
                                cheapest hour - two different "billigst" confused (user 2026-11-24). *@
                             @* Each column's own price on it (user 2026-11-26: "shown instead of popup"). *@
                             @* All prices up to 16 columns; beyond that every second column, the cheapest, the dearest and "nu" (user 2026-11-27). *@
-                            @if (strip.Count <= 16 || h.IsNow || strip.IndexOf(h) % 2 == 0 || h.KrPerKwh == stripMin || h.KrPerKwh == stripMax)
-                            {
-                                <span class="bar-val">@h.KrPerKwh.ToString("0.00", Da)</span>
-                            }
+                            @* Which labels show is CSS (user 2026-11-27 ss: "4,06" over "4,04" on the phone): every column when few,
+                               every 2nd on a wide screen, every 3rd on a phone - always "nu". Cheapest/dearest no longer forced in, that
+                               put two labels side by side; the cheapest is in the dark tag above anyway. *@
+                            @{ var vi = strip.IndexOf(h); }
+                            <span class="bar-val @(vi % 2 == 0 ? "v2" : "") @(vi % 3 == 0 ? "v3" : "") @(h.IsNow ? "vnow" : "")">@h.KrPerKwh.ToString("0.00", Da)</span>
 
                         </div>
                         @* How long the shaded run is, written across the shaded columns (user 2026-11-26: "it should say 2 timer"). *@
@@ -702,8 +703,10 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1)
     private List<HourBar> Strip()
     {
         var now = QuarterNow();
-        // 24 hours ahead, as far as there are prices (user 2026-11-27: "maybe the columns should cover 24 hours?" - "yes").
-        var end = now.AddHours(24);
+        // 12 hours ahead (user 2026-11-27 on the phone: "too many columns and numbers" -> "12 timer frem"); when the
+        // cheapest start lies later, on to the end of that run so the "billigst" columns are always on the chart (max 24 h).
+        var end = now.AddHours(12);
+        if (_view?.Cheapest(now, night: true) is { } cheapest && cheapest.End > end) end = cheapest.End < now.AddHours(24) ? cheapest.End : now.AddHours(24);
         return [.. (_snap?.Today?.Hours ?? []).Concat(_snap?.Tomorrow?.Hours ?? []).Where(h => !h.IsPast && h.Start < end)];
     }
 
