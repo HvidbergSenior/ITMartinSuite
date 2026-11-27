@@ -4,7 +4,10 @@
     'use strict';
     const $ = id => document.getElementById(id);
     const slug = location.pathname.replace(/^\/|\/$/g, '').toLowerCase();
-    const key = new URLSearchParams(location.search).get('k') || '';
+    // Short link (user 2026-11-27 "easier link?"): moede.itmartin.dk/gruppe1 - the door asks for the code word from the mail
+    // (remembered on this device). An old link with ?k= still works.
+    let key = new URLSearchParams(location.search).get('k') || '';
+    try { if (!key) key = localStorage.getItem('mode_kode_' + slug) || ''; } catch (e) { }
     const POINTS = [
         ['Hvad', 'Hvad?', 'Den konkrete idé: projektet, produktet, begivenheden eller udfordringen.'],
         ['Hvorfor', 'Hvorfor?', 'Værdien for dig og for kunder eller deltagere. Motivation og drivkraft.'],
@@ -29,8 +32,10 @@
         try { localStorage.setItem('mode_theme', t); } catch (e) { }
     };
 
-    if (!slug || !key) { $('intet').hidden = false; return; }
+    if (!slug) { $('intet').hidden = false; return; }
     $('dor').hidden = false;
+    $('kodeFelt').hidden = !!key;
+    $('kode').required = !key;
     try { $('navn').value = localStorage.getItem('mode_navn') || ''; } catch (e) { }
 
     const q = (extra) => `k=${encodeURIComponent(key)}` + (extra || '');
@@ -46,6 +51,8 @@
         e.preventDefault();
         const navn = $('navn').value.trim();
         if (!navn) return;
+        if (!$('kodeFelt').hidden) key = $('kode').value.trim().toLowerCase();
+        if (!key) return;
         $('gaaInd').disabled = true; $('dorFejl').hidden = true;
         try {
             try { localStorage.setItem('mode_navn', navn); } catch (e) { }
@@ -74,7 +81,12 @@
 
     async function join() {
         const r = await post('ind', { navn: myName });
-        if (r.status === 403) throw new Error('Linket virker ikke. Tjek at du har hele linket.');
+        if (r.status === 403) {
+            try { localStorage.removeItem('mode_kode_' + slug); } catch (e) { }
+            $('kodeFelt').hidden = false; $('kode').required = true;
+            throw new Error('Koden passer ikke. Se koden i mailen.');
+        }
+        try { localStorage.setItem('mode_kode_' + slug, key); } catch (e) { }
         const j = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(j.fejl || 'Det lykkedes ikke at gå ind.');
         me = j;
@@ -224,7 +236,7 @@
         $('kamBtn').classList.toggle('slukket', !on);
         renderVideos();
     };
-    $('forladBtn').onclick = () => { leave(); location.href = '/' + slug + '?k=' + encodeURIComponent(key); };
+    $('forladBtn').onclick = () => { leave(); location.href = '/' + slug; };
 
     function leave() {
         if (!me) return;
@@ -329,22 +341,15 @@
         const ideas = [...new Set(view.notes.map(n => n.ideaOf || ''))];
         const g = view.game, mine = g && !g.finished ? g.ownerName : myName;
         ideas.sort((a, b) => (b === mine) - (a === mine));
-        let txt = `${view.title || 'Møde'} – De 6 HV – ${new Date().toLocaleString('da-DK')}
-`;
-        if (view.idea) txt += `Idéen i midten: ${view.idea}
-`;
+        const NL = '\n';
+        let txt = `${view.title || 'Møde'} – De 6 HV – ${new Date().toLocaleString('da-DK')}` + NL;
+        if (view.idea) txt += `Idéen i midten: ${view.idea}` + NL;
         for (const who of ideas) {
-            txt += `
-==== ${who ? who + 's idé' : 'Uden for spillet'} ====
-`;
+            txt += NL + `==== ${who ? who + 's idé' : 'Uden for spillet'} ====` + NL;
             for (const [id, title] of POINTS) {
                 const ns = view.notes.filter(n => (n.ideaOf || '') === who && n.point === id);
                 if (!ns.length) continue;
-                txt += `
-${title}
-` + ns.map(n => `- ${n.text}  (${n.author})`).join('
-') + '
-';
+                txt += NL + title + NL + ns.map(n => `- ${n.text}  (${n.author})`).join(NL) + NL;
             }
         }
         const a = document.createElement('a');

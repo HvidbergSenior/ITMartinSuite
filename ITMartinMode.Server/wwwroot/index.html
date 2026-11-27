@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=10" />
     <link rel="stylesheet" href="/app.css?v=2" />
     <link rel="icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
-    <script src="/app.js?v=3" defer></script>
+    <script src="/app.js?v=5" defer></script>
 </head>
 <body>
 <header class="k-header"><div class="k-header-in"><a href="https://itmartin.dk/" title="Til ITMartin.dk" style="display:flex;flex:none"><img class="k-logo-brand" src="/_content/ITMartin.Shared.UI/itmartin-logo.png" alt="ITMartin – til forsiden"></a><a href="/" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;min-width:0"><div class="k-brand"><b>Møde</b><span>Kolibri Kommunikere</span></div></a><div class="k-header-actions"><button id="themeBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Skift lys/mørk visning">Lys/mørk</button></div></div></header>
@@ -36,6 +36,11 @@
         <form id="dorForm" class="k-stack">
             <label class="k-label" for="navn">Dit navn</label>
             <input class="k-input" id="navn" maxlength="40" autocomplete="given-name" required />
+            <div id="kodeFelt" class="k-stack" hidden>
+                <label class="k-label" for="kode">Kode</label>
+                <input class="k-input" id="kode" maxlength="40" autocomplete="off" autocapitalize="none" spellcheck="false" />
+                <p class="k-help">Koden står i mailen. Du skal kun skrive den første gang.</p>
+            </div>
             <button class="k-btn k-btn-primary k-btn-block" type="submit" id="gaaInd">Gå ind</button>
             <p class="fejl" id="dorFejl" hidden></p>
             <p class="k-help">Intet bliver optaget. Kun dem med linket kan komme ind.</p>
