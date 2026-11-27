@@ -368,7 +368,13 @@ else
             <h2 class="k-card-title">Time for time</h2>
             @* The hours the machine runs in are shaded, so a 2-hour run shows as more than one column (user 2026-11-24). *@
             @* Shaded: the tapped start's run - or, with nothing tapped, the cheapest period (user 2026-11-24). *@
-            @{ var runFrom = picked is not null ? start : mark is not null ? mark.Start : start; var runTo = runFrom.AddHours(m.Hours);
+            @{ var stripEnd = strip.Count > 0 ? strip[^1].Start.AddHours(1) : DateTime.MinValue;
+               // The cheapest run only counts as "on the chart" when it fits inside the 12 hours shown (user's ss 2026-11-27:
+               // 02:30 was half a column with "2 timer" off the edge) - else it is written in the tag ("billigst senere").
+               var markLater = mark is not null && mark.Start.AddHours(m.Hours) > stripEnd;
+               var sorted = strip.OrderBy(x => x.KrPerKwh).ToList();
+               var stripRank = strip.ToDictionary(x => x.Start, x => sorted.Count > 1 ? (double)sorted.IndexOf(x) / (sorted.Count - 1) : 0.5);
+               var runFrom = picked is not null ? start : mark is not null && !markLater ? mark.Start : start; var runTo = runFrom.AddHours(m.Hours);
                var runCols = strip.Count(x => x.Start < runTo && x.Start.AddHours(1) > runFrom);
                var firstRunCol = strip.FirstOrDefault(x => x.Start < runTo && x.Start.AddHours(1) > runFrom)?.Start; }
             @* The dark tag always centred above the chart (user 2026-11-27), not over its column at the edge. *@
@@ -381,8 +387,7 @@ else
                 else if (mark is not null && mark.Start > QuarterNow())
                 {
                     @* Later than the 12 hours shown: said in words, with an arrow to the right (user 2026-11-27). *@
-                    var later = strip.Count > 0 && mark.Start >= strip[^1].Start.AddHours(1);
-                    <span class="bar-tip-c">@(later ? "billigst senere: " : "billigst ")kl. @mark.Start.ToString("HH:mm") · @Kr(mark.CostKr) kr@(later ? " →" : "")</span>
+                    <span class="bar-tip-c">@(markLater ? "billigst senere: " : "billigst ")kl. @mark.Start.ToString("HH:mm") · @Kr(mark.CostKr) kr@(markLater ? " →" : "")</span>
                 }
             </div>
             <div class="bars @(strip.Count > 16 ? "many" : strip.Count > 8 ? "some" : "")">
@@ -397,7 +402,9 @@ else
                     <div class="bar-col @(_selected == h.Start ? "sel" : "") @(inRun ? "in-run" : "")"
                          style="@(inRun ? $"--rf:{(runFromFrac * 100).ToString("0", CultureInfo.InvariantCulture)}%;--rt:{(runToFrac * 100).ToString("0", CultureInfo.InvariantCulture)}%" : null)"
                          @onclick="() => _selected = _selected == h.Start || h.IsNow ? null : h.Start">
-                        <div class="bar @Band(h.Rank01) @(h.IsNow ? "now" : "") @(h.Start.Hour == 0 ? "midnight" : "")"
+                        @* Colour by rank among the columns SHOWN (user's ss 2026-11-27: the night was red at 2,36 kr because it was
+                           ranked within tomorrow's own day, while 3,12 kr tonight was green). *@
+                        <div class="bar @Band(stripRank[h.Start]) @(h.IsNow ? "now" : "") @(h.Start.Hour == 0 ? "midnight" : "")"
                              style="--h:@pct.ToString("0", CultureInfo.InvariantCulture)%">
                             @* Said in words too, not only in green (user is a bit colour-blind). *@
                             @* The tag sits where the advice says to START (the whole run's cheapest start), not on the single
@@ -412,7 +419,8 @@ else
 
                         </div>
                         @* How long the shaded run is, written across the shaded columns (user 2026-11-26: "it should say 2 timer"). *@
-                        @if (h.Start == firstRunCol && runCols > 0)
+                        @* Not when the run runs past the last column - the label would hang off the card (ss 2026-11-27). *@
+                        @if (h.Start == firstRunCol && runCols > 0 && runTo <= stripEnd)
                         {
                             @* The tapped start's time and price right on the shaded columns (user 2026-11-27: "could be more precise under
                                2 timer at columns") instead of a line under the chart. *@
