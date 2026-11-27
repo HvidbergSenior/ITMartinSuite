@@ -188,6 +188,13 @@ else
                 @* Moved down from the top (user 2026-11-27). Full charge: 10 -> 80 % of a typical 70 kWh battery = ~54 kWh from the wall. *@
                 @* User 2026-11-27: "For 100 km kørsel bruger elbiler forskellig kWh ... make it shorter". Full-charge line dropped. *@
                 <div class="k-muted small u-center">En lille elbil bruger ca. @Kwh(EvExample.Small.KwhPer100Km) kWh på 100 km, mens en stor bruger ca. @Kwh(EvExample.Big.KwhPer100Km) kWh. Med en @HomeMachine.HomeChargerKw kW-lader tager det ca. @Hours(m.Hours) at lade @Kwh(m.Kwh) kWh.</div>
+                @* The division behind the charging times (user 2026-11-27: "make the division examples"). *@
+                <div class="now-calc calc-pair">
+                    @foreach (var kwh in new[] { EvExample.Small.KwhPer100Km, m.Kwh, EvExample.Big.KwhPer100Km })
+                    {
+                        <div>@Kwh(kwh) kWh ÷ @HomeMachine.HomeChargerKw kW = @((kwh / HomeMachine.HomeChargerKw).ToString("0.0", Da)) timer ≈ @Hours(HomeMachine.QuarterHours(kwh / HomeMachine.HomeChargerKw))</div>
+                    }
+                </div>
             }
             @* The span in kr when the device has one (dishwasher), else what the average depends on (user 2026-11-26). *@
             @if (m.Span is { } kwhSpan && run is not null)
