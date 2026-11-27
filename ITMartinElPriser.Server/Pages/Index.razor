@@ -200,19 +200,11 @@ else
             <div class="ev-block">
                 @* "Hvis du ... nu", not an order to do it now while it may be dear (user 2026-11-27: "meaning a bit off"). *@
                 <div class="ev-head">@(isCar ? "Hvis du lader nu" : "Hvis du starter opvasken nu")</div>
-                @if (isCar)
-                {
-                    <div>Kl. @run.Start.ToString("HH:mm")–@run.End.ToString("HH:mm") (@Hours(m.Hours)) · @HomeMachine.HomeChargerKw kW lader</div>
-                    <div>Strømpris: @Kr(RunKrPerKwh(run, m)) kr./kWh</div>
-                }
-                else
-                {
-                    <div>Kl. @run.Start.ToString("HH:mm")–@run.End.ToString("HH:mm") (@Hours(m.Hours))</div>
-                    <div>Strømpris: @Kr(RunKrPerKwh(run, m)) kr./kWh</div>
-                }
+                <div>Kl. @run.Start.ToString("HH:mm")–@run.End.ToString("HH:mm") (@Hours(m.Hours))@(isCar ? $" · {HomeMachine.HomeChargerKw} kW lader" : "")</div>
                 @* The sum in plain sight (tester 2026-11-27 read kr./kWh as kr. per hour: "3,44 kr. but it takes 2 hours?"). *@
                 @* Price per hour, one line per clock hour with that hour's own price (user 2026-11-27: "pris pr time" ->
-                   "kl. 14: 0,5 kWh × 3,39 kr. = 1,70 kr." ... "I alt"). Falls back to the one sum line. *@
+                   "kl. 14: 0,5 kWh × 3,39 kr. = 1,70 kr." ... "I alt"). The average "Strømpris" and "ca. X kr. pr. time"
+                   lines went (user 2026-11-27: "maybe this should be different then?") - the box says it. *@
                 @if (_view.RunHours(run.Start) is { Count: > 1 } perHour)
                 {
                     <div class="run-hours">
