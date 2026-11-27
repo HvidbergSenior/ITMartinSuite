@@ -8,6 +8,10 @@
      <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/kolibri.css" />
    ===================================================================== */
 
+/* ---------- 0. Phones: no double-tap zoom (user 2026-11-27, every app) ----------
+   Two quick taps on a button must not magnify the page. Pinch zoom stays (people who need bigger text). */
+html, body, button, a, input, select, label, [role=button] { touch-action: manipulation; }
+
 /* ---------- 1. Tokens ---------- */
 :root {
     /* neutral palette (light) */
