@@ -13,6 +13,10 @@ public static class ShortLinks
     {
         // Møde has one room today (følgegruppen) - the door asks for the code word from the mail.
         ["moede"] = "https://moede.itmartin.dk/gruppe1",
+        ["gruppe1"] = "https://moede.itmartin.dk/gruppe1",
+        // OPEN rooms and galleries only (user 2026-11-27): private ones (family, cases, password galleries) keep their long
+        // secret link, sent as a button - a short word is easy to guess. Martin + Claude add words here; no self-service.
+        ["aadalen"] = "https://snak.itmartin.dk/aadalen",   // "AI på Ådalen" - open course room (name only)
     };
 
     public static string? Target(string? word, IEnumerable<AppLink> apps)
