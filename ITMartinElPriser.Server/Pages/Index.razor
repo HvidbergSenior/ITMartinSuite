@@ -158,7 +158,23 @@ else
         }
         else
         {
-            <div class="now-device">@m.Name · @Kwh(m.Kwh) kWh @m.Amount i @Hours(m.Hours)</div>
+            @if (m.Kind == HomeMachine.DishKind)
+            {
+                @* Same as the car (user 2026-11-27: "also on opvaskemaskine"): a question + equal age buttons, almindelig the default. *@
+                <div class="now-device">Hvad koster det at køre en opvask?</div>
+                <div class="chips chips-small chips-equal" role="group" aria-label="Maskinens alder">
+                    @foreach (var (ageKind, ageName) in new[] { (HomeMachine.DishNewKind, "Ny"), (HomeMachine.DishKind, "Almindelig"), (HomeMachine.DishOldKind, "Gammel") })
+                    {
+                        var ak = ageKind;
+                        var on = Math.Abs(HomeMachine.Fixed(ak).Kwh - m.Kwh) < 0.01;
+                        <button class="chip @(on ? "on" : "")" aria-pressed="@on" @onclick="() => PickMachineAsync(ak)">@ageName · @Kwh(HomeMachine.Fixed(ak).Kwh) kWh</button>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="now-device">@m.Name · @Kwh(m.Kwh) kWh @m.Amount i @Hours(m.Hours)</div>
+            }
         }
         <div class="now-price @lvl">@(run is null ? "–" : Kr(run.CostKr)) KR</div>
         @* Only the cheapest (user 2026-11-26: "Billigst only"): before night or tonight, whichever is cheaper; the timer line
@@ -190,17 +206,7 @@ else
                     <div>Strømpris: @Kr(RunKrPerKwh(run, m)) kr./kWh</div>
                 }
             </div>
-            @* The car's sizes are buttons at the top now (user 2026-11-27), so the rows are for the dishwasher only. *@
-            @if (!isCar)
-            {
-                <div class="ev-block">
-                    <div class="ev-head">Pris efter maskinens alder</div>
-                    @foreach (var (label, kwh) in new[] { ("Ny maskine", m.Span?.LowKwh ?? 0.5), ("Almindelig maskine", m.Kwh), ("Gammel maskine", m.Span?.HighKwh ?? 1.5) })
-                    {
-                        <div class="ev-row"><span>@label · @Kwh(kwh) kWh</span><b>@Kr(run.CostKr * kwh / m.Kwh) kr.</b></div>
-                    }
-                </div>
-            }
+            @* Sizes/ages are buttons at the top now (user 2026-11-27) - no rows here. *@
         }
         else
         {
@@ -378,7 +384,14 @@ else
                         @* How long the shaded run is, written across the shaded columns (user 2026-11-26: "it should say 2 timer"). *@
                         @if (h.Start == firstRunCol && runCols > 0)
                         {
-                            <span class="run-len" style="--n:@runCols">@Hours(m.Hours)</span>
+                            @* The tapped start's time and price right on the shaded columns (user 2026-11-27: "could be more precise under
+                               2 timer at columns") instead of a line under the chart. *@
+                            <span class="run-len" style="--n:@runCols">@Hours(m.Hours)
+                                @if (picked is not null && pickedRun is not null)
+                                {
+                                    <br />@($"{pickedRun.Start:HH:mm}–{pickedRun.End:HH:mm}")<br />@($"{Kr(pickedRun.CostKr)} kr")
+                                }
+                            </span>
                         }
                         @* The tag sits on the column, above every price (2026-11-26). *@
                         @* On the shaded period: when, and what the whole run costs there (user 2026-11-26: "it should say 1,79"). *@
@@ -403,32 +416,8 @@ else
             }
             @* Each column's numbers in words (user 2026-11-24: "each column, how much"): the tapped hour, or now. *@
             @* Start time and the whole run first; the hour's own kWh price last (user 2026-11-24: "20-21?" was confusing). *@
-            @{ var shown = picked ?? strip.FirstOrDefault(h => h.IsNow); var shownRun = picked is null ? run : pickedRun;
-               var from = picked is null ? QuarterNow() : start; }
-            @if (shown is not null)
-            {
-                <div class="small u-mt4 u-center">
-                    @if (shownRun is null)
-                    {
-                        <text><b>Start @(picked is null ? "nu" : StartAt(from))</b>: priserne dækker ikke hele perioden endnu.</text>
-                    }
-                    else
-                    {
-                        @* Closer to the columns, no dashes (user 2026-11-26). *@
-                        <text><b>Start @(picked is null ? "nu" : StartAt(from))</b> · færdig kl. @from.AddHours(m.Hours).ToString("HH:mm") · <b>@Kr(shownRun.CostKr) kr</b></text>
-                        @if (picked is not null && run is not null)
-                        {
-                            var diff = shownRun.CostKr - run.CostKr;
-                            <text> · <b>@(Math.Abs(diff) < 0.01 ? "det samme som nu" : diff < 0 ? $"{Kr(-diff)} kr billigere end nu" : $"{Kr(diff)} kr dyrere end nu")</b></text>
-                        }
-                    }
-                </div>
-            }
-            <div class="k-muted small u-mt6 u-center">Kr pr. kWh · hver søjle er snittet af timens 4 kvarter.</div>
-            @if (picked is not null)
-            {
-                <div class="k-muted small u-mt6 u-center">Tryk igen for at gå tilbage til nu.</div>
-            }
+            @* Removed under the chart (user 2026-11-27): the "Start ... færdig ..." line (now on the columns), "Kr pr. kWh · hver
+               søjle ..." and "Tryk igen for at gå tilbage til nu." *@
         </section>
     }
 

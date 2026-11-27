@@ -254,6 +254,9 @@ public sealed class HomeMachine
     /// <summary>The car in three sizes, picked with small buttons; "elbil" = mellemstor, the default (user 2026-11-27).</summary>
     public const string CarSmallKind = "elbil-lille", CarBigKind = "elbil-stor";
     public static readonly string[] CarSizes = [CarSmallKind, CarKind, CarBigKind];
+    /// <summary>The dishwasher in three ages the same way; "opvask" = almindelig, the default (user 2026-11-27: "also on opvaskemaskine").</summary>
+    public const string DishNewKind = "opvask-ny", DishOldKind = "opvask-gammel";
+    public static readonly string[] DishSizes = [DishNewKind, DishKind, DishOldKind];
     /// <summary>The devices the free front page offers, in chip order (user 2026-11-26: "3-4 devices like Opvaskemaskine,
     /// Elcykel, Elbil, Kedel"). The washing machine is still known but not offered.</summary>
     // Elkedel and elcykel taken off again the same day (user: "remove elkedel and elcykel") - still known, not offered.
@@ -291,6 +294,8 @@ public sealed class HomeMachine
         // Time from the charger: 20 kWh / 11 kW = 1 t 49 min -> 2 timer on the quarter grid.
         CarKind => new() { Kind = CarKind, Hours = QuarterHours(20 / HomeChargerKw), Kwh = 20 },
         CarSmallKind => Car(EvExample.Small.KwhPer100Km),
+        DishNewKind => new() { Kind = DishKind, Hours = 2, Kwh = 0.5 },
+        DishOldKind => new() { Kind = DishKind, Hours = 2, Kwh = 1.5 },
         CarBigKind => Car(EvExample.Big.KwhPer100Km),
         KettleKind => new() { Kind = KettleKind, Hours = 0.25, Kwh = 0.12 },
         // A typical dishwasher a few years old, normal use - not the one new Bosch on Eco (0.54 kWh). User 2026-11-26: "like average
