@@ -346,8 +346,8 @@ else
                             @* The tag sits where the advice says to START (the whole run's cheapest start), not on the single
                                cheapest hour - two different "billigst" confused (user 2026-11-24). *@
                             @* Each column's own price on it (user 2026-11-26: "shown instead of popup"). *@
-                            @* Every second column, the cheapest, the dearest and "nu" (24 columns, user 2026-11-27). *@
-                            @if (h.IsNow || strip.IndexOf(h) % 2 == 0 || h.KrPerKwh == stripMin || h.KrPerKwh == stripMax)
+                            @* All prices up to 16 columns; beyond that every second column, the cheapest, the dearest and "nu" (user 2026-11-27). *@
+                            @if (strip.Count <= 16 || h.IsNow || strip.IndexOf(h) % 2 == 0 || h.KrPerKwh == stripMin || h.KrPerKwh == stripMax)
                             {
                                 <span class="bar-val">@h.KrPerKwh.ToString("0.00", Da)</span>
                             }
