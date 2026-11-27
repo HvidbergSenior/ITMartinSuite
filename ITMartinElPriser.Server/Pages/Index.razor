@@ -167,21 +167,14 @@ else
             @* Simple (user 2026-11-26: "needs to be more simple"): kWh, hours and the sum line are hidden with ShowDetails. *@
             @* The price for the run itself (user 2026-11-26: "it should be the price for running the opvaskemaskine in 2 hours"):
                the average kr/kWh over the hours it runs from now, so kWh x price = the big number. *@
+            @* Three plain sentences instead of the sum lines (user 2026-11-27, own wording). *@
             @if (run is not null)
             {
-                @* "(lige nu 4,14)" = the "nu" column, so the two numbers do not look like a mistake (user 2026-11-26). *@
                 var nowCol = strip.FirstOrDefault(x => x.IsNow);
-                <div class="now-device">Prisen de næste @Hours(m.Hours): <b>@Kr(RunKrPerKwh(run, m)) kr/kWh</b>@(nowCol is null ? "" : $" (lige nu {Kr(nowCol.KrPerKwh)})")</div>
-            }
-            @if (run is not null)
-            {
-                @* The sum behind the big number, small and neutral (user 2026-11-26: "and the calculation in small letters"). *@
-                var perKwh = RunKrPerKwh(run, m);
-                @* One block, the second line explaining the kr/kWh of the first (user 2026-11-26: "should look associated"). *@
-                <div class="now-calc calc-pair">
-                    <div>@Kwh(m.Kwh) kWh × <u>@Kr(perKwh) kr/kWh</u> @(Math.Abs(Math.Round(perKwh * m.Kwh, 2) - run.CostKr) < 0.005 ? "=" : "≈") @Kr(run.CostKr) kr</div>
-                    <div class="calc-why"><u>@Kr(perKwh) kr/kWh</u> @RunColumnsText(QuarterNow(), m.Hours)</div>
-                </div>
+                var what = m.Kind == HomeMachine.CarKind ? $"at lade {Kwh(m.Kwh)} kWh" : $"at køre en {m.Run} ({Kwh(m.Kwh)} kWh)";
+                <div class="now-device">Strømmen koster i gennemsnit <b>@Kr(RunKrPerKwh(run, m)) kr./kWh</b> de næste @Hours(m.Hours)@(nowCol is null ? "" : $" (lige nu {Kr(nowCol.KrPerKwh)} kr./kWh)").</div>
+                <div class="now-device">Det koster ca. <b>@Math.Round(run.CostKr).ToString("0", Da) kr.</b> @what.</div>
+                <div class="k-muted small u-center">Prisperioden er kl. @run.Start.ToString("HH:mm")–@run.End.ToString("HH:mm"), beregnet ud fra kvarterspriser.</div>
             }
             @if (m.Kind == HomeMachine.CarKind)
             {
