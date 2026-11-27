@@ -380,7 +380,9 @@ else
                 }
                 else if (mark is not null && mark.Start > QuarterNow())
                 {
-                    <span class="bar-tip-c">billigst kl. @mark.Start.ToString("HH:mm") · @Kr(mark.CostKr) kr</span>
+                    @* Later than the 12 hours shown: said in words, with an arrow to the right (user 2026-11-27). *@
+                    var later = strip.Count > 0 && mark.Start >= strip[^1].Start.AddHours(1);
+                    <span class="bar-tip-c">@(later ? "billigst senere: " : "billigst ")kl. @mark.Start.ToString("HH:mm") · @Kr(mark.CostKr) kr@(later ? " →" : "")</span>
                 }
             </div>
             <div class="bars @(strip.Count > 16 ? "many" : strip.Count > 8 ? "some" : "")">
@@ -703,10 +705,9 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1)
     private List<HourBar> Strip()
     {
         var now = QuarterNow();
-        // 12 hours ahead (user 2026-11-27 on the phone: "too many columns and numbers" -> "12 timer frem"); when the
-        // cheapest start lies later, on to the end of that run so the "billigst" columns are always on the chart (max 24 h).
+        // 12 hours ahead (user 2026-11-27 on the phone: "too many columns and numbers" -> "12 timer frem"). A cheapest
+        // start later than that is written in the dark tag instead ("but if billigst is later you could write that").
         var end = now.AddHours(12);
-        if (_view?.Cheapest(now, night: true) is { } cheapest && cheapest.End > end) end = cheapest.End < now.AddHours(24) ? cheapest.End : now.AddHours(24);
         return [.. (_snap?.Today?.Hours ?? []).Concat(_snap?.Tomorrow?.Hours ?? []).Where(h => !h.IsPast && h.Start < end)];
     }
 
