@@ -167,6 +167,23 @@ app.UseStaticFiles(new StaticFileOptions
 app.UseRouting();
 app.UseCors();
 
+// itmartin.dk/moede, /snak, /elpriser … -> the app (user 2026-11-27: people find "xxx.itmartin.dk" hard to type).
+// Only one-word addresses that no other route claims except the /{*Slug} page catch-all, and only when no page has that address.
+app.Use(async (ctx, next) =>
+{
+    var p = ctx.Request.Path.Value ?? "";
+    if (HttpMethods.IsGet(ctx.Request.Method) && p.Length > 1 && p.IndexOf('/', 1) < 0 && !p.Contains('.')
+        && !ITMartinHjem.Server.Components.BogshoppenHome.IsHost(ctx.Request.Host.Host)
+        && (ctx.GetEndpoint() is null
+            || ctx.GetEndpoint()?.Metadata.GetMetadata<Microsoft.AspNetCore.Components.Endpoints.ComponentTypeMetadata>()?.Type == typeof(ITMartinHjem.Server.Pages.SitePage))
+        && await ctx.RequestServices.GetRequiredService<SiteUseCases>().ShortLinkAsync(Uri.UnescapeDataString(p[1..])) is { } target)
+    {
+        ctx.Response.Redirect(target);
+        return;
+    }
+    await next();
+});
+
 // itmartin.dk/tael-ikke-mig also leaves a cookie for the whole *.itmartin.dk domain (user 2026-10-06: "filter my phone
 // and machine out" - also in the apps). kolibri.js in every app reads it and marks that app's own browser id.
 // Not HttpOnly on purpose: the apps' scripts must see it. It holds nothing but "1".

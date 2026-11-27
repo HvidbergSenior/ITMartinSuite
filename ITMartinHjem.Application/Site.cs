@@ -24,6 +24,14 @@ public sealed class SiteUseCases(ISettingsRepository settings, IPageRepository p
         await posts.TimelineAsync(family),
         family ? 0 : await posts.CountAsync(Visibility.Familie));
 
+    /// <summary>itmartin.dk/&lt;word&gt; -> an app's address, or null. A real page with that address always wins.</summary>
+    public async Task<string?> ShortLinkAsync(string word)
+    {
+        var w = ShortLinks.Normalize(word);
+        if (w.Length == 0 || await pages.BySlugAsync(w) is not null) return null;
+        return ShortLinks.Target(w, await apps.AllAsync());
+    }
+
     public async Task<SitePageView> PageAsync(string slug)
     {
         slug = slug.Trim('/').ToLowerInvariant();
