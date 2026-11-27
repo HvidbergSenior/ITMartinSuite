@@ -22,6 +22,7 @@ else
             </div>
         }
         else if (_box.Place != "") { <p>Placering: <b>@_box.Place</b></p> }
+        @if (_box.Seller != "") { <p>Det er <span class="lg-seller">@_box.Seller</span>s ting – sælges som vores egne.</p> }
         <div class="lg-row">
             @if (_items.Count(i => i.ItemPhoto != "") is > 0 and var photos)
             {
@@ -52,7 +53,7 @@ else
         <ul class="lg-list">
             @foreach (var i in _items)
             {
-                <li><a href="/vare/@i.Id"><span class="lg-icon">@Kinds.Icon(i.Kind)</span><span class="lg-main"><b>@i.Line()</b>@if (i.Confidence < Pricing.MinConfidence) { <span class="lg-check">⚠ Tjek navn</span> }<span class="k-small k-muted">@i.Condition@(i.Quantity > 1 ? $" · {i.Quantity} stk." : "")</span></span></a></li>
+                <li><a href="/vare/@i.Id"><span class="lg-icon">@Kinds.Icon(i.Kind)</span><span class="lg-main"><b>@i.Line()</b>@if (i.Seller != "") { <span class="lg-seller">@i.Seller</span> }@if (i.Confidence < Pricing.MinConfidence) { <span class="lg-check">⚠ Tjek navn</span> }<span class="k-small k-muted">@i.Condition@(i.Quantity > 1 ? $" · {i.Quantity} stk." : "")</span></span></a></li>
             }
         </ul>
     </section>

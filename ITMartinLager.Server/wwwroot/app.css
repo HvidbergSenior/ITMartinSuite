@@ -10,6 +10,8 @@
 .lg-search { font-size: 1.2rem; padding: .7rem .8rem; width: 100%; }
 .lg-warn, .lg-ok, .lg-check { border-left: 4px solid var(--k-text); padding: .4rem .7rem; border-radius: 6px; background: var(--k-bg-deep, rgba(128,128,128,.12)); }
 .lg-check { display: inline-block; font-weight: 700; padding: .1rem .5rem; }
+/* Someone else's thing (Marianne, 2026-11-27): a small name tag, no colour of its own (one colour theme). */
+.lg-seller { display: inline-block; font-size: .75em; font-weight: 600; padding: 0 .45rem; margin-left: .4rem; border: 1px solid currentColor; border-radius: 999px; vertical-align: middle; }
 .lg-list { list-style: none; margin: 0; padding: 0; }
 .lg-list li { display: flex; align-items: center; gap: .4rem; border-bottom: 1px solid var(--k-border, rgba(128,128,128,.25)); }
 .lg-list li > a { flex: 1; min-width: 0; border-bottom: 0 !important; }

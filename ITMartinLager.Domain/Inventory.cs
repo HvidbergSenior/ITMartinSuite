@@ -78,6 +78,9 @@ public sealed class Box
     /// pile mostly is (2026-11-10). "" = an old or hand-made box.</summary>
     public string Kind { get; set; } = "";
     public bool Fund { get; set; }
+    /// <summary>Whose things are in the box when they are not ours (Vareinfo session "Marianne – 27. november", 2026-11-27): every
+    /// thing read into it gets the name as Item.Seller - the small mark. "" = ITMartin's own.</summary>
+    public string Seller { get; set; } = "";
     /// <summary>Which round of scanning the box belongs to (Iterations; 0 = before 2026-11-03, set to 1 then).</summary>
     public int Iteration { get; set; }
 

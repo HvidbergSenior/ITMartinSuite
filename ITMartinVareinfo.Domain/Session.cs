@@ -29,6 +29,9 @@ public sealed class WorkSession
     /// <summary>The button on the start screen (CaptureKinds: "Blade og album", "Blandet" ...) - user 2026-11-10: "These sessions
     /// could be all things magazines, strikke, ting, etc" + "maybe automatic session on days". "" = a session Martin started by hand.</summary>
     public string Kind { get; set; } = "";
+    /// <summary>Whose things these are when they are not ours (user 2026-11-27: Marianne's piles - "a small mark saying Marianne").
+    /// "" = our own. Lager marks every thing read from the session with the name.</summary>
+    public string Seller { get; set; } = "";
 
     public bool Open => ClosedAt is null;
     public bool IsPractice => BoxCodes.IsTest(BoxCode);
@@ -37,13 +40,13 @@ public sealed class WorkSession
     public bool IsDaily => Kind != "";
 
     /// <summary>"Blade og album – 10. november", "Session 3 – Boxit, reol 2", "Session 3", or "Øvesession – Rico".</summary>
-    public string Title => IsPractice ? $"Øvesession – {HelperName}" : IsDaily && Name != "" ? Name
+    public string Title => IsPractice ? $"Øvesession – {HelperName}" : IsDaily && Name != "" ? (Seller == "" ? Name : $"{Seller} – {Name}")
         : Name == "" ? $"Session {Number}" : $"Session {Number} – {Name}";
 
-    public static WorkSession Start(int number, string? name, DateTime now, string kind = "")
+    public static WorkSession Start(int number, string? name, DateTime now, string kind = "", string? seller = null)
     {
         if (number is < 1 or > MaxNumber) throw new InvalidOperationException("Der er ikke flere sessionsnumre.");
-        return new() { Number = number, Name = Clean(name), BoxCode = BoxCodes.For(FirstCode + number), CreatedAt = now, Kind = Clean(kind) };
+        return new() { Number = number, Name = Clean(name), BoxCode = BoxCodes.For(FirstCode + number), CreatedAt = now, Kind = Clean(kind), Seller = CleanSeller(seller) };
     }
 
     /// <summary>Today's session by Danish date: "15. november" (Blandet - since 2026-11-15 the only one), "Blade og album – 10. november" (old buttons).</summary>
@@ -54,8 +57,16 @@ public sealed class WorkSession
     }
 
     /// <summary>Is this today's session of that button (a Mine varer session, same button, open, made today in Danish time)?</summary>
-    public bool IsToday(string kind, DateTime utcNow) =>
-        Open && !IsPractice && !Fund && Kind == Clean(kind) && SameDay(CreatedAt, utcNow);
+    public bool IsToday(string kind, DateTime utcNow, string? seller = null) =>
+        Open && !IsPractice && !Fund && Kind == Clean(kind) && Seller == CleanSeller(seller) && SameDay(CreatedAt, utcNow);
+
+    /// <summary>A first name, at most 40 characters: "marianne " -> "Marianne".</summary>
+    public static string CleanSeller(string? seller)
+    {
+        var s = Clean(seller);
+        if (s.Length > 40) s = s[..40].Trim();
+        return s == "" ? "" : char.ToUpperInvariant(s[0]) + s[1..];
+    }
 
     /// <summary>A day session from an earlier day - it closes by itself (no one has to press Luk).</summary>
     public bool IsOldDaily(DateTime utcNow) => Open && IsDaily && !SameDay(CreatedAt, utcNow);

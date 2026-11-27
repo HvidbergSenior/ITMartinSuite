@@ -164,6 +164,13 @@ public static class LagerDbInitializer
             if (Convert.ToInt32(cmd.ExecuteScalar()) == 0)
                 db.Database.ExecuteSqlRaw("ALTER TABLE Boxes ADD COLUMN Kind TEXT NOT NULL DEFAULT ''");
         }
+        {
+            // Whose things the box holds (2026-11-27, Marianne).
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Boxes') WHERE name = 'Seller'";
+            if (Convert.ToInt32(cmd.ExecuteScalar()) == 0)
+                db.Database.ExecuteSqlRaw("ALTER TABLE Boxes ADD COLUMN Seller TEXT NOT NULL DEFAULT ''");
+        }
         foreach (var (col, type) in new[] { ("Image", "TEXT NOT NULL DEFAULT ''"), ("Look", "INTEGER NULL"), ("Cover", "INTEGER NULL") })
         {
             // The free picture matching (2026-11-04): the listing's picture and how alike it looks to our cover.

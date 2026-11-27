@@ -42,6 +42,25 @@ else
         <label class="k-btn k-btn-primary lg-big lg-camera">Upload billeder fra telefonen
             <input type="file" accept="image/*" multiple class="lg-hidden-file" data-photo-url="/api/foto" data-fields="@SessionFields" />
         </label>
+        @* User 2026-11-27 (Marianne's piles): "every product on these pictures should have a small mark saying Marianne" - her own
+           session; Lager marks each thing with the name and handles the rest like our own. Martin only. *@
+        @if (Me.IsAdmin)
+        {
+            @if (_session.Seller != "")
+            {
+                <p class="k-help">Det er <b>@_session.Seller</b>s ting – hver ting får mærket <b>@_session.Seller</b> i Lager. <a href="/">Tilbage til mine egne</a></p>
+            }
+            else
+            {
+                <details class="k-help">
+                    <summary>Er det en andens ting?</summary>
+                    <form method="get" action="/">
+                        <label>Hvis ting? <input name="fra" maxlength="40" autocomplete="off" placeholder="Marianne" required /></label>
+                        <button type="submit" class="k-btn">Start deres session</button>
+                    </form>
+                </details>
+            }
+        }
     </section>
 
     @* The iPhone Shortcut (2026-11-15: "a small app that take pictures with my own cam and send immediately"): own camera, each
@@ -64,6 +83,8 @@ else
 
 @code {
     [CascadingParameter] public Taker? Me { get; set; }
+    /// <summary>?fra=Marianne - someone else's things get their own day session (2026-11-27).</summary>
+    [SupplyParameterFromQuery(Name = "fra")] public string? Fra { get; set; }
 
     private WorkSession? _session;
     private int _photos, _atLager;
@@ -78,7 +99,7 @@ else
         _error = null;
         try
         {
-            _session = await Sessions.TodayAsync(Me, CaptureKinds.Mixed);
+            _session = await Sessions.TodayAsync(Me, CaptureKinds.Mixed, seller: Fra);
             await Count();
             // Photos from the Shortcut arrive outside this page, and Lager takes them a little later - look again every 10 s.
             _refresh ??= new Timer(_ => InvokeAsync(async () => { await Count(); StateHasChanged(); }), null, 10_000, 10_000);

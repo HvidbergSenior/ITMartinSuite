@@ -80,6 +80,21 @@ public class SessionTests
         boxes.Single().Should().Be(new CapturedBox(s.BoxCode, "20. oktober", false, "Blandet", true));
     }
 
+    // Marianne's piles (2026-11-27): Martin's ?fra=marianne is its own day session next to his own, titled with her name, and
+    // Lager is told whose things they are. A helper cannot make one.
+    [Test]
+    public async Task Someone_elses_things_get_their_own_named_session()
+    {
+        var mine = await _sessions.TodayAsync(_martin);
+        var hers = await _sessions.TodayAsync(_martin, seller: " marianne ");
+        hers.Id.Should().NotBe(mine.Id);
+        hers.Title.Should().Be("Marianne – 20. oktober");
+        (await _sessions.TodayAsync(_martin, seller: "Marianne")).Id.Should().Be(hers.Id);
+        (await _sessions.TodayAsync(_martin)).Id.Should().Be(mine.Id);
+        (await _sessions.BoxesAsync([hers.BoxCode])).Single().Seller.Should().Be("Marianne");
+        (await _sessions.TodayAsync(_bertil, seller: "Marianne")).Seller.Should().Be("");
+    }
+
     [Test]
     public async Task The_overview_shows_photos_and_helpers_per_session()
     {

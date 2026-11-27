@@ -23,7 +23,9 @@ public sealed record CapturedScan(int Id, string BoxCode, string Helper, string 
 // Kind (2026-11-10, user: "These sessions could be all things magazines, strikke, ting, etc"): the button the person pressed
 // ("Blade og album") - Lager tells the reader what the pile mostly is. ReadNow: a day session's photos are read at once (user
 // 2026-11-10: "take pictures of my products -> and on Bogshoppen"), not first when someone presses Læs.
-public sealed record CapturedBox(string BoxCode, string Name, bool Fund = false, string Kind = "", bool ReadNow = false);
+// Seller (2026-11-27, user: "every product on these pictures should have a small mark saying Marianne"): someone else's things,
+// sold by Martin like his own - Lager puts the name on every thing read from the box (Item.Seller). "" = ITMartin's own.
+public sealed record CapturedBox(string BoxCode, string Name, bool Fund = false, string Kind = "", bool ReadNow = false, string Seller = "");
 
 /// <summary>One button on Vareinfo's start screen: what the pictures are of. Hint = what the reader is told the pile mostly is
 /// ("" = it decides per thing). Strik and Ting are not here: they are put in one at a time in Lager (/strik, /ting).</summary>

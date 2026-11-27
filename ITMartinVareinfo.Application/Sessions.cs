@@ -27,16 +27,18 @@ public sealed class SessionUseCases(ISessionRepository sessions, IPhotoRepositor
     /// <summary>One press on the start screen (user 2026-11-10: "maybe automatic session on days"): today's session of that
     /// button ("Blade og album") - joined when it is there, made when it is not. Day sessions from earlier days are closed on
     /// the way (photos still on a phone still come in). Tjek is its own app now (2026-11-15), so these are always Mine varer.</summary>
-    public async Task<WorkSession> TodayAsync(Taker me, string? kind = null, CancellationToken ct = default)
+    /// <param name="seller">Someone else's things (2026-11-27, Marianne): their own day session, marked with the name. Martin only.</param>
+    public async Task<WorkSession> TodayAsync(Taker me, string? kind = null, CancellationToken ct = default, string? seller = null)
     {
         kind = CaptureKinds.IsKind(kind) ? kind! : CaptureKinds.Mixed;
+        seller = me.IsAdmin ? WorkSession.CleanSeller(seller) : "";
         await Gate.WaitAsync(ct);
         try
         {
             var all = await AllAsync(ct);
             await CloseOldDaysAsync(all, ct);
-            if (all.Where(s => s.IsToday(kind, Now) && s.IsFor(me)).OrderByDescending(s => s.CreatedAt).FirstOrDefault() is { } today) return today;
-            var s = Guard(() => WorkSession.Start(WorkSession.NextNumber(all.Select(x => x.Number)), WorkSession.TodayName(kind, Now), Now, kind));
+            if (all.Where(s => s.IsToday(kind, Now, seller) && s.IsFor(me)).OrderByDescending(s => s.CreatedAt).FirstOrDefault() is { } today) return today;
+            var s = Guard(() => WorkSession.Start(WorkSession.NextNumber(all.Select(x => x.Number)), WorkSession.TodayName(kind, Now), Now, kind, seller));
             await sessions.SaveAsync(s, ct);
             return s;
         }
@@ -69,7 +71,7 @@ public sealed class SessionUseCases(ISessionRepository sessions, IPhotoRepositor
     /// <summary>The session title and whether it is a Fund session, for these Lager codes.</summary>
     public async Task<List<CapturedBox>> BoxesAsync(IReadOnlyCollection<string> codes, CancellationToken ct = default) =>
         (await sessions.AllAsync(ct)).Where(s => !s.IsPractice && codes.Contains(s.BoxCode))
-            .GroupBy(s => s.BoxCode).Select(g => new CapturedBox(g.Key, g.First().Title, g.First().Fund, g.First().Kind, g.First().IsDaily)).ToList();
+            .GroupBy(s => s.BoxCode).Select(g => new CapturedBox(g.Key, g.First().Title, g.First().Fund, g.First().Kind, g.First().IsDaily, g.First().Seller)).ToList();
 
     private static T Guard<T>(Func<T> rule)
     {

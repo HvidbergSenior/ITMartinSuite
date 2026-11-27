@@ -13,7 +13,7 @@ public sealed class RegistrationUseCases(IItemRepository items)
     /// <param name="placed">When given: every saved thing that has no own photo yet, with what was read - so the caller
     /// can cut its picture out of the pile photo (Intake).</param>
     public async Task<(int Added, int Merged)> SaveAsync(int? boxId, int? photoId, IEnumerable<Found> found, CancellationToken ct = default,
-        List<(Item Item, Found Found)>? placed = null, string? status = null)
+        List<(Item Item, Found Found)>? placed = null, string? status = null, string? seller = null)
     {
         var list = found.ToList();
         var stock = boxId is { } b ? await items.InBoxAsync(b, ct) : await items.WithTitlesAsync(list.Select(f => f.Title).ToList(), ct);
@@ -46,6 +46,7 @@ public sealed class RegistrationUseCases(IItemRepository items)
             }
             var item = Item.From(f, boxId, photoId);
             if (status is not null) item.Status = status;   // a Fund box's things are Fund, not ours yet
+            if (!string.IsNullOrEmpty(seller)) item.Seller = seller;   // someone else's box: the small mark (Marianne, 2026-11-27)
             stock.Add(item);
             added.Add(item);
             if (f.Area is not null) placed?.Add((item, f));

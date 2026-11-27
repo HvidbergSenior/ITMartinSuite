@@ -88,6 +88,13 @@ public sealed class BoxRepository(IDbContextFactory<LagerDb> dbf) : IBoxReposito
         await db.Boxes.Where(b => b.Id == id).ExecuteUpdateAsync(u => u.SetProperty(b => b.Fund, true), ct);
     }
 
+    public async Task SetSellerAsync(int id, string seller, CancellationToken ct)
+    {
+        await using var db = await dbf.CreateDbContextAsync(ct);
+        await db.Boxes.Where(b => b.Id == id).ExecuteUpdateAsync(u => u.SetProperty(b => b.Seller, seller), ct);
+        await db.Items.Where(i => i.BoxId == id && i.Seller == "").ExecuteUpdateAsync(u => u.SetProperty(i => i.Seller, seller), ct);
+    }
+
     public async Task SetKindAsync(int id, string kind, CancellationToken ct)
     {
         await using var db = await dbf.CreateDbContextAsync(ct);

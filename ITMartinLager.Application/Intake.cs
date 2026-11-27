@@ -32,6 +32,7 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
         var names = (batch.Boxes ?? []).ToDictionary(b => b.BoxCode, b => b.Name);
         var fund = (batch.Boxes ?? []).Where(b => b.Fund).Select(b => b.BoxCode).ToHashSet();
         var kinds = (batch.Boxes ?? []).Where(b => b.Kind != "").ToDictionary(b => b.BoxCode, b => b.Kind);
+        var sellers = (batch.Boxes ?? []).Where(b => b.Seller != "").ToDictionary(b => b.BoxCode, b => b.Seller);
         // Read at once: Fund (the prices are needed while standing there) and the day sessions (user 2026-11-10: "take pictures
         // of my products -> and on Bogshoppen") - the same one call per photo as Læs, under the same daily cap.
         var readNow = (batch.Boxes ?? []).Where(b => b.Fund || b.ReadNow).Select(b => b.BoxCode).ToHashSet();
@@ -44,6 +45,7 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
             if (names.GetValueOrDefault(code) is { Length: > 0 } name && box.Note == "") await boxes.SetNoteAsync(box.Id, name, ct);
             if (fund.Contains(code) && !box.Fund) await boxes.SetFundAsync(box.Id, ct);
             if (kinds.GetValueOrDefault(code) is { } kind && box.Kind == "") await boxes.SetKindAsync(box.Id, kind, ct);
+            if (sellers.GetValueOrDefault(code) is { } seller && box.Seller == "") await boxes.SetSellerAsync(box.Id, seller, ct);
         }
         await intake.AddAsync(
             batch.Photos.Select(p => new BoxShot { VareinfoId = p.Id, BoxCode = p.BoxCode, Helper = p.Helper, Tiles = p.Tiles, TakenAt = p.TakenAt }),
@@ -199,7 +201,7 @@ public sealed class IntakeUseCases(IVareinfoGateway vareinfo, IIntakeRepository 
             .ToList();
         clean = await WithYearsAsync(clean, ct);
         var placed = new List<(Item Item, Found Found)>();
-        await registration.SaveAsync(box.Id, photoId, clean, ct, placed, box.Fund ? Statuses.Fund : null);
+        await registration.SaveAsync(box.Id, photoId, clean, ct, placed, box.Fund ? Statuses.Fund : null, box.Seller);
         if (pile is not null) await CutOutAsync(pile, placed, ct);
         if (pages.Count > 0 || placed.Count > 0) await AddKolofonPagesAsync(box.Id, photoId, pages, pile, ct);
     }

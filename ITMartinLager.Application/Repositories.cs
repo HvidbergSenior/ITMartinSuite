@@ -21,6 +21,8 @@ public interface IBoxRepository
     Task SetNoteAsync(int id, string note, CancellationToken ct);
     Task SetFundAsync(int id, CancellationToken ct);
     Task SetKindAsync(int id, string kind, CancellationToken ct) => Task.CompletedTask;
+    /// <summary>Whose things the box holds - also put on the things already read into it that have no name yet.</summary>
+    Task SetSellerAsync(int id, string seller, CancellationToken ct) => Task.CompletedTask;
     /// <summary>The Fund boxes, newest first.</summary>
     Task<List<Box>> FundBoxesAsync(CancellationToken ct);
     Task DeleteAsync(int id, CancellationToken ct);

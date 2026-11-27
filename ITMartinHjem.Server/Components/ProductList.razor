@@ -674,7 +674,8 @@
     private static string Facts(ShopItem i) => string.Join(" · ", new[]
     {
         // Strikkeshoppen (2026-11-10): the maker's name on her things - she owns them, Martin sells them for her.
-        i.Seller != "" && i.Kind == Kinds.Strik ? $"Strikket af {i.Seller}" : i.Seller != "" ? $"Sælges for {i.Seller}" : "",
+        // Other people's piles (Marianne, 2026-11-27) are sold like our own: their name is an internal mark in Lager, never shown here.
+        i.Seller != "" && i.Kind == Kinds.Strik ? $"Strikket af {i.Seller}" : i.Seller != "" && i.Kind == Kinds.Ting ? $"Sælges for {i.Seller}" : "",
         Kinds.Label(i.Kind),
         i.Condition == "" || i.Kind == Kinds.Strik ? "" : $"{i.Condition} stand",
         i.Usage,

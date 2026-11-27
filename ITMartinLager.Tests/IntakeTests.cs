@@ -275,6 +275,27 @@ public class IntakeTests
         (await intake.UnreadableAsync()).Select(s => s.VareinfoId).Should().Equal(42);
     }
 
+    // Marianne's piles (2026-11-27: "every product on these pictures should have a small mark saying Marianne"): a box with a
+    // seller puts the name on every thing read into it - and they are ordinary stock, not Fund.
+    [Test]
+    public async Task Things_from_someone_elses_session_carry_their_name()
+    {
+        var batch = new CaptureBatch([new CapturedPhoto(41, "K5070", "Martin", 0, At)], [],
+            [new CapturedBox("K5070", "Marianne – 27. november", Kind: "Blandet", ReadNow: true, Seller: "Marianne")]);
+        var reader = new Mock<ICoverReader>();
+        reader.SetupGet(r => r.Enabled).Returns(true);
+        reader.Setup(r => r.ReadPileAsync(It.IsAny<byte[]>(), It.IsAny<IReadOnlyList<byte[]>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Pile(F("Mort"), F("Eric")));
+        var intake = Intake(Vareinfo(batch).Object, reader.Object);
+        await intake.FetchAsync();
+        await intake.ReadWantedAsync();
+
+        var box = await Boxes.GetOrAddAsync("K5070", default);
+        box.Seller.Should().Be("Marianne");
+        var things = await Items.InBoxAsync(box.Id, default);
+        things.Should().HaveCount(2).And.OnlyContain(i => i.Seller == "Marianne" && i.Status != Statuses.Fund);
+    }
+
     // Tjek in Vareinfo (2026-11-10): Nej tak per thing, Fortryd back on the list, and only the things of that box.
     [Test]
     public async Task Tjek_says_no_per_thing_takes_it_back_and_knows_its_box()

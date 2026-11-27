@@ -25,7 +25,7 @@ else
     <section class="k-card">
         @* Calm (user 2026-11-16: "i mean there are a lot of info.."): name, one line, the picture, the fields that decide what it is
            and its price - everything else under "Flere oplysninger", closed. *@
-        <h1 class="k-card-title">@_item.Line()</h1>
+        <h1 class="k-card-title">@_item.Line()@if (_item.Seller != "" && _item.Kind != Kinds.Strik) { <span class="lg-seller">@_item.Seller</span> }</h1>
         <p class="k-small">nr. @_item.Id · @(_boxLabel ?? "ingen kasse") · @(_item.Quantity > 1 ? $"{_item.Quantity} stk." : "1 stk.") · @_item.Status@(_item.SoldPrice is { } sp ? $" for {sp:0} kr" : "")@(_item.SoldTo != "" ? $" til {_item.SoldTo}" : "")</p>
         @if (_item.ItemPhoto != "")
         {
