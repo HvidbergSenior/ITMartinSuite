@@ -403,6 +403,12 @@ details.opt > summary::-webkit-details-marker { display: none; }
     color: var(--text); font-size: .95rem; }
 .now-tile .ev-block > div { margin: 4px 0; }
 .now-tile .ev-head { font-weight: 700; margin-bottom: 8px !important; }
+/* The per-hour example as an open box (user 2026-11-27: "make this eksempel as a open box"). */
+.now-tile .run-hours { background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px;
+    margin: 12px auto 0 !important; max-width: 340px; }
+.now-tile .run-hours > div { margin: 3px 0; }
+.now-tile .run-hours .run-hours-head { font-weight: 700; margin-bottom: 6px; }
+.now-tile .run-hours .run-hours-sum { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 6px; }
 .now-tile .ev-row { display: flex; justify-content: space-between; gap: 12px; max-width: 300px; margin-left: auto !important; margin-right: auto !important; }
 
 /* Equal buttons in a row (user 2026-11-27: "should buttons be equally sized?"): same width, centred, fits a phone. */

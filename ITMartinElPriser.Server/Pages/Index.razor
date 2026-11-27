@@ -215,11 +215,12 @@ else
                 @if (_view.RunHours(run.Start) is { Count: > 1 } perHour)
                 {
                     <div class="run-hours">
+                        <div class="run-hours-head">Pris pr. time</div>
                         @foreach (var h in perHour)
                         {
                             <div>Kl. @h.Start.ToString("HH:mm"): @Kwh(h.Kwh) kWh × @Kr(h.KrPerKwh) kr. = <b>@Kr(h.CostKr) kr.</b></div>
                         }
-                        <div>I alt: <b>@Kwh(m.Kwh) kWh = @Kr(run.CostKr) kr.</b></div>
+                        <div class="run-hours-sum">I alt: <b>@Kwh(m.Kwh) kWh = @Kr(run.CostKr) kr.</b></div>
                     </div>
                 }
                 else
