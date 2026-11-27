@@ -42,9 +42,19 @@ authInternalUsers:
     ips: []
     permissions:
       - action: publish
+  # Møde (mode.itmartin.dk, 2026-11-27): the Møde app publishes each person's own camera to mode-<room>-<id>
+  - user: mode
+    pass: __MODE_PASS__
+    ips: []
+    permissions:
+      - action: publish
+        path: ~^mode-
 
 paths:
   live:
   # the viewer Martin gives the floor ("Ræk hånden op") - a new guest replaces the old one
   gaest:
+    overridePublisher: yes
+  # Møde: one path per person in a meeting room
+  ~^mode-[a-z0-9-]+$:
     overridePublisher: yes

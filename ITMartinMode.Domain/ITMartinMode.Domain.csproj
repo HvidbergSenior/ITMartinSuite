@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Møde - the domain: a small closed meeting room (a few people), who is in it, and the shared
+       "De 6 HV" star board (Hvad, Hvorfor, Hvem, Hvor, Hvornår, Hvordan). No files, no HTTP, no video. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+</Project>

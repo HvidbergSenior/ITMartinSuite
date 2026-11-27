@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <!-- "Møde" (Kolibri Kommunikere), 2026-11-27: our own small online meeting room for a few people
+         (følgegruppen, 4 people): everyone's camera + mic through our own MediaMTX (kigmed-media),
+         and the shared "De 6 HV" star board from Acceleratorkurset. Nothing recorded. -->
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>ITMartinMode.Server</RootNamespace>
+        <AssemblyName>ITMartinMode.Server</AssemblyName>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
+        <ProjectReference Include="..\ITMartinMode.Application\ITMartinMode.Application.csproj" />
+        <ProjectReference Include="..\ITMartinMode.Infrastructure\ITMartinMode.Infrastructure.csproj" />
+    </ItemGroup>
+
+</Project>

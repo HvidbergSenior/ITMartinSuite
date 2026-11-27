@@ -1,0 +1,62 @@
+/* Møde - on top of kolibri.css (Kolibri Kommunikere family). */
+.mode { max-width: 1200px; margin: 0 auto; padding: 16px; }
+.dor { max-width: 460px; margin: 32px auto; }
+.dor h1 { margin-top: 0; }
+.fejl { color: #b42318; margin: 0; }
+
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-bottom: 12px; }
+.bar h1 { font-size: 1.3rem; margin: 0; }
+.status { color: var(--k-text-soft, #5b6762); font-size: .9rem; flex: 1; min-width: 120px; }
+.knapper { display: flex; gap: 8px; flex-wrap: wrap; }
+.k-btn.slukket { background: #fde7e4; color: #b42318; border-color: #f4b8b0; }
+.k-btn.forlad { background: #b42318; color: #fff; border-color: #b42318; }
+
+/* videos: 1-2 side by side, 3-4 as 2x2, more as 3 columns */
+.videoer { display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.videoer[data-n="1"] { grid-template-columns: minmax(0, 640px); justify-content: center; }
+.videoer[data-n="5"], .videoer[data-n="6"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tile { position: relative; margin: 0; background: #111; border-radius: 12px; overflow: hidden; aspect-ratio: 16 / 9; }
+.tile video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tile.mig video { transform: scaleX(-1); }
+.tile.ingen-video video { visibility: hidden; }
+.tile figcaption { position: absolute; left: 8px; bottom: 8px; background: rgba(0,0,0,.6); color: #fff; padding: 2px 10px; border-radius: 999px; font-size: .9rem; }
+.tile .vent { position: absolute; inset: 0; display: grid; place-items: center; color: #ddd; font-size: .95rem; }
+.tile .vent[hidden] { display: none; }
+
+/* the star */
+.spil { margin-top: 20px; }
+.spil h2 { margin: 0 0 4px; font-size: 1.15rem; }
+.stjerne { display: grid; gap: 10px; margin-top: 12px;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-areas: "s0 m s1" "s2 m s3" "s4 m s5"; }
+.midte { grid-area: m; display: flex; flex-direction: column; justify-content: center; align-items: stretch; gap: 6px; text-align: center; padding: 8px; }
+.midte svg { width: 70%; max-width: 200px; margin: 0 auto; fill: var(--k-accent); opacity: .85; }
+.s0 { grid-area: s0; } .s1 { grid-area: s1; } .s2 { grid-area: s2; } .s3 { grid-area: s3; } .s4 { grid-area: s4; } .s5 { grid-area: s5; }
+.spids { background: var(--k-card); border: 1px solid var(--k-line, #dde3e0); border-top: 4px solid var(--k-accent); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; min-width: 0; }
+.spids h3 { margin: 0; font-size: 1.05rem; color: var(--k-accent-dark); }
+.spids .hjaelp { margin: 2px 0 6px; font-size: .82rem; color: var(--k-text-soft, #5b6762); }
+.spids ul { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.spids li { background: var(--k-accent-soft); color: var(--k-text); border-radius: 8px; padding: 6px 28px 6px 8px; position: relative; overflow-wrap: anywhere; }
+.spids li small { display: block; font-size: .75rem; opacity: .7; }
+.spids .fjern { position: absolute; top: 2px; right: 4px; border: 0; background: none; font-size: 1.1rem; cursor: pointer; color: inherit; opacity: .6; }
+.spids .fjern:hover { opacity: 1; }
+.spids .ny { display: flex; gap: 6px; }
+.spids .ny input { flex: 1; min-width: 0; }
+.ryd { text-align: right; margin-top: 8px; }
+
+@media (max-width: 760px) {
+    .videoer { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .stjerne { grid-template-columns: 1fr; grid-template-areas: "m" "s0" "s1" "s2" "s3" "s4" "s5"; }
+    .midte svg { width: 30%; }
+}
+
+/* the game's turns */
+.tur { background: var(--k-accent-soft); border-radius: 12px; padding: 12px 16px; margin: 8px 0 12px; }
+.tur p { margin: 0 0 8px; }
+.tur .runde { font-size: .95rem; }
+.tur .taler { font-size: 1.35rem; font-weight: 700; }
+.tur .ur { font-size: 2.4rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--k-accent-dark); margin: 0 0 8px; }
+.tur .ur.slut { color: #b42318; }
+.tile.taler { outline: 4px solid var(--k-accent); outline-offset: -4px; }
+.tile .lytter { position: absolute; right: 8px; top: 8px; background: rgba(0,0,0,.6); color: #fff; padding: 2px 8px; border-radius: 999px; font-size: .8rem; }
+.spids.nu { box-shadow: 0 0 0 3px var(--k-accent); }

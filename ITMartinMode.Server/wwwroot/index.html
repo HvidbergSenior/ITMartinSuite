@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="da" data-family="kommunikere">
+<head>
+    <script>
+        (function () {
+            var t = null; try { t = localStorage.getItem('mode_theme'); } catch (e) { }
+            document.documentElement.setAttribute('data-theme', t || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+        })();
+    </script>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Møde – et lille, lukket mødelokale på nettet. Intet bliver optaget." />
+    <meta name="theme-color" content="#f4f6f5" />
+    <meta name="robots" content="noindex" />
+    <title>Møde</title>
+    <link rel="stylesheet" href="/_content/ITMartin.Shared.UI/css/kolibri.css?v=10" />
+    <link rel="stylesheet" href="/app.css?v=2" />
+    <link rel="icon" href="/_content/ITMartin.Shared.UI/kolibri-icon.svg" />
+    <script src="/app.js?v=3" defer></script>
+</head>
+<body>
+<header class="k-header"><div class="k-header-in"><a href="https://itmartin.dk/" title="Til ITMartin.dk" style="display:flex;flex:none"><img class="k-logo-brand" src="/_content/ITMartin.Shared.UI/itmartin-logo.png" alt="ITMartin – til forsiden"></a><a href="/" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;min-width:0"><div class="k-brand"><b>Møde</b><span>Kolibri Kommunikere</span></div></a><div class="k-header-actions"><button id="themeBtn" class="k-btn k-btn-ghost k-btn-sm" type="button" title="Skift lys/mørk visning">Lys/mørk</button></div></div></header>
+
+<main class="mode">
+    <!-- No room in the address -->
+    <section id="intet" class="k-card dor" hidden>
+        <h1>Møde</h1>
+        <p>Et lille, lukket mødelokale på nettet. Du kommer ind med det link, du har fået.</p>
+        <p><a class="k-btn" href="/om">Om Møde</a></p>
+    </section>
+
+    <!-- The door: only your name -->
+    <section id="dor" class="k-card dor" hidden>
+        <h1 id="dorTitel">Møde</h1>
+        <p class="lead">Skriv dit navn og gå ind. Browseren spørger om kamera og mikrofon – sig <b>Tillad</b>.</p>
+        <form id="dorForm" class="k-stack">
+            <label class="k-label" for="navn">Dit navn</label>
+            <input class="k-input" id="navn" maxlength="40" autocomplete="given-name" required />
+            <button class="k-btn k-btn-primary k-btn-block" type="submit" id="gaaInd">Gå ind</button>
+            <p class="fejl" id="dorFejl" hidden></p>
+            <p class="k-help">Intet bliver optaget. Kun dem med linket kan komme ind.</p>
+        </form>
+    </section>
+
+    <!-- The meeting -->
+    <section id="mode" hidden>
+        <div class="bar">
+            <h1 id="titel">Møde</h1>
+            <span id="status" class="status" role="status"></span>
+            <div class="knapper">
+                <button class="k-btn k-btn-sm" id="mikBtn" type="button">Slå mikrofon fra</button>
+                <button class="k-btn k-btn-sm" id="kamBtn" type="button">Slå kamera fra</button>
+                <button class="k-btn k-btn-sm forlad" id="forladBtn" type="button">Forlad mødet</button>
+            </div>
+        </div>
+
+        <div id="videoer" class="videoer"></div>
+
+        <div class="spil">
+            <h2>De 6 HV – Stjernespidserne</h2>
+            <div class="tur" id="tur">
+                <div id="turFoer">
+                    <p><b>Sådan spiller I:</b> Én fortæller sin idé (ingen tid). Så svarer de andre på tur – 1 minut hver – på ét HV-ord ad gangen, <i>som om det var deres egen idé</i>: Hvad, Hvorfor, Hvem, Hvor, Hvornår, Hvordan. Mens minuttet løber, er kun den, der taler, tændt – de andre lytter. Næste runde fortæller den næste sin idé.</p>
+                    <button class="k-btn k-btn-primary" id="startBtn" type="button">Start spillet</button>
+                </div>
+                <div id="turNu" hidden>
+                    <p class="runde" id="runde"></p>
+                    <p class="taler" id="taler"></p>
+                    <p class="ur" id="ur"></p>
+                    <div class="knapper">
+                        <button class="k-btn k-btn-primary" id="naesteBtn" type="button">Næste</button>
+                        <button class="k-btn k-btn-ghost k-btn-sm" id="stopBtn" type="button">Stop spillet</button>
+                    </div>
+                </div>
+            </div>
+            <p class="k-help"><b>Mens nogen taler, skriver de andre sedler</b> i den spids, der svares på – så samler I det, der bliver sagt, til den, der har idéen. Idéens ejer trykker <b>Hent noterne</b> til sidst.</p>
+            <p class="k-help">Skriv idéen i midten. Skriv sedler i hver spids – alle ser dem med det samme. Tryk × for at fjerne en seddel.</p>
+            <div class="stjerne" id="stjerne">
+                <div class="midte">
+                    <svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="50,4 61,31 90,27 72,50 90,73 61,69 50,96 39,69 10,73 28,50 10,27 39,31"/></svg>
+                    <label class="k-label" for="ide">Idéen</label>
+                    <input class="k-input" id="ide" maxlength="120" placeholder="Fx Bogshoppen på loppemarked" />
+                </div>
+            </div>
+            <p class="ryd"><button class="k-btn k-btn-sm" id="hentBtn" type="button">Hent noterne (tekst)</button> <button class="k-btn k-btn-ghost k-btn-sm" id="rydBtn" type="button">Ryd stjernen (start forfra)</button></p>
+        </div>
+    </section>
+</main>
+</body>
+</html>

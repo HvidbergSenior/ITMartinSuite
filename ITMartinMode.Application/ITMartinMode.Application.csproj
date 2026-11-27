@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Møde - use cases: join, leave, notes on the star board; tells the pages when something changed. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ITMartinMode.Domain\ITMartinMode.Domain.csproj" />
+  </ItemGroup>
+</Project>
