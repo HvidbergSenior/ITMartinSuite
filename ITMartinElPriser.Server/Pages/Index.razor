@@ -165,7 +165,8 @@ else
         {
             <div class="ev-block">
                 <div class="ev-head">Lad bilen de næste @Hours(m.Hours)</div>
-                <div>@Kwh(m.Kwh) kWh · @HomeMachine.HomeChargerKw kW lader</div>
+                @* User 2026-11-27: "Mellem størrelse bil 20 kWh · 11 kW lader". *@
+                <div>Mellemstor bil · @Kwh(m.Kwh) kWh · @HomeMachine.HomeChargerKw kW lader</div>
                 <div class="ev-center">Strømpris: @Kr(RunKrPerKwh(run, m)) kr./kWh</div>
                 <div class="ev-center">Kl. @run.Start.ToString("HH:mm")–@run.End.ToString("HH:mm")</div>
             </div>
