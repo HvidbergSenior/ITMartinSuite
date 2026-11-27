@@ -11,6 +11,8 @@
 /* ---------- 0. Phones: no double-tap zoom (user 2026-11-27, every app) ----------
    Two quick taps on a button must not magnify the page. Pinch zoom stays (people who need bigger text). */
 html, body, button, a, input, select, label, [role=button] { touch-action: manipulation; }
+/* ... and the page never slides sideways under a finger (user 2026-11-27). Wide tables scroll inside their own box. */
+html, body { overflow-x: hidden; overflow-x: clip; overscroll-behavior-x: none; }
 
 /* ---------- 1. Tokens ---------- */
 :root {

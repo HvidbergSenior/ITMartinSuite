@@ -350,6 +350,9 @@ details.opt > summary::-webkit-details-marker { display: none; }
 
 /* The hours the machine runs in (user 2026-11-24): a band behind the columns, so the run reads as one block. */
 /* Shade only the part of each hour the run covers (--rf..--rt, set per column; user 2026-11-26). */
+/* The page must not slide sideways under a finger (user 2026-11-27: "I can move the screen with my finger?"). */
+html, body { overflow-x: hidden; overflow-x: clip; overscroll-behavior-x: none; max-width: 100%; }
+.k-card { overflow-x: clip; }
 /* No double-tap zoom on phones (user 2026-11-27) - pinch zoom still works. */
 html, body, button, .bar-col, .chip { touch-action: manipulation; }
 /* A tap made before the page has connected: shown as pressed, then replayed (App.razor). */
