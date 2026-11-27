@@ -397,9 +397,10 @@ details.opt > summary::-webkit-details-marker { display: none; }
 .now-tile .chips { margin-bottom: 12px; }
 .now-tile .now-verdict { margin-top: 14px; }
 
-/* Elbil block in "Prisen lige nu" (user's sketch 2026-11-27). */
-.now-tile .ev-block { border-top: 1px solid var(--border); margin-top: 16px; padding-top: 14px; text-align: left; }
-.now-tile .ev-block > div { margin: 6px 0; }
-.now-tile .ev-head { font-weight: 700; }
-.now-tile .ev-center { text-align: center; }
-.now-tile .ev-row { display: flex; justify-content: space-between; gap: 12px; }
+/* Elbil block in "Prisen lige nu" (user's sketch 2026-11-27). All centred like the top of the card, the card's normal
+   text colour (not the red/green of the price level) and the same size as "Elbil · 100 km" (user: "css and font ... centerd"). */
+.now-tile .ev-block { border-top: 1px solid var(--border); margin-top: 16px; padding-top: 14px; text-align: center;
+    color: var(--text); font-size: .95rem; }
+.now-tile .ev-block > div { margin: 4px 0; }
+.now-tile .ev-head { font-weight: 700; margin-bottom: 8px !important; }
+.now-tile .ev-row { display: flex; justify-content: space-between; gap: 12px; max-width: 300px; margin-left: auto !important; margin-right: auto !important; }
