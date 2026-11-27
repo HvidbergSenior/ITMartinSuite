@@ -161,7 +161,8 @@ else
             @if (m.Kind == HomeMachine.DishKind)
             {
                 @* Same as the car (user 2026-11-27: "also on opvaskemaskine"): a question + equal age buttons, almindelig the default. *@
-                <div class="now-device">Hvad koster det at køre en opvask?</div>
+                @* The hours in the question (user 2026-11-27) - the big number is the whole run, not per hour. *@
+                <div class="now-device">Hvad koster en opvask på @Hours(m.Hours)?</div>
                 <div class="chips chips-small chips-equal" role="group" aria-label="Maskinens alder">
                     @foreach (var (ageKind, ageName) in new[] { (HomeMachine.DishNewKind, "Ny"), (HomeMachine.DishKind, "Almindelig"), (HomeMachine.DishOldKind, "Gammel") })
                     {
