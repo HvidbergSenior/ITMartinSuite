@@ -134,7 +134,7 @@ else
         </button>
         }
         @* 4 devices (user 2026-11-26: "Opvaskemaskine, Elcykel, Elbil, Kedel"), each with typical numbers. *@
-        <div class="chips chips-small" role="group" aria-label="Vælg apparat">
+        <div class="chips chips-small chips-equal" role="group" aria-label="Vælg apparat">
             @foreach (var kind in HomeMachine.FrontKinds)
             {
                 var k = kind;
@@ -147,7 +147,7 @@ else
             @* Still too complex (user 2026-11-27): only "Elbil · 100 km" here; kWh, hours, ladeboks + full charge are in the fold. *@
             @* User 2026-11-27: "Like hvad koster det at køre 100 km?" + size buttons, mellemstor (20 kWh) the default. *@
             <div class="now-device">Hvad koster det at køre 100 km?</div>
-            <div class="chips chips-small" role="group" aria-label="Bilens størrelse">
+            <div class="chips chips-small chips-equal" role="group" aria-label="Bilens størrelse">
                 @foreach (var (sizeKind, sizeName) in new[] { (HomeMachine.CarSmallKind, "Lille"), (HomeMachine.CarKind, "Mellem"), (HomeMachine.CarBigKind, "Stor") })
                 {
                     var sk = sizeKind;
