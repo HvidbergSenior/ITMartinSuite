@@ -186,7 +186,8 @@ else
             @if (m.Kind == HomeMachine.CarKind)
             {
                 @* Moved down from the top (user 2026-11-27). Full charge: 10 -> 80 % of a typical 70 kWh battery = ~54 kWh from the wall. *@
-                <div class="k-muted small u-center">100 km = @Kwh(m.Kwh) kWh = @Hours(m.Hours) på en @HomeMachine.HomeChargerKw kW ladeboks. Fuld opladning (10 → 80 %): ca. @Hours(HomeMachine.QuarterHours(54 / HomeMachine.HomeChargerKw)).</div>
+                @* User 2026-11-27: "For 100 km kørsel bruger elbiler forskellig kWh ... make it shorter". Full-charge line dropped. *@
+                <div class="k-muted small u-center">100 km kræver ca. @EvExample.Small.KwhPer100Km kWh i en lille elbil og @EvExample.Big.KwhPer100Km kWh i en stor. Med @Kwh(m.Kwh) kWh lader bilen @Hours(m.Hours) på en @HomeMachine.HomeChargerKw kW ladestander.</div>
             }
             @* The span in kr when the device has one (dishwasher), else what the average depends on (user 2026-11-26). *@
             @if (m.Span is { } kwhSpan && run is not null)
