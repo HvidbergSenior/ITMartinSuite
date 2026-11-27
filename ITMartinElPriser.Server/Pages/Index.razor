@@ -90,6 +90,8 @@ else
     // One machine, one price: the chosen machine started now - or at the hour tapped in the bars -
     // and the cheapest start from now on, night included.
     var strip = Strip();
+    var stripMin = strip.Count > 0 ? strip.Min(h => h.KrPerKwh) : 0;
+    var stripMax = strip.Count > 0 ? strip.Max(h => h.KrPerKwh) : 0;
     // Heights on one scale over BOTH whole days (past hours included), colours from each hour's
     // own day (Rank01) - so an hour keeps its height and colour all day instead of changing as
     // the morning's hours drop off the strip (user 2026-10-12: "the night looked different").
@@ -344,7 +346,11 @@ else
                             @* The tag sits where the advice says to START (the whole run's cheapest start), not on the single
                                cheapest hour - two different "billigst" confused (user 2026-11-24). *@
                             @* Each column's own price on it (user 2026-11-26: "shown instead of popup"). *@
-                            <span class="bar-val">@h.KrPerKwh.ToString("0.00", Da)</span>
+                            @* Every second column, the cheapest, the dearest and "nu" (24 columns, user 2026-11-27). *@
+                            @if (h.IsNow || strip.IndexOf(h) % 2 == 0 || h.KrPerKwh == stripMin || h.KrPerKwh == stripMax)
+                            {
+                                <span class="bar-val">@h.KrPerKwh.ToString("0.00", Da)</span>
+                            }
 
                         </div>
                         @* How long the shaded run is, written across the shaded columns (user 2026-11-26: "it should say 2 timer"). *@
@@ -368,6 +374,11 @@ else
                     <span class="@(label.Length > 2 ? "axis-word" : "")">@label</span>
                 }
             </div>
+            @* Only when it matters: before tomorrow's prices are out the strip stops at midnight (user 2026-11-27). *@
+            @if (!hasTomorrow)
+            {
+                <div class="k-muted small u-center u-mt6">Morgendagens priser kommer ca. kl. 13.</div>
+            }
             @* Each column's numbers in words (user 2026-11-24: "each column, how much"): the tapped hour, or now. *@
             @* Start time and the whole run first; the hour's own kWh price last (user 2026-11-24: "20-21?" was confusing). *@
             @{ var shown = picked ?? strip.FirstOrDefault(h => h.IsNow); var shownRun = picked is null ? run : pickedRun;
@@ -655,15 +666,13 @@ else if (_hindsight is { } hs && hs.SavedKr >= 1)
         _ = InvokeAsync(LoadHindsightAsync);
     }
 
-    // The current hour onwards, today and tomorrow in one strip.
-    // From now until the morning after the coming night (06:00), at least 12 and at most 16 hours - so the night is in view
-    // and each column has room for its price (user 2026-11-26: 30+ columns once tomorrow's prices are out was too crowded).
+    // The current hour onwards, today and tomorrow in one strip - the next 24 hours as far as prices exist. The price is
+    // written on every second column + the cheapest and dearest so 24 columns still fit (was 12-16 h, user 2026-11-26).
     private List<HourBar> Strip()
     {
         var now = QuarterNow();
-        var morning = now.Date.AddHours(_s.QuietToHour);
-        if (morning <= now) morning = morning.AddDays(1);
-        var end = morning > now.AddHours(16) ? now.AddHours(16) : morning < now.AddHours(12) ? now.AddHours(12) : morning;
+        // 24 hours ahead, as far as there are prices (user 2026-11-27: "maybe the columns should cover 24 hours?" - "yes").
+        var end = now.AddHours(24);
         return [.. (_snap?.Today?.Hours ?? []).Concat(_snap?.Tomorrow?.Hours ?? []).Where(h => !h.IsPast && h.Start < end)];
     }
 
