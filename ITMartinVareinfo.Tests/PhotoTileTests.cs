@@ -36,6 +36,14 @@ public class PhotoTileTests
     public async Task A_small_photo_gives_no_close_ups()
     {
         var store = new FilePhotoStore(Path.GetTempPath());
-        (await store.TilesAsync(await Jpeg(1600, 1200), CancellationToken.None)).Should().BeEmpty();
+        (await store.TilesAsync(await Jpeg(1500, 1125), CancellationToken.None)).Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task A_photo_sent_through_Messenger_still_gets_close_ups()
+    {
+        // 2026-11-28: Marianne's 2048 px photos had none, and ~60 boxes per photo gave ~15 things.
+        var store = new FilePhotoStore(Path.GetTempPath());
+        (await store.TilesAsync(await Jpeg(1536, 2048), CancellationToken.None)).Should().HaveCount(4);
     }
 }

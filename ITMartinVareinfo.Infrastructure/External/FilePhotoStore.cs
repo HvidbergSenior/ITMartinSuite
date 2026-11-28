@@ -24,13 +24,14 @@ public sealed class FilePhotoStore(string dataDir) : IPhotoStore
         return ms.ToArray();
     }
 
-    // 2x2 parts with 12 % overlap, so a book on a cut line is whole in at least one part. Only for photos over 2200 px -
-    // below that a part shows nothing the whole picture did not.
+    // 2x2 parts with 12 % overlap, so a book on a cut line is whole in at least one part. For every photo that is shrunk
+    // for reading (over MaxEdge) - was 2200 px until 2026-11-28, which left Messenger photos (2048 px, ~60 DVD boxes each)
+    // without close-ups and the AI read only ~15 per photo. A photo already small enough shows nothing a part would not.
     public async Task<List<byte[]>> TilesAsync(Stream photo, CancellationToken ct)
     {
         using var img = await Image.LoadAsync(photo, ct);
         img.Mutate(x => x.AutoOrient());
-        if (Math.Max(img.Width, img.Height) < 2200) return [];
+        if (Math.Max(img.Width, img.Height) <= MaxEdge) return [];
         var tiles = new List<byte[]>();
         int w = (int)(img.Width * 0.56), h = (int)(img.Height * 0.56);
         foreach (var (x, y) in new[] { (0, 0), (img.Width - w, 0), (0, img.Height - h), (img.Width - w, img.Height - h) })
