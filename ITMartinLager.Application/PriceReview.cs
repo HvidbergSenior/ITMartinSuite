@@ -16,7 +16,9 @@ public sealed class PriceReviewUseCases(ItemUseCases items, IBoxRepository boxRe
     private async Task<List<Item>> PileAsync(string pile, CancellationToken ct)
     {
         if (pile == VurderingPiles.OneAd) return await OneAdAsync(ct);
-        return (await items.SearchAsync("", null, Valuation(pile), ct))?.Hits.Where(i => Statuses.Ours(i.Status) && i.Status != Statuses.Solgt && Sure(i)).ToList() ?? [];
+        // A thing with the person's own price is done (user 2026-11-28: "I put price and gem" and it came back in Ingen pris).
+        return (await items.SearchAsync("", null, Valuation(pile), ct))?.Hits
+            .Where(i => Statuses.Ours(i.Status) && i.Status != Statuses.Solgt && Sure(i) && !(pile == VurderingPiles.NoPrice && i.Price is > 0)).ToList() ?? [];
     }
 
     /// <summary>Things whose suggestion rests on ONE high ad (Pricing.OneHighAd) - dearest first. One query for all finds.</summary>
