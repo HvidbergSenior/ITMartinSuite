@@ -208,7 +208,10 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
                 $" Billede 1 er hele bunken. Billede 2-{closeUps.Count + 1} er nærbilleder af SAMME bunke i høj opløsning"
                 + " (øverst til venstre, øverst til højre, nederst til venstre, nederst til højre - de overlapper lidt)."
                 + " Brug hele billedet til at tælle varerne og nærbillederne til at læse titel, forfatter og nummer bogstav for bogstav."
-                + " En vare, der ses på flere billeder, er stadig ÉN vare.");
+                + " En vare, der ses på flere billeder, er stadig ÉN vare.")
+            // 2026-11-28: a floor of ~79 CDs gave 21 things; counting first gave 78 (test on Marianne's DJFG2443).
+            + " Tæl FØRST hvert enkelt cover, etui og blad på hele billedet, række for række. Skriv derefter præcis én vare for hvert"
+            + " af dem - spring ingen over, også de svære (sæt lav confidence). Samme titel flere gange = én vare med quantity.";
         var content = new List<ContentBlockParam>
         {
             new ImageBlockParam { Source = new Base64ImageSource { Data = Convert.ToBase64String(jpeg), MediaType = "image/jpeg" } },
@@ -245,11 +248,11 @@ public sealed class ClaudeCoverReader(IConfiguration cfg, IDbContextFactory<Lage
                 Params = new()
                 {
                     Model = PileModel,
-                    MaxTokens = 12000,
+                    MaxTokens = 32000,
                     System = new List<TextBlockParam> { new() { Text = System, CacheControl = new CacheControlEphemeral() } },
                     Tools = [ReportTool],
                     ToolChoice = forced ? new ToolChoiceTool { Name = "report_items" } : new ToolChoiceAuto(),
-                    OutputConfig = forced ? null : new OutputConfig { Effort = Effort.Low },
+                    OutputConfig = forced ? null : new OutputConfig { Effort = Effort.Medium },   // Low skipped most of a crowded pile (2026-11-28)
                     Messages = [new() { Role = Role.User, Content = content }],
                 },
             };
