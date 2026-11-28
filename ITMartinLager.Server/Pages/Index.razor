@@ -8,9 +8,13 @@
 
 <PageTitle>Søg – Bogshoppen Lager</PageTitle>
 
-@* Lager's job (2026-11-15): fix the difficult ones - first on the page. *@
+@* Fewer, simpler (user 2026-11-28: "remove unnecessary features ... Hurtig gennemgang, Ret de svære en af gangen, Tjek bladenes
+   billeder, fotoliste, stikprøve, værktøjer"): the top card is only new photos (Send nu) and the hopeless/retake lists, when there
+   are any. The pages still exist by address, without links. *@
+@if (_waiting.NotSent + _waiting.Sent > 0 || _hopeless.Count > 0 || _discarded.Count > 0 || _unreadable.Count > 0 || _sendMsg is not null)
+{
 <section class="k-card">
-    <h1 class="k-card-title">Ret de svære</h1>
+    <h1 class="k-card-title">Nye billeder</h1>
     @if (_waiting.NotSent + _waiting.Sent > 0)
     {
         @* The Batch API: half price, sent only when Martin says Send nu (2026-11-25: "no automatic"). *@
@@ -20,16 +24,6 @@
             <button class="k-btn k-btn-primary" disabled="@_sending" @onclick="SendNow">Send nu – læs de @_waiting.NotSent billeder</button>
         }
         @if (_sendMsg is not null) { <p class="lg-ok" role="status">@_sendMsg</p> }
-    }
-    @if (_unsure.Count == 0)
-    {
-        <p class="lg-ok" role="status">Færdig – AI'en var sikker på alt. Der er intet at rette.</p>
-    }
-    else
-    {
-        <p>@Dk(_unsure.Count) ting, hvor AI'en var usikker – de værste først. Se på billedet, ret det, der er forkert, og tryk <b>Gem og næste</b>.</p>
-        <a class="k-btn k-btn-primary lg-big" href="/hurtig">Hurtig gennemgang – 20 ad gangen</a>
-        <a class="k-btn lg-big" href="/vare/@_unsure[0]?ret=1">Ret de svære én ad gangen (@Dk(_unsure.Count))</a>
     }
     @* "Kassér de værste" (2026-11-16): readings below Readings.HopelessBelow are "Ukendt" / "kun kanten synlig" - out in one go,
        kept in Lager as Ikke købt, Fortryd brings them all back. *@
@@ -70,6 +64,7 @@
         </details>
     }
 </section>
+}
 
 <section class="k-card">
     @* Simple first (user 2026-11-10: "It should be simple for me"): the search field, and every filter folded under "Flere valg". *@
@@ -197,7 +192,7 @@
 @if (Admin)
 {
     @* Until Guld, Bøger, Kiosk, Tilbud, Strik, Ting and Magic have moved (2026-11-15): small, at the bottom. Kasser stays reachable too. *@
-    <p class="k-small k-muted lg-bottom-links"><a href="/kasser">Alle kasser</a> · <a href="/blade-billeder">Tjek bladenes billeder</a> · <a href="/fotoliste">Fotoliste</a> · <a href="/stikproeve">Stikprøve af priserne</a> · <a href="/mere">Værktøjer, der flytter snart</a></p>
+    <p class="k-small k-muted lg-bottom-links"><a href="/kasser">Alle kasser</a></p>
 }
 
 @code {

@@ -18,7 +18,7 @@ builder.Services.AddKolibri(k =>
     k.Name = "Bogshoppen Lager";
     k.KolibriName = "Kolibri Rede";
     k.Family = "rede";
-    k.Tagline = "Alt det, vi har – og ret de svære.";
+    k.Tagline = "Alt det, vi har – find det, ret det.";
     k.About =
     [
         "Bogshoppen Lager er registret over alt det, Bogshoppen har: bøger, Anders And-blade, Jumbobøger, tegneserier, magasiner, CD'er, DVD'er, Blu-rays, spil og Magic-kort. Formål: find en vare, se den, ret den.",
@@ -26,7 +26,7 @@ builder.Services.AddKolibri(k =>
     ];
     k.HowTo =
     [
-        "Ret de svære (øverst på forsiden): de ting, hvor AI'en var usikker – én ad gangen. Se på billedet, ret det, der er forkert, og tryk Gem og næste (eller Spring over). Står der Færdig, er der intet at rette. Priserne sættes i Vurdering.",
+        "Forsiden er kun to ting: Nye billeder (Send nu, når der venter nogen) og Find en vare. Priserne sættes i Priser (Vurdering).",
         "Billederne læses først, når du trykker Send nu på forsiden – ingenting sendes af sig selv, og de kan vente så længe du vil. De sendes i én samlet omgang til halv pris, og svarene kommer som regel inden for en time. Indtil da står der øverst, hvor mange der venter. Billeder, der skal tages igen (drejet, uskarpt, for langt væk …), står under Tag igen med grunden.",
         "Søg: skriv titel, kunstner, serie, nummer eller år. Nye i dag viser dagens ting, og Vis de interessante viser guld, sølv, bronze og måske. Flere valg har kasse, kategori, sprog og pris. Fjern tager en forkert læst vare ud af listen – den gemmes som Ikke købt, og Fortryd bringer den tilbage. På en vare fører \"Tilbage til listen\" til den samme søgning. Et prismærke på tingen bliver dækket på dens billede (nye billeder).",
         "Kasser: hver dag fra Vareinfo er én kasse. Skriv kassens navn (fx 15. november) i søgefeltet for at se alt fra den.",
@@ -34,7 +34,7 @@ builder.Services.AddKolibri(k =>
         "Ret det, AI'en har læst forkert, på varens side. Står der ⚠ Tjek navn ved en vare, var AI'en usikker – se efter på billedet, ret navnet og tryk Gem. Først da kommer den på bogshoppen.dk.",
         "Priserne findes på DBA, GulogGratis, Accord (brugte cd'er og plader), Nemos Bibliotek, Faraos og AbeBooks (antikvariater – kun de 2 mest realistiske vises). Nypriser: Bog & idé (bøger) og Fantask (tegneserier) - en brugt bliver aldrig dyrere. Discogs viser hvilken plade det er, og hvor mange samlere der ønsker den, men tæller ikke med i prisen.",
         "DBA og GulogGratis søges kun i den kategori, tingen hører til: blade og bøger under Bøger og Samlerobjekter, film og musik under Musik og film, spil under spil. Så finder »E-Man« ikke længere lastbiler, og »Vox« ikke forstærkere. Et navn med bindestreg (X-Men, E-Man, X-Force) skal stå helt i annoncen, og korte ord skal være hele ord – »man« tæller ikke i »Manhattan«.",
-        "Ret de svære: de værste først. Under »De værste« står dem, AI'en næsten ikke kunne læse (under 25 %) – »Kassér alle« fjerner dem på én gang (gemt som Ikke købt, »Fortryd« henter dem tilbage). »Tag igen«: »Fjern« tager et billede af listen; selve billedet bliver på NAS'en.",
+        "Under Nye billeder: »De værste« er dem, AI'en næsten ikke kunne læse (under 25 %) – »Kassér alle« fjerner dem på én gang (gemt som Ikke købt, »Fortryd« henter dem tilbage). »Tag igen«: »Fjern« tager et billede af listen; selve billedet bliver på NAS'en.",
         "Billeder i butikken: bogshoppen.dk viser kun rigtige udsnit – ikke hele bunken, ikke smalle striber (fx kun ryggen af en cd) og ikke små billeder. Tingen er stadig til salg (»billede kommer«). I Priser står der hvorfor, og »Ret udsnittet« eller et nyt billede retter det.",
         "Priser sættes i Priser (Vurdering) – derfor er der ikke længere et Pris-filter i Lager.",
         "Sådan findes prisen (prisanalysen 16. november): annoncer (DBA og GulogGratis) vises kun som links – de er det, sælgerne håber på, ofte 2-5 gange mere end det, ting faktisk sælges for. Cd'er og plader: Discogs. Tegneserier og blade: Faraos og Nemos. Film: standardprisen. Ny og Som ny bøger: 25 % under Bog & idé, med Bog & idés link og pris som bevis. Når en slags har 50 salg, retter forslaget sig efter det, der faktisk blev solgt for.",
@@ -47,9 +47,9 @@ builder.Services.AddKolibri(k =>
         "Genrer: musik, film og bøger får af sig selv en genre (fx Dansktop, Punk, Krimi, Børnefilm) fra gratis kilder – MusicBrainz, TMDb og Open Library. Tegneserier, blade og spil får genren ud fra serien og titlen (fx Jonah Hex = Western, Basserne = Humor, Anders And = Disney). Hver ting slås op én gang, uden AI. Kunderne vælger genren i butikken på bogshoppen.dk.",
         "Standardpris, når der ikke er fundet en pris (sikker læsning, søgt): cd 15 kr, dvd 20, vinyl 20, vhs 10, blu-ray 25, bog 25, tegneserie 25, superhelteblad 40, jumbobog 20 – andre slags får kategoriens pris. Anders And-blade er 3 kr stk. Er AI'en usikker, venter varen på en person.",
         "💎 Sjælden – vurderes manuelt: sæt hak på en vare (fx et gammelt Anders And-blad). Den kommer ud af 3 kr-kassen, får ingen automatisk pris og venter i Vurdering under Skal vurderes, hvor du skriver en kommentar, sætter prisen eller sender den på auktion.",
-        "Guld, sølv og bronze og Ny i kiosken er flyttet til Vurdering. Bøger, Dagens tilbud, Strik, Ting og Magic står under »Værktøjer, der flytter snart« nederst på forsiden, indtil de flytter til Vurdering, Salg og deres egne apps.",
+        "Guld, sølv og bronze og Ny i kiosken er flyttet til Vurdering. Nederst på forsiden er der kun Alle kasser.",
     ];
-    k.Version = "2026.11.16";
+    k.Version = "2026.11.28";
     k.ThemeColor = "#f4f6f5";
 });
 
